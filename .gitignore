@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+.conda-env/
+*.egg-info/
+dist/
+build/
+eggs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+ehthumbs.db
+
+# Logs and recordings
+logs/
+recordings/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Local configuration
+config.local.*
+*.local
