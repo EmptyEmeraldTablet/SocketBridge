@@ -204,13 +204,14 @@ def start_ai_mode():
     """Start AI mode"""
     print_section("Starting AI Combat System")
 
+    orchestrator = None  # Initialize to avoid unbound variable warnings
+    bridge = None
+
     try:
-        from socketbridge import (
-            IsaacBridge,
-            SimpleAI,
-            EnhancedCombatOrchestrator,
-            AIConfig,
-        )
+        # Import directly from modules
+        from isaac_bridge import IsaacBridge
+        from orchestrator import SimpleAI
+        from orchestrator_enhanced import EnhancedCombatOrchestrator, AIConfig
 
         # Create configuration
         config = AIConfig(
@@ -242,7 +243,8 @@ def start_ai_mode():
         @bridge.on("disconnected")
         def on_disconnected():
             print(f"\n{YELLOW}Game disconnected{RESET}")
-            orchestrator.disable()
+            if orchestrator is not None:
+                orchestrator.disable()
 
         @bridge.on("data")
         def on_game_data(data):
@@ -250,11 +252,9 @@ def start_ai_mode():
             control = orchestrator.update(data)
 
             # Send input
-            if control.move_x != 0 or control.move_y != 0 or control.shoot:
-                bridge.send_input(
-                    move=(control.move_x, control.move_y),
-                    shoot=(control.shoot_x, control.shoot_y) if control.shoot else None,
-                )
+            move = (control.move_x, control.move_y)
+            shoot = (control.shoot_x, control.shoot_y) if control.shoot else (0, 0)
+            bridge.send_input(move=move, shoot=shoot)
 
             # Progress update
             frame_count[0] += 1
@@ -262,10 +262,13 @@ def start_ai_mode():
             if now - last_report[0] >= 5.0:
                 last_report[0] = now
                 stats = orchestrator.get_performance_stats()
+                state_val = (
+                    orchestrator.current_state.value
+                    if hasattr(orchestrator.current_state, "value")
+                    else "N/A"
+                )
                 print(
-                    f"\n  Frames: {stats['decisions']} | "
-                    f"DPS: {stats['enemies_killed']} | "
-                    f"HP: {orchestrator.current_state.value if hasattr(orchestrator.current_state, 'value') else 'N/A'}"
+                    f"\n  Frames: {stats['decisions']} | DPS: {stats['enemies_killed']} | HP: {state_val}"
                 )
 
         print("Starting AI combat system...")
@@ -278,8 +281,13 @@ def start_ai_mode():
 
     except KeyboardInterrupt:
         print(f"\n\n{YELLOW}Stopping AI...{RESET}")
-        if "orchestrator" in dir():
+        if orchestrator is not None:
             orchestrator.disable()
+        if bridge is not None:
+            try:
+                bridge.stop()
+            except Exception:
+                pass
     except Exception as e:
         import traceback
 
