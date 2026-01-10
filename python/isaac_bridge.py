@@ -14,6 +14,7 @@ import socket
 import json
 import threading
 import time
+import struct
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, Callable, List, Tuple
@@ -259,22 +260,11 @@ class IsaacBridge:
                     if old_receive_thread.is_alive():
                         logger.debug("Old receive thread still alive, forcing cleanup")
                         # Thread still alive, force close the old socket
-                        if old_client:
-                            try:
-                                old_client.shutdown(socket.SHUT_RDWR)
-                            except:
-                                pass
-                            try:
-                                old_client.close()
-                            except:
-                                pass
+                        self._safe_close_socket(old_client)
 
                 # Clean up old client reference if not already done
                 if old_client and old_client != self.client:
-                    try:
-                        old_client.close()
-                    except:
-                        pass
+                    self._safe_close_socket(old_client)
 
                 # Non-blocking check for immediate disconnection
                 # (e.g., if client sends FIN immediately after connect)
@@ -397,6 +387,34 @@ class IsaacBridge:
         # 连接断开处理（只在一个地方处理）
         self._handle_disconnect()
 
+    def _safe_close_socket(self, sock: Optional[socket.socket]):
+        """
+        安全关闭 socket，避免 TIME_WAIT 问题
+
+        在 Windows 上，shutdown() 后立即 close() 会导致端口进入 TIME_WAIT 状态。
+        为避免此问题，我们：
+        1. 只调用 close()，不调用 shutdown()
+        2. 使用 SO_LINGER 设置零超时，确保立即关闭
+
+        Args:
+            sock: 要关闭的 socket
+        """
+        if not sock:
+            return
+
+        try:
+            if sock.fileno() >= 0:
+                # 设置 SO_LINGER 为 0，避免 TIME_WAIT
+                # l_onoff=1, l_linger=0 表示立即关闭，不等待发送缓冲区
+                sock.setsockopt(
+                    socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0)
+                )
+                sock.close()
+        except (OSError, BrokenPipeError, ConnectionResetError):
+            pass  # socket 可能已经关闭
+        except Exception:
+            pass
+
     def _handle_disconnect(self):
         """处理连接断开，清理资源并触发事件"""
         # 使用锁防止竞争条件
@@ -409,19 +427,10 @@ class IsaacBridge:
             # 设置重连阻止时间，给TIME_WAIT sockets时间清理
             self._reconnect_blocked_until = time.time() + 2.0
 
-            # 清理客户端连接（只在 socket 仍然有效时关闭）
+            # 清理客户端连接
             if self.client:
                 try:
-                    # 检查 socket 是否仍然有效
-                    if self.client.fileno() >= 0:
-                        try:
-                            self.client.shutdown(socket.SHUT_RDWR)
-                        except (OSError, BrokenPipeError, ConnectionResetError):
-                            pass  #  socket 可能已经关闭
-                        try:
-                            self.client.close()
-                        except (OSError, BrokenPipeError):
-                            pass
+                    self._safe_close_socket(self.client)
                 except Exception:
                     pass
                 finally:
