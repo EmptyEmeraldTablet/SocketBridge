@@ -189,6 +189,12 @@ def start_basic_mode():
         print(f"  Port: 9527")
         print(f"\n{YELLOW}Waiting for game connection... (Ctrl+C to stop){RESET}\n")
 
+        bridge.start()
+
+        if not bridge.running:
+            print(f"{RED}Server failed to start{RESET}")
+            return False
+
         while bridge.running and not bridge.connected:
             time.sleep(0.1)
             if not bridge.running:
@@ -283,6 +289,12 @@ def start_ai_mode():
         print(f"  Aggression: {config.attack_aggression:.0%}")
         print(f"  Movement: {config.movement_style}")
         print(f"\n{YELLOW}Waiting for game connection... (Ctrl+C to stop){RESET}\n")
+
+        bridge.start()
+
+        if not bridge.running:
+            print(f"{RED}Server failed to start{RESET}")
+            return False
 
         while bridge.running and not bridge.connected:
             time.sleep(0.1)
