@@ -487,7 +487,7 @@ class EnhancedCombatOrchestrator:
         self, battle_states: Dict[str, Any], strategy: Optional[StrategyType]
     ) -> str:
         """Determine movement type from state and strategy"""
-        movement_state = battle_states.get("movement_state")
+        movement_state = battle_states.get("movement")
 
         if movement_state == MovementState.FLEEING:
             return "evade"
@@ -504,7 +504,7 @@ class EnhancedCombatOrchestrator:
         self, battle_states: Dict[str, Any], strategy: Optional[StrategyType]
     ) -> bool:
         """Determine if should attack"""
-        battle_state = battle_states.get("battle_state")
+        battle_state = battle_states.get("battle")
 
         if battle_state in [BattleState.AGGRESSIVE]:
             return True

@@ -261,46 +261,30 @@ def start_ai_mode():
 
         @bridge.on("data")
         def on_game_data(data):
-            if frame_count[0] == 0:
+            control = orchestrator.update(data)
+
+            move = (int(control.move_x), int(control.move_y))
+            shoot = (
+                (int(control.shoot_x), int(control.shoot_y))
+                if control.shoot
+                else (0, 0)
+            )
+            bridge.send_input(move=move, shoot=shoot)
+
+            frame_count[0] += 1
+
+            now = time.time()
+            if now - last_report[0] >= 5.0:
+                last_report[0] = now
+                stats = orchestrator.get_performance_stats()
+                state_val = (
+                    orchestrator.current_state.value
+                    if hasattr(orchestrator.current_state, "value")
+                    else "N/A"
+                )
                 print(
-                    f"[DEBUG] First data: type={type(data)}, keys={list(data.keys()) if isinstance(data, dict) else 'N/A'}"
+                    f"\n  Frames: {stats['decisions']} | DPS: {stats['enemies_killed']} | HP: {state_val}"
                 )
-
-            try:
-                control = orchestrator.update(data)
-
-                if frame_count[0] < 5:
-                    print(
-                        f"[DEBUG] Control: move=({control.move_x}, {control.move_y}), shoot={control.shoot}"
-                    )
-
-                move = (int(control.move_x), int(control.move_y))
-                shoot = (
-                    (int(control.shoot_x), int(control.shoot_y))
-                    if control.shoot
-                    else (0, 0)
-                )
-                bridge.send_input(move=move, shoot=shoot)
-
-                frame_count[0] += 1
-
-                now = time.time()
-                if now - last_report[0] >= 5.0:
-                    last_report[0] = now
-                    stats = orchestrator.get_performance_stats()
-                    state_val = (
-                        orchestrator.current_state.value
-                        if hasattr(orchestrator.current_state, "value")
-                        else "N/A"
-                    )
-                    print(
-                        f"\n  Frames: {stats['decisions']} | DPS: {stats['enemies_killed']} | HP: {state_val}"
-                    )
-            except Exception as e:
-                import traceback
-
-                print(f"[ERROR] Error in on_game_data: {e}")
-                traceback.print_exc()
 
         print("Starting AI combat system...")
         print(f"  Mode: Enhanced Combat")
