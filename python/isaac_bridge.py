@@ -143,6 +143,9 @@ class IsaacBridge:
             "errors": 0,
         }
 
+        # 重连控制
+        self._reconnect_blocked_until = 0.0  # 阻止新连接的时间戳
+
     def start(self):
         """启动服务器"""
         # 检查是否已在运行
@@ -152,10 +155,13 @@ class IsaacBridge:
 
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # Add TCP_NODELAY to reduce latency for small frequent messages
+        self.server.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
         try:
             self.server.bind((self.host, self.port))
-            self.server.listen(1)
+            # Increase backlog to allow more queued connection attempts
+            self.server.listen(5)
             self.running = True
 
             # 创建新的接受线程
@@ -217,28 +223,21 @@ class IsaacBridge:
             if not self.server:
                 break
 
+            # Check if we should block new connections temporarily
+            # This gives TIME_WAIT sockets time to clear
+            if time.time() < self._reconnect_blocked_until:
+                time.sleep(0.1)
+                continue
+
             try:
                 self.server.settimeout(1.0)
                 client, addr = self.server.accept()
 
-                # 关闭旧连接（只在存在且有效时）
-                if self.client:
-                    try:
-                        # 检查旧 socket 是否仍然有效
-                        if self.client.fileno() >= 0:
-                            try:
-                                self.client.shutdown(socket.SHUT_RDWR)
-                            except (OSError, BrokenPipeError, ConnectionResetError):
-                                pass
-                            try:
-                                self.client.close()
-                            except (OSError, BrokenPipeError):
-                                pass
-                    except (OSError, Exception):
-                        pass
-                    finally:
-                        self.client = None
+                # Store old connection for graceful cleanup
+                old_client = self.client
+                old_receive_thread = self._receive_thread
 
+                # Set new connection as active immediately
                 self.client = client
                 self.client_addr = addr
                 self.connected = True
@@ -247,20 +246,57 @@ class IsaacBridge:
                 logger.info(f"Client connected: {addr}")
                 self._trigger_handlers("connected", {"address": addr})
 
-                # 启动接收线程
+                # Start new receive thread
                 self._receive_thread = threading.Thread(
                     target=self._receive_loop, daemon=True
                 )
                 self._receive_thread.start()
 
-                # 等待接收线程结束（最多5秒，避免永久阻塞）
-                self._receive_thread.join(timeout=5.0)
-                if self._receive_thread.is_alive():
-                    logger.warning(
-                        "Receive thread did not exit cleanly, forcing disconnect..."
-                    )
+                # Gracefully cleanup old connection after new one is established
+                if old_receive_thread and old_receive_thread.is_alive():
+                    # Give old thread 1 second to finish gracefully
+                    old_receive_thread.join(timeout=1.0)
+                    if old_receive_thread.is_alive():
+                        logger.debug("Old receive thread still alive, forcing cleanup")
+                        # Thread still alive, force close the old socket
+                        if old_client:
+                            try:
+                                old_client.shutdown(socket.SHUT_RDWR)
+                            except:
+                                pass
+                            try:
+                                old_client.close()
+                            except:
+                                pass
+
+                # Clean up old client reference if not already done
+                if old_client and old_client != self.client:
+                    try:
+                        old_client.close()
+                    except:
+                        pass
+
+                # Non-blocking check for immediate disconnection
+                # (e.g., if client sends FIN immediately after connect)
+                time.sleep(0.05)  # Brief pause to allow initial handshake
+
+                # Check if new client is still alive
+                try:
+                    if self.client and self.client.fileno() >= 0:
+                        # Quick test - try to get socket error status
+                        error = self.client.getsockopt(
+                            socket.SOL_SOCKET, socket.SO_ERROR
+                        )
+                        if error != 0:
+                            logger.warning(
+                                f"New socket has error {error}, disconnecting"
+                            )
+                            self._handle_disconnect()
+                            continue
+                except:
+                    # Socket may already be closed
                     self._handle_disconnect()
-                self._receive_thread = None
+                    continue
 
             except socket.timeout:
                 continue
@@ -274,10 +310,6 @@ class IsaacBridge:
                     logger.error(f"Accept error: {e}")
                     self.stats["errors"] += 1
                 break
-            except Exception as e:
-                if self.running:
-                    logger.error(f"Accept error: {e}")
-                    self.stats["errors"] += 1
 
     def _receive_loop(self):
         """接收数据循环"""
@@ -373,6 +405,9 @@ class IsaacBridge:
                 return  # 已经断开，不需要重复处理
 
             self.connected = False
+
+            # 设置重连阻止时间，给TIME_WAIT sockets时间清理
+            self._reconnect_blocked_until = time.time() + 2.0
 
             # 清理客户端连接（只在 socket 仍然有效时关闭）
             if self.client:
