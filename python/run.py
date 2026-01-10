@@ -189,7 +189,14 @@ def start_basic_mode():
         print(f"  Port: 9527")
         print(f"\n{YELLOW}Waiting for game connection... (Ctrl+C to stop){RESET}\n")
 
-        bridge.start()
+        while bridge.running and not bridge.connected:
+            time.sleep(0.1)
+            if not bridge.running:
+                print(f"\n{RED}Server stopped unexpectedly{RESET}")
+                return False
+
+        while bridge.running and bridge.connected:
+            time.sleep(0.1)
 
     except KeyboardInterrupt:
         print(f"\n\n{YELLOW}Stopping bridge...{RESET}")
@@ -277,7 +284,14 @@ def start_ai_mode():
         print(f"  Movement: {config.movement_style}")
         print(f"\n{YELLOW}Waiting for game connection... (Ctrl+C to stop){RESET}\n")
 
-        bridge.start()
+        while bridge.running and not bridge.connected:
+            time.sleep(0.1)
+            if not bridge.running:
+                print(f"\n{RED}Server stopped unexpectedly{RESET}")
+                return False
+
+        while bridge.running and bridge.connected:
+            time.sleep(0.1)
 
     except KeyboardInterrupt:
         print(f"\n\n{YELLOW}Stopping AI...{RESET}")
