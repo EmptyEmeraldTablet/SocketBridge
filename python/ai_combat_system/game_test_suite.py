@@ -7,9 +7,9 @@ AI Combat System - 游戏测试脚本
 3. 安全的spawn机制，防止游戏崩溃
 
 注意事项:
-- spawn指令有严格冷却时间（默认3秒）
-- 每次测试场景的敌人生成数量有限制
-- 包含自动清理机制
+- spawn指令有严格冷却时间（默认20秒）
+- 每次测试场景的敌人生成数量有限制（单次最多2个）
+- 包含自动清理机制（使用 debug 10 命令）
 
 使用方法:
 1. 先启动游戏并启用SocketBridge模组
@@ -191,8 +191,11 @@ class SafeSpawner:
         """
         安全生成敌人
 
+        控制台命令格式: spawn <entity_id>.[type].[subtype].[champion]
+        示例: spawn 10.0.0 (Fly), spawn 18.0.0 (Maw)
+
         Args:
-            enemy_type: 敌人类型 (格式: "type.variant.subtype")
+            enemy_type: 敌人类型ID (格式: "entity.type.subtype")
             count: 生成数量
             champion: 是否生成Champion版本
 
@@ -257,10 +260,11 @@ class SafeSpawner:
 
     def clear_enemies(self):
         """清理当前房间的敌人"""
-        # 使用游戏命令清理敌人
-        self.bridge.send_console_command("gridspawn 9")  # 清理所有敌人
-        time.sleep(0.5)
-        logger.info("已清理房间敌人")
+        # 使用 debug 10 命令杀死房间内所有敌人
+        # debug 10 是游戏内置的秒杀所有敌人命令
+        self.bridge.send_console_command("debug 10")
+        time.sleep(0.3)
+        logger.info("已清理房间所有敌人")
 
     def get_status(self) -> Dict:
         """获取生成器状态"""
