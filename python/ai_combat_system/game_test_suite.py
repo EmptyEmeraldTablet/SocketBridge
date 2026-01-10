@@ -68,20 +68,6 @@ class TestScenario(Enum):
 
 
 @dataclass
-class SpawnConfig:
-    """生成配置"""
-
-    # 冷却时间（秒）- 防止过度生成导致游戏崩溃，20秒以上
-    spawn_cooldown: float = 20.0
-    # 单次测试最大生成数量
-    max_per_spawn: int = 2
-    # 房间内最大敌人数量（通过游戏数据检测）
-    max_enemies_in_room: int = 6
-    # 生成间隔（帧）
-    spawn_interval_frames: int = 60
-
-
-@dataclass
 class TestResult:
     """测试结果"""
 
@@ -96,187 +82,93 @@ class TestResult:
     duration_ms: float = 0.0
 
 
-class SafeSpawner:
+# 常用敌人类型 (entity.type.subtype 格式)
+COMMON_ENEMIES = {
+    "fly": "10.0.0",  # Fly
+    "spider": "11.0.0",  # Spider
+    "maw": "18.0.0",  # Maw
+    "horf": "19.0.0",  # Horf
+    "knife": "20.0.0",  # Knife
+    "leaper": "24.0.0",  # Leaper
+    "baby": "26.0.0",  # Baby
+    "globin": "2001.0",  # Globin
+    "cochleary": "2002.0",  # Cochleary
+}
+
+
+def spawn_enemy(bridge: IsaacBridge, enemy_type: str, count: int = 1) -> bool:
     """
-    安全生成器 - 防止过度生成导致游戏崩溃
+    直接使用控制台命令生成敌人
 
-    保护措施:
-    1. 生成冷却时间
-    2. 单次生成数量限制
-    3. 总体敌人数量限制
-    4. 生成间隔控制
+    Args:
+        bridge: IsaacBridge 实例
+        enemy_type: 敌人类型 (如 "10.0.0" 或预定义键如 "fly")
+        count: 生成数量
+
+    Returns:
+        bool: 是否成功
     """
+    # 解析敌人类型
+    enemy_id = COMMON_ENEMIES.get(enemy_type.lower(), enemy_type)
 
-    # 安全的敌人类型列表（低风险）
-    SAFE_ENEMIES = {
-        # 基础敌人
-        "10.0.0": "Fly (基础飞行敌人)",
-        "10.0.1": "Fly (Champion)",
-        "11.0.0": "Spider (基础蜘蛛)",
-        "11.0.1": "Spider (Big)",
-        "2001.0": "Globin (史莱姆)",
-        "2002.0": "Cochleary (蜗牛)",
-        # 中级敌人
-        "18.0.0": "Maw (大嘴)",
-        "19.0.0": "Horf (呕吐怪)",
-        "20.0.0": "Knife (飞刀)",
-        "24.0.0": "Leaper (跳跃者)",
-        "26.0.0": "Baby (小宝宝)",
-    }
+    success = True
+    spawned = 0
 
-    # 中等风险的敌人（需要谨慎使用）
-    MEDIUM_RISK_ENEMIES = {
-        "12.0.0": "Sucker (攻击型蜘蛛)",
-        "13.0.0": "Boil (沸水怪)",
-        "14.0.0": "Bouncer (弹跳者)",
-        "15.0.0": "Dingbat (蝙蝠)",
-        "17.0.0": "Mr.Maw (双头怪)",
-        "21.0.0": "Pinky (粉红敌人)",
-        "22.0.0": "Mom's Dead Hand (妈妈的手)",
-        "23.0.0": "Mom's Hand (妈妈的手)",
-        "25.0.0": "Scarred Baby (伤疤宝宝)",
-    }
+    for i in range(count):
+        cmd = f"spawn {enemy_id}"
+        if bridge.send_console_command(cmd):
+            spawned += 1
+            logger.info(f"生成敌人: {enemy_id}")
+        else:
+            success = False
+            logger.error(f"生成失败: {enemy_id}")
 
-    def __init__(self, bridge: IsaacBridge, config: Optional["SpawnConfig"] = None):
-        self.bridge = bridge
-        self.config = config or SpawnConfig()
-        self.last_spawn_time = 0
-        self.total_spawned = 0
-        self.spawn_lock = threading.Lock()
+        time.sleep(0.2)  # 短暂延迟
 
-    def get_current_enemy_count(self) -> int:
-        """
-        从游戏数据获取当前房间内的敌人数量
+    if spawned > 0:
+        logger.info(f"成功生成 {spawned} 个敌人")
 
-        Returns:
-            int: 当前敌人数量
-        """
-        try:
-            enemies_data = self.bridge.get_channel("ENEMIES")
-            if enemies_data is None:
-                return 0
-            if isinstance(enemies_data, list):
-                return len(enemies_data)
-            elif isinstance(enemies_data, dict):
-                return len(enemies_data.get("enemies", []))
+    return success
+
+
+def spawn_enemies(bridge: IsaacBridge, enemies: List[Tuple[str, int]]) -> int:
+    """
+    批量生成多种敌人
+
+    Args:
+        bridge: IsaacBridge 实例
+        enemies: [(敌人类型, 数量), ...]
+
+    Returns:
+        int: 成功生成的数量
+    """
+    total = 0
+    for enemy_type, count in enemies:
+        if spawn_enemy(bridge, enemy_type, count):
+            total += count
+    return total
+
+
+def clear_enemies(bridge: IsaacBridge):
+    """清理房间内所有敌人"""
+    bridge.send_console_command("debug 10")
+    time.sleep(0.3)
+    logger.info("已清理房间所有敌人")
+
+
+def get_enemy_count(bridge: IsaacBridge) -> int:
+    """获取当前房间敌人数量"""
+    try:
+        enemies_data = bridge.get_channel("ENEMIES")
+        if enemies_data is None:
             return 0
-        except Exception:
-            return 0
-
-    def can_spawn(self) -> Tuple[bool, str]:
-        """
-        检查是否可以生成（基于冷却时间和当前敌人数量）
-
-        Returns:
-            Tuple[bool, str]: (是否可以生成, 原因)
-        """
-        current_time = time.time()
-
-        # 1. 冷却时间检查（主要限制）
-        time_since_last = current_time - self.last_spawn_time
-        if time_since_last < self.config.spawn_cooldown:
-            remaining = self.config.spawn_cooldown - time_since_last
-            return False, f"冷却中，{remaining:.1f}秒后可生成"
-
-        # 2. 当前房间敌人数量检查
-        current_count = self.get_current_enemy_count()
-        if current_count >= self.config.max_enemies_in_room:
-            return False, f"房间内已有 {current_count} 个敌人，达到上限"
-
-        return True, "可以生成"
-
-    def spawn_enemy(
-        self, enemy_type: str, count: int = 1, champion: bool = False
-    ) -> bool:
-        """
-        安全生成敌人
-
-        控制台命令格式: spawn <entity_id>.[type].[subtype].[champion]
-        示例: spawn 10.0.0 (Fly), spawn 18.0.0 (Maw)
-
-        Args:
-            enemy_type: 敌人类型ID (格式: "entity.type.subtype")
-            count: 生成数量
-            champion: 是否生成Champion版本
-
-        Returns:
-            bool: 生成是否成功
-        """
-        with self.spawn_lock:
-            can_spawn, reason = self.can_spawn()
-            if not can_spawn:
-                logger.warning(f"无法生成: {reason}")
-                return False
-
-            # 检查生成数量限制（单次最多2个）
-            actual_count = min(count, self.config.max_per_spawn)
-
-            # 获取当前敌人数量
-            current_count = self.get_current_enemy_count()
-            remaining_slots = self.config.max_enemies_in_room - current_count
-            actual_count = min(actual_count, remaining_slots)
-
-            if actual_count <= 0:
-                logger.warning("房间敌人数量已达上限")
-                return False
-
-            # 构建spawn命令
-            cmd_parts = ["spawn"]
-            cmd_parts.append(enemy_type)
-
-            # 生成敌人
-            success = True
-            spawned_count = 0
-            for i in range(actual_count):
-                cmd = ".".join(cmd_parts)
-                if champion:
-                    cmd += ".0.1"  # Champion flag
-
-                result = self.bridge.send_console_command(cmd)
-                if result:
-                    self.total_spawned += 1
-                    spawned_count += 1
-                    logger.info(f"生成敌人: {enemy_type}")
-                    time.sleep(0.5)  # 短暂延迟，防止命令堆积
-                else:
-                    success = False
-                    logger.error(f"生成失败: {enemy_type}")
-
-            if success and spawned_count > 0:
-                self.last_spawn_time = time.time()
-                logger.info(
-                    f"本次生成 {spawned_count} 个敌人，房间现有 {current_count + spawned_count} 个"
-                )
-
-            return success
-
-    def spawn_single_enemy(self, enemy_key: str) -> bool:
-        """生成单个敌人（使用预定义的敌人键）"""
-        enemy_type = self.SAFE_ENEMIES.get(enemy_key)
-        if not enemy_type:
-            logger.error(f"未知的敌人键: {enemy_key}")
-            return False
-        return self.spawn_enemy(enemy_key)
-
-    def clear_enemies(self):
-        """清理当前房间的敌人"""
-        # 使用 debug 10 命令杀死房间内所有敌人
-        # debug 10 是游戏内置的秒杀所有敌人命令
-        self.bridge.send_console_command("debug 10")
-        time.sleep(0.3)
-        logger.info("已清理房间所有敌人")
-
-    def get_status(self) -> Dict:
-        """获取生成器状态"""
-        current_count = self.get_current_enemy_count()
-        time_since = time.time() - self.last_spawn_time
-        return {
-            "total_spawned": self.total_spawned,
-            "current_enemies": current_count,
-            "can_spawn": self.can_spawn()[0],
-            "cooldown_remaining": max(0, self.config.spawn_cooldown - time_since),
-            "max_enemies_allowed": self.config.max_enemies_in_room,
-        }
+        if isinstance(enemies_data, list):
+            return len(enemies_data)
+        elif isinstance(enemies_data, dict):
+            return len(enemies_data.get("enemies", []))
+        return 0
+    except Exception:
+        return 0
 
 
 class AITestSuite:
@@ -302,10 +194,6 @@ class AITestSuite:
         self.control = create_control_module()
         self.evaluation = create_evaluation_module()
         self.orchestrator = create_orchestrator(SystemConfig())
-
-        # 测试配置
-        self.spawn_config = SpawnConfig()
-        self.spawner = SafeSpawner(bridge, self.spawn_config)
 
         # 测试状态
         self.test_results: List[TestResult] = []
@@ -464,14 +352,11 @@ class AITestSuite:
 
         duration_ms = (time.time() - start_time) * 1000
 
-        # 获取生成的敌人总数
-        enemies_spawned = self.spawner.total_spawned
-
         result = TestResult(
             scenario=scenario.value,
             success=len(errors) == 0,
             frame_count=self.test_frame_count,
-            enemies_spawned=enemies_spawned,
+            enemies_spawned=get_enemy_count(self.bridge),
             player_damage_taken=self.test_damage_taken,
             enemies_killed=self.test_enemies_killed,
             ai_decisions=decisions_made,
@@ -488,68 +373,67 @@ class AITestSuite:
 
         if scenario == TestScenario.EMPTY:
             # 空房间 - 确保没有敌人
-            self.spawner.clear_enemies()
+            clear_enemies(self.bridge)
 
         elif scenario == TestScenario.SINGLE_ENEMY:
             # 单个敌人
-            self.spawner.clear_enemies()
+            clear_enemies(self.bridge)
             time.sleep(1)
-            self.spawner.spawn_single_enemy("10.0.0")  # Fly
+            spawn_enemy(self.bridge, "fly")
 
         elif scenario == TestScenario.FEW_ENEMIES:
             # 少量敌人 (3-5个)
-            self.spawner.clear_enemies()
+            clear_enemies(self.bridge)
             time.sleep(1)
-            enemies = ["10.0.0", "11.0.0", "2001.0"]
-            for enemy in enemies:
-                self.spawner.spawn_single_enemy(enemy)
-                time.sleep(1)  # 间隔生成
+            spawn_enemy(self.bridge, "fly")
+            time.sleep(1)
+            spawn_enemy(self.bridge, "spider")
+            time.sleep(1)
+            spawn_enemy(self.bridge, "globin")
 
         elif scenario == TestScenario.MANY_ENEMIES:
             # 多个敌人
-            self.spawner.clear_enemies()
+            clear_enemies(self.bridge)
             time.sleep(1)
-            enemies = ["10.0.0", "10.0.0", "11.0.0", "11.0.0", "2001.0", "2002.0"]
-            for i, enemy in enumerate(enemies):
-                self.spawner.spawn_single_enemy(enemy)
-                time.sleep(1.5)
+            spawn_enemy(self.bridge, "fly", 2)
+            time.sleep(1)
+            spawn_enemy(self.bridge, "spider", 2)
+            time.sleep(1)
+            spawn_enemy(self.bridge, "cochleary")
 
         elif scenario == TestScenario.PROJECTILE_TEST:
             # 投射物测试 - 使用会发射投射物的敌人
-            self.spawner.clear_enemies()
+            clear_enemies(self.bridge)
             time.sleep(1)
-            # Horf (18.0.0) 会呕吐投射物
-            self.spawner.spawn_enemy("18.0.0", 2)
+            # Maw 会呕吐投射物
+            spawn_enemy(self.bridge, "maw", 2)
 
         elif scenario == TestScenario.MIXED_TEST:
             # 混合测试
-            self.spawner.clear_enemies()
+            clear_enemies(self.bridge)
             time.sleep(1)
-            # 生成不同类型的敌人组合
-            spawn_tasks = [
-                ("10.0.0", 2),
-                ("18.0.0", 1),
-                ("11.0.0", 2),
-                ("2001.0", 1),
-            ]
-            for enemy_type, count in spawn_tasks:
-                self.spawner.spawn_enemy(enemy_type, count)
-                time.sleep(2)
+            spawn_enemy(self.bridge, "fly", 2)
+            time.sleep(1)
+            spawn_enemy(self.bridge, "maw")
+            time.sleep(1)
+            spawn_enemy(self.bridge, "spider", 2)
+            time.sleep(1)
+            spawn_enemy(self.bridge, "globin")
 
         elif scenario == TestScenario.SURVIVAL:
             # 生存测试 - 生成较多敌人
-            self.spawner.clear_enemies()
+            clear_enemies(self.bridge)
             time.sleep(1)
-            # 分批生成敌人
-            for i in range(3):
-                self.spawner.spawn_enemy("10.0.0", 3)
-                self.spawner.spawn_enemy("11.0.0", 2)
-                time.sleep(5)  # 等待清理后再生成
+            spawn_enemy(self.bridge, "fly", 3)
+            time.sleep(2)
+            spawn_enemy(self.bridge, "spider", 2)
+            time.sleep(2)
+            spawn_enemy(self.bridge, "maw", 2)
 
     def _cleanup_scenario(self, scenario: TestScenario):
         """清理测试场景"""
         logger.info(f"清理场景: {scenario.value}")
-        self.spawner.clear_enemies()
+        clear_enemies(self.bridge)
 
         # 给予玩家无敌状态以便离开
         self.bridge.send_console_command("giveitem c1")  # 以撒的眼泪
@@ -585,10 +469,8 @@ class AITestSuite:
             logger.info("")
             logger.info("-" * 40)
 
-            # 检查是否可以继续测试
-            if not self.spawner.can_spawn():
-                logger.warning("生成冷却中，跳过此测试...")
-                continue
+            # 等待一下再进行下一个测试
+            time.sleep(2)
 
             result = self.run_scenario(scenario, duration)
             results.append(result)
