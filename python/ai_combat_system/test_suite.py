@@ -11,11 +11,11 @@ import math
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 
-# 添加项目根目录到路径（相对于当前文件）
-_PROJECT_ROOT = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
-sys.path.insert(0, _PROJECT_ROOT)
+# 添加 python/ 目录到路径（兼容 Windows 和不同运行目录）
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PYTHON_ROOT = os.path.dirname(_SCRIPT_DIR)  # python/ 目录
+if _PYTHON_ROOT not in sys.path:
+    sys.path.insert(0, _PYTHON_ROOT)
 
 # 导入AI战斗系统
 from ai_combat_system import (
