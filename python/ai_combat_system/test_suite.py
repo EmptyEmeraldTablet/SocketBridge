@@ -5,13 +5,17 @@ AI Combat System Test Suite
 """
 
 import sys
+import os
 import time
 import math
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 
-# 添加父目录到路径
-sys.path.insert(0, "/home/yolo_dev/newGym/SocketBridge/python")
+# 添加项目根目录到路径（相对于当前文件）
+_PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+sys.path.insert(0, _PROJECT_ROOT)
 
 # 导入AI战斗系统
 from ai_combat_system import (

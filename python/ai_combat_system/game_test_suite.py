@@ -18,6 +18,7 @@ AI Combat System - 游戏测试脚本
 """
 
 import sys
+import os
 import time
 import json
 import logging
@@ -27,8 +28,13 @@ from enum import Enum
 from collections import deque
 import threading
 
+# 添加项目根目录到路径（相对于当前文件）
+_PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+sys.path.insert(0, _PROJECT_ROOT)
+
 # 导入IsaacBridge和AI模块
-sys.path.insert(0, "/home/yolo_dev/newGym/SocketBridge/python")
 from isaac_bridge import IsaacBridge, GameDataAccessor
 from ai_combat_system import (
     create_perception_module,
