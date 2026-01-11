@@ -261,6 +261,14 @@ def start_ai_mode():
 
         @bridge.on("data")
         def on_game_data(data):
+            # [DEBUG] 追踪数据流
+            import logging
+
+            logger = logging.getLogger("RunAI")
+            logger.debug(
+                f"[RunAI] on_game_data received: type={type(data).__name__}, keys={list(data.keys()) if isinstance(data, dict) else 'N/A'}"
+            )
+
             control = orchestrator.update(data)
 
             move = (int(control.move_x), int(control.move_y))
