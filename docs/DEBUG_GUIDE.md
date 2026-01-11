@@ -265,26 +265,37 @@ Lua → {"type":"DATA",...,"payload":{"PLAYER_POSITION":[...]}}
 ```
 
 **解决方向:**
-- 需要在 `run.py:on_game_data` 中将 payload 包装成完整消息格式
+- ~~需要~~ ~~在 `run.py:on_game_data` 中将 payload 包装成完整消息格式~~ ✓ **已修复**
 - 或者在 Lua 端确保发送完整格式消息
 
-**调试输出:**
-启用DEBUG后，`run.py` 会显示:
-```
-[RunAI] on_game_data received: type=dict
-[RunAI]   keys=['ENEMIES', 'PLAYER_POSITION', 'PROJECTILES']
-[RunAI]   ENEMIES: list length=0
-[RunAI]   PLAYER_POSITION: list length=1
-[RunAI]   PROJECTILES: list length=0
+**修复方案 (run.py:on_game_data):**
+```python
+@bridge.on("data")
+def on_game_data(data):
+    # 将 payload 包装成完整消息格式
+    wrapped_data = {
+        "type": "DATA",
+        "frame": bridge.state.frame,
+        "room_index": bridge.state.room_index,
+        "payload": data
+    }
+    control = orchestrator.update(wrapped_data)
+    ...
 ```
 
-控制台会显示警告:
+**验证修复:**
+启用DEBUG后，应该看到：
 ```
-[DATA FORMAT ISSUE DETECTED]
-  Received: payload-only message (missing type/frame/payload wrapper)
-  Channels: ['ENEMIES', 'PLAYER_POSITION', 'PROJECTILES']
-  This causes 'No player found' error in orchestrator!
+[RunAI] on_game_data received: type=dict
+[RunAI] Wrapped message: frame=123, room=5
+[RunAI] Payload channels: ['ENEMIES', 'PLAYER_POSITION', 'PROJECTILES']
+[Orchestrator] [Phase 1] Frame=123, Room=5
+[Orchestrator] [Phase 1] Player pos=(400.5, 300.2), hp=6/6
 ```
+
+不再看到：
+- ❌ `FORMAT ISSUE DETECTED`
+- ❌ `No player found`
 
 ### 场景3: 移动异常
 
