@@ -627,6 +627,43 @@ class DataProcessor:
 
         logger.debug(f"[DataProcessor] === START process_message ===")
         logger.debug(
+            f"[DataProcessor] input_type: {type(msg).__name__}, input_keys: {list(msg.keys()) if isinstance(msg, dict) else 'N/A'}"
+        )
+
+        # [DEBUG] 详细格式检测 - 警告可能的格式问题
+        has_type = "type" in msg
+        has_frame = "frame" in msg
+        has_room_index = "room_index" in msg
+        has_payload = "payload" in msg
+
+        if not (has_type and has_frame and has_payload):
+            logger.warning(f"[DataProcessor] FORMAT ISSUE DETECTED!")
+            logger.warning(
+                f"[DataProcessor]   has_type={has_type}, has_frame={has_frame}, has_payload={has_payload}"
+            )
+            logger.warning(
+                f"[DataProcessor]   This indicates incomplete message format!"
+            )
+
+            # 检查是否是 payload-only 格式（常见的错误情况）
+            if "PLAYER_POSITION" in msg or "ENEMIES" in msg:
+                logger.error(
+                    f"[DataProcessor] CRITICAL: Received payload-only message instead of full message!"
+                )
+                logger.error(
+                    f"[DataProcessor]   Direct channels in msg: {[k for k in msg.keys() if not k.startswith('_')]}"
+                )
+                logger.error(
+                    f"[DataProcessor]   This breaks process_message() - it expects full format!"
+                )
+                logger.error(
+                    f"[DataProcessor]   Expected: {{'type': 'DATA', 'frame': X, 'room_index': Y, 'payload': {{...}}}}"
+                )
+                logger.error(
+                    f"[DataProcessor]   Received: {{'PLAYER_POSITION': [...], 'ENEMIES': [...]}} (no type/frame/payload wrapper)"
+                )
+
+        logger.debug(
             f"[DataProcessor] type={msg_type}, frame={frame}, room_index={room_index}"
         )
         logger.debug(
