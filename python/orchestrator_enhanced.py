@@ -8,7 +8,16 @@ Integrates all sub-modules to implement a complete AI combat decision-making pro
 4. Planning Module → Detailed execution plan
 5. Control Module → Game input commands
 
-Architecture based on reference.md, integrating:
+=== 调试信息说明 ===
+本模块在AI决策流程的关键位置添加了调试输出，用于追踪：
+1. 原始消息接收和解析
+2. 威胁分析结果
+3. 状态机决策过程
+4. 策略选择结果
+5. 行为树执行结果
+6. 最终控制指令生成
+
+架构基于 reference.md，集成：
 - Phase 1: Basic Control (basic_controllers)
 - Phase 2: Threat Analysis (threat_analysis), Path Planning (pathfinding)
 - Phase 3: State Machine (state_machine), Strategy System (strategy_system), Behavior Tree (behavior_tree)
@@ -17,6 +26,7 @@ Architecture based on reference.md, integrating:
 
 import math
 import time
+import traceback
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from enum import Enum
@@ -174,84 +184,173 @@ class EnhancedCombatOrchestrator:
         """
         Main update loop
 
-        Args:
-            raw_message: Raw message from game
+        === 调试信息 ===
+        输入: raw_message - 来自游戏的原始消息字典
+        处理流程:
+            1. [Phase 1] data_processor.process_message() - 数据解析
+            2. [Phase 1] environment.update_room() - 环境建模
+            3. [Phase 2] threat_analyzer.analyze() - 威胁分析
+            4. [Phase 3] _make_enhanced_decision() - 决策生成
+            5. [Phase 4] _execute_enhanced_decision() - 控制执行
+        输出: ControlOutput - 控制指令
 
-        Returns:
-            Control output
+        关键跟踪点:
+            - frame: 游戏帧号
+            - player_count: 玩家数量
+            - enemy_count: 敌人数量
+            - projectile_count: 投射物数量
+            - threat_level: 威胁等级
+            - final_state: 最终战斗状态
         """
         if not self.is_enabled:
+            logger.debug(f"[Orchestrator] AI disabled, returning empty control")
             return ControlOutput()
 
-        # 1. Parse data
-        game_state = self.data_processor.process_message(raw_message)
+        logger.debug(f"[Orchestrator] === START update ===")
+        logger.debug(f"[Orchestrator] raw_message keys: {list(raw_message.keys())}")
 
-        # 2. Update environment model
-        player = game_state.get_primary_player()
-        if not player:
-            return ControlOutput()
-
-        self.environment.update_room(
-            game_state.room_layout,
-            game_state.room_info,
-            game_state.enemies,
-            game_state.enemy_projectiles,
-        )
-
-        # 3. Threat analysis
-        threat_assessment = None
-        if self.config.enable_threat_analysis:
-            threat_assessment = self.threat_analyzer.analyze(
-                player.position,
-                game_state.enemies,
-                game_state.enemy_projectiles,
-                current_frame=game_state.frame,
+        try:
+            # 1. Parse data [Phase 1]
+            logger.debug(f"[Orchestrator] [Phase 1] Parsing game data...")
+            game_state = self.data_processor.process_message(raw_message)
+            frame = game_state.frame
+            logger.debug(
+                f"[Orchestrator] [Phase 1] Frame={frame}, Room={game_state.room_index}"
             )
 
-        # 4. Enhanced decision making (Phase 3 + Phase 4)
-        decision = self._make_enhanced_decision(game_state, threat_assessment)
+            # 2. Update environment model [Phase 1]
+            player = game_state.get_primary_player()
+            if not player:
+                logger.warning(
+                    f"[Orchestrator] [Phase 1] No player found, returning empty control"
+                )
+                return ControlOutput()
 
-        # 5. Execute control
-        control = self._execute_enhanced_decision(
-            game_state, decision, threat_assessment
-        )
+            logger.debug(
+                f"[Orchestrator] [Phase 1] Player pos=({player.position.x:.1f}, {player.position.y:.1f}), "
+                f"hp={player.red_hearts}/{player.max_hearts}"
+            )
 
-        # Update statistics
-        self.stats["decisions"] += 1
-        if threat_assessment:
-            self.stats["threat_assessments"] += 1
+            logger.debug(f"[Orchestrator] [Phase 1] Updating environment model...")
+            self.environment.update_room(
+                game_state.room_layout,
+                game_state.room_info,
+                game_state.enemies,
+                game_state.enemy_projectiles,
+            )
+            logger.debug(
+                f"[Orchestrator] [Phase 1] Environment updated: enemies={len(game_state.enemies)}, "
+                f"projectiles={len(game_state.enemy_projectiles)}"
+            )
 
-        return control
+            # 3. Threat analysis [Phase 2]
+            threat_assessment = None
+            if self.config.enable_threat_analysis:
+                logger.debug(f"[Orchestrator] [Phase 2] Analyzing threats...")
+                threat_assessment = self.threat_analyzer.analyze(
+                    player.position,
+                    game_state.enemies,
+                    game_state.enemy_projectiles,
+                    current_frame=game_state.frame,
+                )
+                logger.debug(
+                    f"[Orchestrator] [Phase 2] Threat level={threat_assessment.overall_threat_level.name}, "
+                    f"immediate_threats={len(threat_assessment.immediate_threats)}, "
+                    f"closest_threat={threat_assessment.closest_threat_distance:.1f}"
+                )
+
+            # 4. Enhanced decision making [Phase 3 + Phase 4]
+            logger.debug(f"[Orchestrator] [Phase 3-4] Making enhanced decision...")
+            decision = self._make_enhanced_decision(game_state, threat_assessment)
+            logger.debug(
+                f"[Orchestrator] [Phase 3-4] Decision: state={decision.get('state')}, "
+                f"strategy={decision.get('strategy')}, "
+                f"should_attack={decision.get('should_attack')}, "
+                f"should_dodge={decision.get('should_dodge')}, "
+                f"retreat={decision.get('retreat')}"
+            )
+
+            # 5. Execute control
+            logger.debug(f"[Orchestrator] [Phase 5] Executing control...")
+            control = self._execute_enhanced_decision(
+                game_state, decision, threat_assessment
+            )
+            logger.debug(
+                f"[Orchestrator] [Phase 5] Control output: move=({control.move_x}, {control.move_y}), "
+                f"shoot={control.shoot}, confidence={control.confidence:.2f}, "
+                f"reasoning={control.reasoning}"
+            )
+
+            # Update statistics
+            self.stats["decisions"] += 1
+            if threat_assessment:
+                self.stats["threat_assessments"] += 1
+
+            logger.debug(f"[Orchestrator] === END update ===")
+            return control
+
+        except Exception as e:
+            logger.error(f"[Orchestrator] Error in update loop: {str(e)}")
+            logger.error(f"[Orchestrator] Traceback: {traceback.format_exc()}")
+            logger.error(f"[Orchestrator] Raw message at error: {raw_message}")
+            raise RuntimeError(f"Orchestrator update failed: {str(e)}") from e
 
     def _make_enhanced_decision(
         self,
         game_state: GameStateData,
         threat_assessment: Optional[ThreatAssessment],
     ) -> Dict[str, Any]:
-        """Make enhanced decision using Phase 3 modules"""
+        """Make enhanced decision using Phase 3 modules
+
+        === 调试信息 ===
+        处理流程:
+            1. [Phase 4] _update_adaptive_system() - 更新自适应系统
+            2. [Phase 3] _update_hierarchical_state_machine() - 更新状态机
+            3. [Phase 3] _evaluate_strategy() - 评估策略
+            4. [Phase 3] _execute_behavior_tree() - 执行行为树
+            5. _determine_final_state() - 确定最终状态
+        输出: 决策字典
+        """
         player = game_state.get_primary_player()
         if not player:
+            logger.debug(f"[Orchestrator] No player, returning IDLE decision")
             return {"state": CombatState.IDLE, "action": "idle"}
 
         # Phase 4: Update adaptive system
         if self.config.enable_adaptive_behavior:
+            logger.debug(f"[Orchestrator] [Phase 4] Updating adaptive system...")
             self._update_adaptive_system(game_state)
 
         # Phase 3: Update hierarchical state machine
+        logger.debug(f"[Orchestrator] [Phase 3] Updating hierarchical state machine...")
         battle_states = self._update_hierarchical_state_machine(
             game_state, threat_assessment
         )
+        logger.debug(
+            f"[Orchestrator] [Phase 3] Battle state: {battle_states.get('battle')}, "
+            f"Movement: {battle_states.get('movement')}, Special: {battle_states.get('special')}"
+        )
 
         # Phase 3: Evaluate strategies
+        logger.debug(f"[Orchestrator] [Phase 3] Evaluating strategy...")
         strategy, strategy_eval = self._evaluate_strategy(game_state, threat_assessment)
+        logger.debug(
+            f"[Orchestrator] [Phase 3] Strategy: {strategy}, Evaluation: {strategy_eval}"
+        )
 
         # Phase 3: Execute behavior tree
+        logger.debug(f"[Orchestrator] [Phase 3] Executing behavior tree...")
         bt_action = self._execute_behavior_tree(game_state, threat_assessment)
+        logger.debug(f"[Orchestrator] [Phase 3] Behavior tree action: {bt_action}")
 
         # Determine final state based on all inputs
+        logger.debug(
+            f"[Orchestrator] Determining final state from battle_states, threat_assessment, player..."
+        )
         new_state = self._determine_final_state(
             battle_states, threat_assessment, player
         )
+        logger.debug(f"[Orchestrator] Final state determined: {new_state}")
 
         # Build comprehensive decision
         decision = {
@@ -270,9 +369,23 @@ class EnhancedCombatOrchestrator:
             "heal": self._should_heal(player),
         }
 
+        # Log target info
+        if decision["target"]:
+            target = decision["target"]
+            logger.debug(
+                f"[Orchestrator] Target selected: id={target.id}, "
+                f"pos=({target.position.x:.1f}, {target.position.y:.1f}), "
+                f"hp={target.hp:.1f}/{target.max_hp}"
+            )
+        else:
+            logger.debug(f"[Orchestrator] No target selected")
+
         # Update current state
         if self.current_state != new_state:
             self.stats["state_transitions"] += 1
+            logger.info(
+                f"[Orchestrator] State transition: {self.current_state} -> {new_state}"
+            )
             self.current_state = new_state
 
         return decision

@@ -7,9 +7,18 @@
 - 输入合成器（指令平滑、优先级仲裁）
 
 根据 reference.md 中的控制模块设计。
+
+=== 调试信息说明 ===
+本模块在控制指令生成的关键位置添加了调试输出，用于追踪：
+1. compute_control() 输入参数
+2. 威胁躲避决策
+3. 战斗移动计算
+4. 攻击瞄准计算
+5. 最终控制输出
 """
 
 import math
+import traceback
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from enum import Enum
@@ -586,39 +595,91 @@ class BasicControllerManager:
         """
         计算控制指令
 
-        Args:
-            game_state: 当前游戏状态
-            target_enemy: 目标敌人
-            evade_threats: 需要躲避的投射物
+        === 调试信息 ===
+        输入:
+            - game_state: 当前游戏状态
+            - target_enemy: 目标敌人
+            - evade_threats: 需要躲避的投射物列表
+        处理流程:
+            1. 检查玩家是否存在
+            2. _handle_evasion() - 处理威胁躲避
+            3. _handle_combat_movement() - 处理战斗移动
+            4. _handle_attack() - 处理攻击
+            5. input_synthesizer.synthesize() - 合成最终输出
+        输出: ControlOutput - 控制指令
 
-        Returns:
-            控制输出
+        关键跟踪点:
+            - player_pos: 玩家位置
+            - enemy_count: 敌人数量
+            - threat_count: 威胁数量
+            - 是否射击
+            - 最终移动方向
         """
         player = game_state.get_primary_player()
         if not player:
+            logger.debug(f"[BasicControllers] No player found, returning empty control")
             return ControlOutput()
+
+        logger.debug(f"[BasicControllers] === START compute_control ===")
+        logger.debug(
+            f"[BasicControllers] Player pos=({player.position.x:.1f}, {player.position.y:.1f}), "
+            f"vel=({player.velocity.x:.1f}, {player.velocity.y:.1f}), frame={game_state.frame}"
+        )
 
         current_pos = player.position
         current_vel = player.velocity
         frame = game_state.frame
 
+        enemy_count = len(game_state.enemies)
+        logger.debug(
+            f"[BasicControllers] Enemies: {enemy_count}, Target: {target_enemy}"
+        )
+
+        if target_enemy:
+            logger.debug(
+                f"[BasicControllers] Target enemy: id={target_enemy.id}, "
+                f"pos=({target_enemy.position.x:.1f}, {target_enemy.position.y:.1f}), "
+                f"dist={target_enemy.distance:.1f}, hp={target_enemy.hp:.1f}"
+            )
+
         # 1. 处理威胁躲避
         if evade_threats:
+            logger.debug(
+                f"[BasicControllers] Processing evasion for {len(evade_threats)} threats..."
+            )
             dodge_cmd = self._handle_evasion(current_pos, evade_threats, current_vel)
             if dodge_cmd:
+                logger.debug(
+                    f"[BasicControllers] Evasion command: move=({dodge_cmd.move_x}, {dodge_cmd.move_y}), "
+                    f"reasoning={dodge_cmd.reasoning}"
+                )
                 self.input_synthesizer.add_movement(dodge_cmd)
 
         # 2. 处理移动（朝向目标或安全位置）
         if target_enemy:
+            logger.debug(f"[BasicControllers] Processing combat movement...")
             move_cmd = self._handle_combat_movement(
                 current_pos, current_vel, target_enemy
+            )
+            logger.debug(
+                f"[BasicControllers] Movement command: move=({move_cmd.move_x}, {move_cmd.move_y}), "
+                f"reasoning={move_cmd.reasoning}"
             )
             self.input_synthesizer.add_movement(move_cmd)
 
         # 3. 处理攻击
-        if target_enemy and self.attack_controller.should_shoot(frame):
-            attack_cmd = self._handle_attack(current_pos, target_enemy)
-            self.input_synthesizer.add_attack(attack_cmd)
+        if target_enemy:
+            should_shoot = self.attack_controller.should_shoot(frame)
+            logger.debug(f"[BasicControllers] Should shoot: {should_shoot}")
+            if should_shoot:
+                logger.debug(f"[BasicControllers] Processing attack...")
+                attack_cmd = self._handle_attack(current_pos, target_enemy)
+                logger.debug(
+                    f"[BasicControllers] Attack command: shoot={attack_cmd.shoot}, "
+                    f"direction=({attack_cmd.shoot_x}, {attack_cmd.shoot_y}), "
+                    f"reasoning={attack_cmd.reasoning}"
+                )
+                self.input_synthesizer.add_attack(attack_cmd)
 
         # 4. 更新控制器状态
         self.move_controller.update(
@@ -630,7 +691,16 @@ class BasicControllerManager:
         )
 
         # 5. 合成最终输出
-        return self.input_synthesizer.synthesize()
+        logger.debug(f"[BasicControllers] Synthesizing final control output...")
+        result = self.input_synthesizer.synthesize()
+        logger.debug(
+            f"[BasicControllers] Final output: move=({result.move_x}, {result.move_y}), "
+            f"shoot={result.shoot}, use_item={result.use_item}, use_bomb={result.use_bomb}, "
+            f"confidence={result.confidence:.2f}, reasoning={result.reasoning}"
+        )
+        logger.debug(f"[BasicControllers] === END compute_control ===")
+
+        return result
 
     def _handle_evasion(
         self,

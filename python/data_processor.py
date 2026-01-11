@@ -5,9 +5,22 @@
 处理来自游戏的JSON数据，转换为内部标准化的数据结构。
 
 根据 DATA_PROTOCOL.md 中的数据格式定义。
+
+=== 调试信息说明 ===
+本模块在数据流的关键位置添加了调试输出，用于追踪：
+1. 原始消息接收
+2. 各数据通道的解析结果
+3. 异常情况的定位
+
+日志级别：
+- DEBUG: 详细的数据解析过程
+- INFO: 关键处理节点
+- WARNING: 数据异常
+- ERROR: 解析错误
 """
 
 import math
+import traceback
 from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
 import logging
@@ -591,56 +604,184 @@ class DataProcessor:
 
         Returns:
             标准化的GameStateData对象
+
+        === 调试信息 ===
+        输入: 原始消息字典，包含 type, frame, room_index, payload
+        处理流程:
+            1. 解析消息类型和基本信息
+            2. 解析玩家数据 (位置、属性、生命值、物品栏)
+            3. 解析敌人数据
+            4. 解析投射物数据
+            5. 解析房间信息
+            6. 解析房间布局
+            7. 处理环境数据
+        输出: GameStateData 对象
         """
         state = GameStateData()
 
+        # [DEBUG] 记录原始消息概览
         msg_type = msg.get("type", "DATA")
-        state.frame = msg.get("frame", 0)
-        state.room_index = msg.get("room_index", -1)
-
+        frame = msg.get("frame", 0)
+        room_index = msg.get("room_index", -1)
         payload = msg.get("payload", {})
 
+        logger.debug(f"[DataProcessor] === START process_message ===")
+        logger.debug(
+            f"[DataProcessor] type={msg_type}, frame={frame}, room_index={room_index}"
+        )
+        logger.debug(
+            f"[DataProcessor] payload keys={list(payload.keys()) if payload else []}"
+        )
+
+        # [DEBUG] 详细记录每个通道的数据
+        if payload:
+            for channel, data in payload.items():
+                if data is not None:
+                    if isinstance(data, list):
+                        logger.debug(
+                            f"[DataProcessor] Channel {channel}: list length={len(data)}"
+                        )
+                    elif isinstance(data, dict):
+                        logger.debug(
+                            f"[DataProcessor] Channel {channel}: dict keys={list(data.keys())}"
+                        )
+                    else:
+                        logger.debug(
+                            f"[DataProcessor] Channel {channel}: {type(data).__name__}"
+                        )
+                else:
+                    logger.debug(f"[DataProcessor] Channel {channel}: None")
+
+        # [TRACKING] 记录帧变化
+        if self.current_frame != 0 and frame < self.current_frame:
+            logger.warning(
+                f"[DataProcessor] Frame regression detected: {self.current_frame} -> {frame}"
+            )
+
+        # [TRACKING] 记录房间变化
+        if self.current_room != -1 and room_index != self.current_room:
+            logger.info(
+                f"[DataProcessor] Room changed: {self.current_room} -> {room_index}"
+            )
+
+        state.frame = frame
+        state.room_index = room_index
+
         if not payload:
+            logger.debug(f"[DataProcessor] Empty payload, returning empty state")
             return state
 
-        # 处理玩家数据
-        self._process_player_data(state, payload)
+        try:
+            # 处理玩家数据
+            logger.debug(f"[DataProcessor] Processing player data...")
+            self._process_player_data(state, payload)
+            player = state.get_primary_player()
+            if player:
+                logger.debug(
+                    f"[DataProcessor] Player parsed: pos=({player.position.x:.1f}, {player.position.y:.1f}), "
+                    f"hp={player.red_hearts}/{player.max_hearts}"
+                )
+            else:
+                logger.warning(f"[DataProcessor] No player data found in payload")
 
-        # 处理敌人
-        if "ENEMIES" in payload:
-            state.enemies = self.parser.parse_enemies(payload["ENEMIES"])
+            # 处理敌人
+            if "ENEMIES" in payload:
+                logger.debug(f"[DataProcessor] Processing ENEMIES...")
+                state.enemies = self.parser.parse_enemies(payload["ENEMIES"])
+                enemy_count = len(state.enemies)
+                logger.debug(f"[DataProcessor] Enemies parsed: count={enemy_count}")
+                if enemy_count > 0:
+                    # 记录最近的敌人
+                    if player:
+                        nearest = state.get_nearest_enemy(player.position)
+                        if nearest:
+                            logger.debug(
+                                f"[DataProcessor] Nearest enemy: id={nearest.id}, "
+                                f"dist={nearest.distance:.1f}, hp={nearest.hp:.1f}/{nearest.max_hp}"
+                            )
 
-        # 处理投射物
-        if "PROJECTILES" in payload:
-            enemy_projs, player_projs, lasers = self.parser.parse_projectiles(
-                payload["PROJECTILES"]
-            )
-            state.enemy_projectiles = enemy_projs
-            state.player_projectiles = player_projs
-            state.lasers = lasers
+            # 处理投射物
+            if "PROJECTILES" in payload:
+                logger.debug(f"[DataProcessor] Processing PROJECTILES...")
+                enemy_projs, player_projs, lasers = self.parser.parse_projectiles(
+                    payload["PROJECTILES"]
+                )
+                state.enemy_projectiles = enemy_projs
+                state.player_projectiles = player_projs
+                state.lasers = lasers
+                enemy_proj_count = len(enemy_projs)
+                player_proj_count = len(player_projs)
+                laser_count = len(lasers)
+                logger.debug(
+                    f"[DataProcessor] Projectiles parsed: enemy={enemy_proj_count}, "
+                    f"player={player_proj_count}, lasers={laser_count}"
+                )
 
-        # 处理房间信息
-        if "ROOM_INFO" in payload:
-            state.room_info = self.parser.parse_room_info(payload["ROOM_INFO"])
+            # 处理房间信息
+            if "ROOM_INFO" in payload:
+                logger.debug(f"[DataProcessor] Processing ROOM_INFO...")
+                state.room_info = self.parser.parse_room_info(payload["ROOM_INFO"])
+                if state.room_info:
+                    logger.debug(
+                        f"[DataProcessor] Room info: idx={state.room_info.room_index}, "
+                        f"stage={state.room_info.stage}, enemy_count={state.room_info.enemy_count}, "
+                        f"is_clear={state.room_info.is_clear}"
+                    )
 
-        # 处理房间布局
-        if "ROOM_LAYOUT" in payload:
-            state.room_layout = self.parser.parse_room_layout(payload["ROOM_LAYOUT"])
+            # 处理房间布局
+            if "ROOM_LAYOUT" in payload:
+                logger.debug(f"[DataProcessor] Processing ROOM_LAYOUT...")
+                state.room_layout = self.parser.parse_room_layout(
+                    payload["ROOM_LAYOUT"]
+                )
+                if state.room_layout:
+                    tile_count = len(state.room_layout.tiles)
+                    door_count = len(state.room_layout.doors)
+                    logger.debug(
+                        f"[DataProcessor] Room layout: tiles={tile_count}, doors={door_count}"
+                    )
 
-        # 处理其他数据
-        self._process_environment_data(state, payload)
+            # 处理其他数据
+            self._process_environment_data(state, payload)
 
-        # 更新帧和房间状态
-        self.current_frame = state.frame
-        self.current_room = state.room_index
+            # 更新帧和房间状态
+            self.current_frame = frame
+            self.current_room = room_index
 
-        return state
+            logger.debug(f"[DataProcessor] === END process_message ===")
+
+            return state
+
+        except Exception as e:
+            # [ERROR] 记录详细错误信息
+            error_msg = f"Error processing message at frame {frame}: {str(e)}"
+            logger.error(f"[DataProcessor] {error_msg}")
+            logger.error(f"[DataProcessor] Traceback: {traceback.format_exc()}")
+            logger.error(f"[DataProcessor] Payload at error: {payload}")
+
+            # 抛出异常以便上层捕获
+            raise RuntimeError(error_msg) from e
 
     def _process_player_data(self, state: GameStateData, payload: Dict[str, Any]):
-        """处理玩家相关数据"""
+        """处理玩家相关数据
+
+        === 调试跟踪点 ===
+        - PLAYER_POSITION: 玩家位置数据
+        - PLAYER_STATS: 玩家属性数据
+        - PLAYER_HEALTH: 玩家生命值
+        - PLAYER_INVENTORY: 玩家物品栏
+        """
+        logger.debug(
+            f"[DataProcessor] _process_player_data: payload keys = {list(payload.keys())}"
+        )
+
         # 位置数据
         if "PLAYER_POSITION" in payload:
+            logger.debug(f"[DataProcessor] Processing PLAYER_POSITION...")
             positions = self.parser.parse_player_position(payload["PLAYER_POSITION"])
+            logger.debug(
+                f"[DataProcessor] Parsed {len(positions)} player position entries"
+            )
             for idx, pos_data in positions.items():
                 if idx not in state.players:
                     state.players[idx] = PlayerData(player_idx=idx)
@@ -654,9 +795,13 @@ class DataProcessor:
                 player.aim_direction = self.parser.parse_vector2d(
                     pos_data.get("aim_dir", {})
                 )
+                logger.debug(
+                    f"[DataProcessor] Player {idx} position: ({player.position.x:.1f}, {player.position.y:.1f})"
+                )
 
         # 属性数据
         if "PLAYER_STATS" in payload:
+            logger.debug(f"[DataProcessor] Processing PLAYER_STATS...")
             stats = self.parser.parse_player_position(payload["PLAYER_STATS"])
             for idx, stats_data in stats.items():
                 if idx not in state.players:
@@ -677,9 +822,14 @@ class DataProcessor:
                     "sprite_scale",
                 ]:
                     setattr(state.players[idx], field, getattr(parsed_stats, field))
+                logger.debug(
+                    f"[DataProcessor] Player {idx} stats: damage={parsed_stats.damage}, "
+                    f"speed={parsed_stats.speed}, tears={parsed_stats.tears}"
+                )
 
         # 生命值
         if "PLAYER_HEALTH" in payload:
+            logger.debug(f"[DataProcessor] Processing PLAYER_HEALTH...")
             health = self.parser.parse_player_position(payload["PLAYER_HEALTH"])
             for idx, health_data in health.items():
                 if idx not in state.players:
@@ -688,9 +838,14 @@ class DataProcessor:
                 parsed_health = self.parser.parse_player_health(health_data)
                 for field, value in parsed_health.items():
                     setattr(state.players[idx], field, value)
+                logger.debug(
+                    f"[DataProcessor] Player {idx} health: red={parsed_health['red_hearts']}, "
+                    f"max={parsed_health['max_hearts']}, soul={parsed_health['soul_hearts']}"
+                )
 
         # 物品栏
         if "PLAYER_INVENTORY" in payload:
+            logger.debug(f"[DataProcessor] Processing PLAYER_INVENTORY...")
             inventory = self.parser.parse_player_position(payload["PLAYER_INVENTORY"])
             for idx, inv_data in inventory.items():
                 if idx not in state.players:
@@ -710,36 +865,73 @@ class DataProcessor:
                     setattr(state.players[idx], field, parsed_inv.get(field, 0))
                 state.players[idx].collectibles = parsed_inv.get("collectibles", {})
                 state.players[idx].active_items = parsed_inv.get("active_items", {})
+                logger.debug(
+                    f"[DataProcessor] Player {idx} inventory: coins={parsed_inv['coins']}, "
+                    f"bombs={parsed_inv['bombs']}, keys={parsed_inv['keys']}, "
+                    f"collectibles={parsed_inv['collectible_count']}"
+                )
 
     def _process_environment_data(self, state: GameStateData, payload: Dict[str, Any]):
-        """处理环境相关数据"""
+        """处理环境相关数据
+
+        === 调试跟踪点 ===
+        - BUTTONS: 按钮状态
+        - BOMBS: 炸弹数据
+        - INTERACTABLES: 可互动实体
+        - PICKUPS: 可拾取物
+        - FIRE_HAZARDS: 火焰危险物
+        - DESTRUCTIBLES: 可破坏物
+        """
+        logger.debug(
+            f"[DataProcessor] _process_environment_data: checking for environment channels"
+        )
+
         # 按钮
         if "BUTTONS" in payload:
+            logger.debug(f"[DataProcessor] Processing BUTTONS...")
             state.buttons = self.parser.parse_buttons(payload["BUTTONS"])
+            logger.debug(f"[DataProcessor] Buttons: {len(state.buttons)}")
 
         # 炸弹
         if "BOMBS" in payload:
+            logger.debug(f"[DataProcessor] Processing BOMBS...")
             state.bombs = self.parser.parse_bombs(payload["BOMBS"])
+            bomb_count = len(state.bombs)
+            logger.debug(f"[DataProcessor] Bombs: {bomb_count}")
+            if bomb_count > 0:
+                for bid, bomb in state.bombs.items():
+                    logger.debug(
+                        f"[DataProcessor] Bomb {bid}: type={bomb.variant_name}, timer={bomb.timer}"
+                    )
 
         # 可互动实体
         if "INTERACTABLES" in payload:
+            logger.debug(f"[DataProcessor] Processing INTERACTABLES...")
             state.interactables = self.parser.parse_interactables(
                 payload["INTERACTABLES"]
             )
+            logger.debug(f"[DataProcessor] Interactables: {len(state.interactables)}")
 
         # 可拾取物
         if "PICKUPS" in payload:
+            logger.debug(f"[DataProcessor] Processing PICKUPS...")
             state.pickups = self.parser.parse_pickups(payload["PICKUPS"])
+            logger.debug(f"[DataProcessor] Pickups: {len(state.pickups)}")
 
         # 火焰危险物
         if "FIRE_HAZARDS" in payload:
+            logger.debug(f"[DataProcessor] Processing FIRE_HAZARDS...")
             state.fire_hazards = self.parser.parse_fire_hazards(payload["FIRE_HAZARDS"])
+            fire_count = len(state.fire_hazards)
+            logger.debug(f"[DataProcessor] Fire hazards: {fire_count}")
 
         # 可破坏物
         if "DESTRUCTIBLES" in payload:
+            logger.debug(f"[DataProcessor] Processing DESTRUCTIBLES...")
             state.destructibles = self.parser.parse_destructibles(
                 payload["DESTRUCTIBLES"]
             )
+            logger.debug(f"[DataProcessor] Destructibles: {len(state.destructibles)}")
 
     def merge_state(self, current: GameStateData, new: GameStateData) -> GameStateData:
         """

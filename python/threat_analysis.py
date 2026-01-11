@@ -8,9 +8,18 @@
 - 投射物轨迹预测
 
 根据 reference.md 中的威胁评估需求设计。
+
+=== 调试信息说明 ===
+本模块在威胁分析的关键位置添加了调试输出，用于追踪：
+1. 威胁评估输入（敌人、投射物、玩家位置）
+2. 敌人威胁计算结果
+3. 投射物威胁计算结果
+4. 危险区域计算
+5. 总体威胁等级判定
 """
 
 import math
+import traceback
 from typing import Dict, List, Set, Tuple, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
@@ -588,35 +597,91 @@ class ThreatAnalyzer:
         """
         完整威胁分析
 
-        Args:
-            player_pos: 玩家位置
-            enemies: 敌人字典
-            projectiles: 投射物字典
-            fire_hazards: 火焰危险物
-            current_frame: 当前帧
+        === 调试信息 ===
+        输入:
+            - player_pos: 玩家位置
+            - enemies: 敌人字典
+            - projectiles: 投射物字典
+            - fire_hazards: 火焰危险物
+            - current_frame: 当前帧
+        处理流程:
+            1. 记录攻击历史
+            2. assess_threats() - 评估所有威胁
+            3. 添加预测信息
+        输出: ThreatAssessment - 威胁评估结果
 
-        Returns:
-            威胁评估结果
+        关键跟踪点:
+            - 敌人数量和类型
+            - 投射物数量和速度
+            - 即时威胁数量
+            - 最近威胁距离
+            - 总体威胁等级
         """
+        logger.debug(f"[ThreatAnalysis] === START analyze ===")
+        logger.debug(
+            f"[ThreatAnalysis] Player pos=({player_pos.x:.1f}, {player_pos.y:.1f}), frame={current_frame}"
+        )
+        logger.debug(
+            f"[ThreatAnalysis] Enemies: {len(enemies)}, Projectiles: {len(projectiles)}"
+        )
+
         # 记录攻击历史
         for enemy in enemies.values():
             if enemy.is_about_to_attack(current_frame):
                 self.pattern_analyzer.record_attack(enemy.id, current_frame)
 
         # 评估威胁
+        logger.debug(f"[ThreatAnalysis] Assessing threats...")
         assessment = self.assessor.assess_threats(
             player_pos, enemies, projectiles, fire_hazards
         )
 
+        # 日志威胁统计
+        logger.debug(f"[ThreatAnalysis] Assessment results:")
+        logger.debug(
+            f"[ThreatAnalysis]   Overall threat level: {assessment.overall_threat_level.name}"
+        )
+        logger.debug(
+            f"[ThreatAnalysis]   Immediate threats: {len(assessment.immediate_threats)}"
+        )
+        logger.debug(
+            f"[ThreatAnalysis]   Potential threats: {len(assessment.potential_threats)}"
+        )
+        logger.debug(f"[ThreatAnalysis]   Threat count: {assessment.threat_count}")
+        logger.debug(
+            f"[ThreatAnalysis]   Closest threat distance: {assessment.closest_threat_distance:.1f}"
+        )
+        logger.debug(
+            f"[ThreatAnalysis]   Avg threat distance: {assessment.avg_threat_distance:.1f}"
+        )
+        logger.debug(f"[ThreatAnalysis]   Danger zones: {len(assessment.danger_zones)}")
+
+        # 详细记录即时威胁
+        if assessment.immediate_threats:
+            logger.debug(f"[ThreatAnalysis] Immediate threats detail:")
+            for i, threat in enumerate(assessment.immediate_threats[:5]):  # 最多记录5个
+                logger.debug(
+                    f"[ThreatAnalysis]   [{i}] type={threat.source_type}, id={threat.source_id}, "
+                    f"level={threat.threat_level.name}, dist={threat.distance:.1f}, "
+                    f"priority={threat.priority:.2f}"
+                )
+
         # 添加预测信息
+        logger.debug(f"[ThreatAnalysis] Adding prediction info...")
         for threat in assessment.immediate_threats:
             if threat.source_type == "projectile":
-                will_hit, impact_time = self.predictor.will_hit_position(
-                    None,
-                    player_pos,  # 需要修正
-                )
-                threat.estimated_impact_time = impact_time
+                proj = projectiles.get(threat.source_id)
+                if proj:
+                    will_hit, impact_time = self.predictor.will_hit_position(
+                        proj, player_pos
+                    )
+                    threat.estimated_impact_time = impact_time
+                    logger.debug(
+                        f"[ThreatAnalysis]   Projectile {threat.source_id}: "
+                        f"will_hit={will_hit}, impact_time={impact_time}"
+                    )
 
+        logger.debug(f"[ThreatAnalysis] === END analyze ===")
         return assessment
 
     def get_safe_positions(
