@@ -263,11 +263,48 @@ def start_ai_mode():
         def on_game_data(data):
             # [DEBUG] 追踪数据流
             import logging
+            import json
 
             logger = logging.getLogger("RunAI")
-            logger.debug(
-                f"[RunAI] on_game_data received: type={type(data).__name__}, keys={list(data.keys()) if isinstance(data, dict) else 'N/A'}"
-            )
+
+            # 基本信息
+            logger.debug(f"[RunAI] on_game_data received: type={type(data).__name__}")
+
+            if isinstance(data, dict):
+                logger.debug(f"[RunAI]   keys={list(data.keys())}")
+
+                # [DEBUG] 详细显示各通道数据
+                for channel, value in data.items():
+                    if isinstance(value, list):
+                        logger.debug(f"[RunAI]   {channel}: list length={len(value)}")
+                        if len(value) > 0:
+                            # 显示第一条数据的摘要
+                            first_item = value[0]
+                            if isinstance(first_item, dict):
+                                item_keys = list(first_item.keys())[:5]  # 只显示前5个键
+                                logger.debug(
+                                    f"[RunAI]     {channel}[0] keys: {item_keys}..."
+                                )
+                    elif isinstance(value, dict):
+                        logger.debug(
+                            f"[RunAI]   {channel}: dict keys={list(value.keys())}"
+                        )
+                    else:
+                        logger.debug(f"[RunAI]   {channel}: {type(value).__name__}")
+
+                # [DEBUG] 特别检查 PLAYER_POSITION
+                if "PLAYER_POSITION" in data:
+                    player_data = data["PLAYER_POSITION"]
+                    logger.debug(f"[RunAI]   PLAYER_POSITION detail: {player_data}")
+
+                    # [CONSOLE WARNING] 如果数据格式有问题，在控制台显示警告
+                    print(f"\n{YELLOW}[DATA FORMAT ISSUE DETECTED]{RESET}")
+                    print(
+                        f"  Received: payload-only message (missing type/frame/payload wrapper)"
+                    )
+                    print(f"  Channels: {list(data.keys())}")
+                    print(f"  This causes 'No player found' error in orchestrator!")
+                    print(f"  See debug logs for details.\n")
 
             control = orchestrator.update(data)
 
