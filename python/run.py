@@ -263,12 +263,22 @@ def start_ai_mode():
         def on_game_data(data):
             # [DEBUG] 追踪数据流
             import logging
-            import json
 
             logger = logging.getLogger("RunAI")
 
-            # 基本信息
             logger.debug(f"[RunAI] on_game_data received: type={type(data).__name__}")
+
+            # [FIX] 将 payload 包装成完整消息格式
+            # isaac_bridge 只传 payload 给 "data" 事件，
+            # 但 orchestrator.update() 期望完整格式
+            wrapped_data = {
+                "type": "DATA",
+                "frame": bridge.state.frame if hasattr(bridge, "state") else 0,
+                "room_index": bridge.state.room_index
+                if hasattr(bridge, "state")
+                else -1,
+                "payload": data,
+            }
 
             if isinstance(data, dict):
                 logger.debug(f"[RunAI]   keys={list(data.keys())}")
@@ -292,21 +302,12 @@ def start_ai_mode():
                     else:
                         logger.debug(f"[RunAI]   {channel}: {type(value).__name__}")
 
-                # [DEBUG] 特别检查 PLAYER_POSITION
-                if "PLAYER_POSITION" in data:
-                    player_data = data["PLAYER_POSITION"]
-                    logger.debug(f"[RunAI]   PLAYER_POSITION detail: {player_data}")
+                logger.debug(
+                    f"[RunAI] Wrapped message: frame={wrapped_data['frame']}, room={wrapped_data['room_index']}"
+                )
+                logger.debug(f"[RunAI] Payload channels: {list(data.keys())}")
 
-                    # [CONSOLE WARNING] 如果数据格式有问题，在控制台显示警告
-                    print(f"\n{YELLOW}[DATA FORMAT ISSUE DETECTED]{RESET}")
-                    print(
-                        f"  Received: payload-only message (missing type/frame/payload wrapper)"
-                    )
-                    print(f"  Channels: {list(data.keys())}")
-                    print(f"  This causes 'No player found' error in orchestrator!")
-                    print(f"  See debug logs for details.\n")
-
-            control = orchestrator.update(data)
+            control = orchestrator.update(wrapped_data)
 
             move = (int(control.move_x), int(control.move_y))
             shoot = (
