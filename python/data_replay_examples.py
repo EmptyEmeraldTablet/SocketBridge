@@ -56,32 +56,30 @@ def example_record_game_session():
     # 创建 IsaacBridge
     bridge = IsaacBridge()
 
-    # 将接收到的数据转换为 RawMessage 并录制
-    def convert_to_raw_message(data: Dict) -> RawMessage:
-        """将从 IsaacBridge 接收的数据转换为 RawMessage 格式"""
-        msg_type = data.get("type") or "DATA"  # 确保不是 None
-        return RawMessage(
-            version=int(data.get("version", 2)),
-            msg_type=msg_type,
-            timestamp=data.get("timestamp", 0),
-            frame=data.get("frame", 0),
-            room_index=data.get("room_index", -1),
-            payload=data.get("payload"),
-            channels=data.get("channels"),
-            event_type=data.get("event"),
-            event_data=data.get("data"),
-        )
-
-    # 开始录制
-    # 注意：不在这里 start_session，而是等到 connected 事件后再开始
-    # recorder.start_session() -> 移到 on_connected 回调中
-
     # 注册回调
     @bridge.on("data")
     def on_data(data: Dict):
+        """
+        录制 DATA 消息
+
+        注意：isaac_bridge.py 触发 "data" 回调时传递的是 payload，
+        不是完整消息。因此需要从 bridge.state 获取元数据。
+        """
         # 只有在录制状态下才记录数据
         if recorder.recording:
-            raw_msg = convert_to_raw_message(data)
+            # data 就是 payload (PLAYER_POSITION, ENEMIES 等)
+            # 从 bridge.state 获取 frame 和 room_index
+            raw_msg = RawMessage(
+                version=2,
+                msg_type="DATA",
+                timestamp=int(time.time() * 1000),  # 录制时的时间戳
+                frame=bridge.state.frame,
+                room_index=bridge.state.room_index,
+                payload=data,  # data 就是 payload
+                channels=list(data.keys()) if isinstance(data, dict) else [],
+                event_type=None,
+                event_data=None,
+            )
             recorder.record_message(raw_msg)
 
     @bridge.on("event")
