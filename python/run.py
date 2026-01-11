@@ -252,7 +252,9 @@ def start_ai_mode():
             print(f"  Address: {info['address']}")
 
             # [FIX] 切换到AI控制模式
-            bridge.send_command("SET_CONTROL_MODE", {"mode": "FORCE_AI"})
+            print(f"{BLUE}[RunAI] Switching to FORCE_AI control mode...{RESET}")
+            result = bridge.send_command("SET_CONTROL_MODE", {"mode": "FORCE_AI"})
+            print(f"{BLUE}[RunAI] Control mode command result: {result}{RESET}")
             print(f"{BLUE}Control mode: FORCE_AI (AI controls enabled){RESET}")
 
             orchestrator.enable()
@@ -268,22 +270,46 @@ def start_ai_mode():
         @bridge.on("event:NPC_DEATH")
         def on_npc_death(event_data):
             import logging
+            import time as time_module
 
             logger = logging.getLogger("RunAI")
+            current_time = time_module.strftime("%H:%M:%S")
+
             if orchestrator is not None and orchestrator.is_enabled:
                 orchestrator.stats["enemies_killed"] += 1
-                logger.debug(
-                    f"[RunAI] Enemy killed! Total: {orchestrator.stats['enemies_killed']}"
+                enemy_type = event_data.get("type", "Unknown")
+                enemy_variant = event_data.get("variant", 0)
+                is_boss = event_data.get("is_boss", False)
+
+                logger.info(
+                    f"[RunAI] [{current_time}] ENEMY KILLED! "
+                    f"Total: {orchestrator.stats['enemies_killed']} | "
+                    f"Type: {enemy_type}.{enemy_variant} | "
+                    f"Boss: {is_boss}"
                 )
+                logger.debug(f"[RunAI] Enemy kill event data: {event_data}")
+
+        # [DEBUG] 监听控制模式变化事件
+        @bridge.on("event:CONTROL_MODE_CHANGED")
+        def on_control_mode_changed(event_data):
+            import logging
+
+            logger = logging.getLogger("RunAI")
+            new_mode = event_data.get("mode", "Unknown")
+            logger.info(f"[RunAI] Control mode changed to: {new_mode}")
 
         @bridge.on("data")
         def on_game_data(data):
             # [DEBUG] 追踪数据流
             import logging
+            import time as time_module
 
             logger = logging.getLogger("RunAI")
+            current_time = time_module.strftime("%H:%M:%S.%f")[:-3]
 
-            logger.debug(f"[RunAI] on_game_data received: type={type(data).__name__}")
+            logger.debug(
+                f"[RunAI] [{current_time}] on_game_data received: type={type(data).__name__}"
+            )
 
             # [FIX] 将 payload 包装成完整消息格式
             # isaac_bridge 只传 payload 给 "data" 事件，
@@ -326,13 +352,31 @@ def start_ai_mode():
 
             control = orchestrator.update(wrapped_data)
 
+            # [DEBUG] 记录 orchestrator 的决策结果
             move = (int(control.move_x), int(control.move_y))
             shoot = (
                 (int(control.shoot_x), int(control.shoot_y))
                 if control.shoot
                 else (0, 0)
             )
-            bridge.send_input(move=move, shoot=shoot)
+
+            # [DEBUG] 详细记录控制输出
+            logger.debug(
+                f"[RunAI] Control Output: "
+                f"move=({move[0]}, {move[1]}) | "
+                f"shoot={shoot} | "
+                f"shoot_flag={control.shoot} | "
+                f"confidence={control.confidence:.2f} | "
+                f"reasoning={control.reasoning}"
+            )
+
+            # [DEBUG] 记录发送到游戏的指令
+            send_result = bridge.send_input(move=move, shoot=shoot)
+            logger.debug(
+                f"[RunAI] send_input result: {send_result} | "
+                f"move=({move[0]}, {move[1]}) | "
+                f"shoot=({shoot[0]}, {shoot[1]})"
+            )
 
             frame_count[0] += 1
 
@@ -345,8 +389,22 @@ def start_ai_mode():
                     if hasattr(orchestrator.current_state, "value")
                     else "N/A"
                 )
+                uptime = stats.get("uptime", 0)
+                dps_rate = stats["enemies_killed"] / max(
+                    0.1, uptime / 60
+                )  # 每分钟击杀数
+
                 print(
-                    f"\n  Frames: {stats['decisions']} | DPS: {stats['enemies_killed']} | HP: {state_val}"
+                    f"\n  Frames: {stats['decisions']} | "
+                    f"DPS: {stats['enemies_killed']} | "
+                    f"DPS/min: {dps_rate:.1f} | "
+                    f"HP: {state_val} | "
+                    f"Uptime: {uptime:.1f}s"
+                )
+                print(
+                    f"  Last control: move=({move[0]}, {move[1]}) | "
+                    f"shoot=({shoot[0]}, {shoot[1]}) | "
+                    f"confidence={control.confidence:.2f}"
                 )
 
         print("Starting AI combat system...")
