@@ -1,0 +1,14 @@
+{
+  "session_id": "session_20260111_164314",
+  "duration": 43.15899586677551,
+  "total_frames": 10,
+  "total_messages": 1073,
+  "total_events": 1,
+  "frame_summary": [
+    {
+      "frame": 0,
+      "channels": null,
+      "message_count": 1064
+    }
+  ]
+}
