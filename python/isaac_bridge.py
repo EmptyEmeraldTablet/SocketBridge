@@ -555,7 +555,7 @@ class IsaacBridge:
             self._trigger_handlers("message", full_msg)
 
         elif msg_type == MessageType.EVENT.value:
-            event_type = msg.get("event")
+            event_type = msg.get("event_type")
             event_data = msg.get("data", {})
             timestamp = msg.get("timestamp", 0)
 

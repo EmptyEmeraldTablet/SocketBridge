@@ -154,18 +154,22 @@ class IntegrationTest:
         print(f"   回调已注册")
         print(f"   监听端口: {self.listen_port}")
 
-    def run_test(self, max_messages: int = 1000, timeout: float = 30.0):
+    def run_test(self, max_messages: int = None, timeout: float = None):
         """运行测试
 
         遵循实际使用场景：
         - isaac_bridge 已启动并等待连接
         - LuaSimulator.connect() 模拟游戏连接并发送数据
-        - 等待接收指定数量的消息或超时
+        - 等待回放完成（无消息/时间限制）
         """
+        # 无限制
+        if max_messages is None:
+            max_messages = float("inf")
+        if timeout is None:
+            timeout = float("inf")
+
         print("\n" + "=" * 70)
-        print(
-            f"步骤 3: 运行测试 (等待最多 {timeout} 秒，接收最多 {max_messages} 条消息)"
-        )
+        print(f"步骤 3: 运行测试 (等待回放完成，无消息/时间限制)")
         print("=" * 70)
 
         self.running = True
@@ -319,8 +323,8 @@ def main():
     # 步骤 2: 设置桥接器
     test.setup_bridge()
 
-    # 步骤 3: 运行测试
-    results = test.run_test(max_messages=1000, timeout=30.0)
+    # 步骤 3: 运行测试（开发模式：有限制）
+    results = test.run_test(max_messages=2000, timeout=60.0)
 
     # 输出结果
     print("\n" + "=" * 70)
