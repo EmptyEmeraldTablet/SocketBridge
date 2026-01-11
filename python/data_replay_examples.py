@@ -142,6 +142,7 @@ def example_record_game_session():
             print(
                 f"{status}... 消息: {stats['messages_recorded']}, "
                 f"帧: {stats['frames_recorded']}, "
+                f"当前帧号: {stats.get('current_frame', 0)}, "
                 f"缓冲: {stats['buffer_size']}"
             )
     except KeyboardInterrupt:

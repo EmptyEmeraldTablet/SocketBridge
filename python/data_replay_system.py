@@ -219,7 +219,8 @@ class EnhancedDataRecorder:
 
         self.stats = {
             "messages_recorded": 0,
-            "frames_recorded": 0,
+            "frames_recorded": 0,  # 录制了多少个不同的帧
+            "current_frame": 0,  # 当前录制到的帧号
             "events_recorded": 0,
             "sessions": 0,
             "bytes_written": 0,
@@ -303,12 +304,12 @@ class EnhancedDataRecorder:
 
         self.message_buffer.append(msg)
         self.stats["messages_recorded"] += 1
+        self.stats["current_frame"] = max(self.stats["current_frame"], msg.frame)
 
+        # 统计录制了多少个不同的帧
         if msg.frame not in self.frame_index:
             self.frame_index[msg.frame] = []
-            self.stats["frames_recorded"] = max(
-                self.stats["frames_recorded"], msg.frame + 1
-            )
+            self.stats["frames_recorded"] += 1  # 新帧，计数+1
         self.frame_index[msg.frame].append(msg)
 
         if self.on_message:
@@ -381,9 +382,7 @@ class EnhancedDataRecorder:
             if self.current_session
             else "unknown",
             "duration": self.current_session.duration if self.current_session else 0,
-            "total_frames": self.current_session.total_frames
-            if self.current_session
-            else 0,
+            "total_frames": len(self.frame_index),  # 不同帧的数量
             "total_messages": self.current_session.total_messages
             if self.current_session
             else 0,
