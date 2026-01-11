@@ -324,12 +324,14 @@ def start_ai_mode():
             }
 
             if isinstance(data, dict):
-                logger.debug(f"[RunAI]   keys={list(data.keys())}")
+                logger.debug(f"[RunAI]   keys={str(list(data.keys()))}")
 
                 # [DEBUG] 详细显示各通道数据
                 for channel, value in data.items():
                     if isinstance(value, list):
-                        logger.debug(f"[RunAI]   {channel}: list length={len(value)}")
+                        logger.debug(
+                            f"[RunAI]   {str(channel)}: list length={str(len(value))}"
+                        )
                         if len(value) > 0:
                             # 显示第一条数据的摘要
                             first_item = value[0]
@@ -338,21 +340,31 @@ def start_ai_mode():
                                 # [FIX] 将列表转换为字符串避免格式化问题
                                 item_keys_str = str(item_keys)
                                 logger.debug(
-                                    f"[RunAI]     {channel}[0] keys: {item_keys_str}"
+                                    f"[RunAI]     {str(channel)}[0] keys: {item_keys_str}"
                                 )
                     elif isinstance(value, dict):
                         logger.debug(
-                            f"[RunAI]   {channel}: dict keys={list(value.keys())}"
+                            f"[RunAI]   {str(channel)}: dict keys={str(list(value.keys()))}"
                         )
                     else:
-                        logger.debug(f"[RunAI]   {channel}: {type(value).__name__}")
+                        logger.debug(
+                            f"[RunAI]   {str(channel)}: {type(value).__name__}"
+                        )
 
                 logger.debug(
-                    f"[RunAI] Wrapped message: frame={wrapped_data['frame']}, room={wrapped_data['room_index']}"
+                    f"[RunAI] Wrapped message: frame={str(wrapped_data['frame'])}, room={str(wrapped_data['room_index'])}"
                 )
-                logger.debug(f"[RunAI] Payload channels: {list(data.keys())}")
+                logger.debug(f"[RunAI] Payload channels: {str(list(data.keys()))}")
 
-            control = orchestrator.update(wrapped_data)
+            # [DEBUG] 添加完整的错误追踪
+            import traceback
+
+            try:
+                control = orchestrator.update(wrapped_data)
+            except Exception as e:
+                logger.error(f"[RunAI] ERROR in orchestrator.update(): {e}")
+                logger.error(f"[RunAI] Full traceback:\n{traceback.format_exc()}")
+                return
 
             # [DEBUG] 记录 orchestrator 的决策结果
             move = (int(control.move_x), int(control.move_y))
