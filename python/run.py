@@ -250,6 +250,11 @@ def start_ai_mode():
         def on_connected(info):
             print(f"\n{GREEN}Game connected!{RESET}")
             print(f"  Address: {info['address']}")
+
+            # [FIX] 切换到AI控制模式
+            bridge.send_command("SET_CONTROL_MODE", {"mode": "FORCE_AI"})
+            print(f"{BLUE}Control mode: FORCE_AI (AI controls enabled){RESET}")
+
             orchestrator.enable()
             print(f"\n{YELLOW}AI enabled - Fighting!{RESET}\n")
 
@@ -258,6 +263,18 @@ def start_ai_mode():
             print(f"\n{YELLOW}Game disconnected{RESET}")
             if orchestrator is not None:
                 orchestrator.disable()
+
+        # [FIX] 监听NPC死亡事件来更新DPS统计
+        @bridge.on("event:NPC_DEATH")
+        def on_npc_death(event_data):
+            import logging
+
+            logger = logging.getLogger("RunAI")
+            if orchestrator is not None and orchestrator.is_enabled:
+                orchestrator.stats["enemies_killed"] += 1
+                logger.debug(
+                    f"[RunAI] Enemy killed! Total: {orchestrator.stats['enemies_killed']}"
+                )
 
         @bridge.on("data")
         def on_game_data(data):
