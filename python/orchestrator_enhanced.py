@@ -226,10 +226,28 @@ class EnhancedCombatOrchestrator:
                 )
                 return ControlOutput()
 
+            # [DEBUG] 详细玩家状态
             logger.debug(
-                f"[Orchestrator] [Phase 1] Player pos=({player.position.x:.1f}, {player.position.y:.1f}), "
-                f"hp={player.red_hearts}/{player.max_hearts}"
+                f"[Orchestrator] [Phase 1] Player: pos=({player.position.x:.1f}, {player.position.y:.1f}), "
+                f"hp={player.red_hearts}/{player.max_hearts}, soul={player.soul_hearts}, can_fly={player.can_fly}"
             )
+
+            # [DEBUG] 敌人状态
+            enemy_count = len(game_state.enemies)
+            logger.debug(f"[Orchestrator] [Phase 1] Enemies: count={enemy_count}")
+            if enemy_count > 0:
+                for eid, enemy in list(game_state.enemies.items())[:3]:
+                    logger.debug(
+                        f"[Orchestrator]   Enemy {eid}: type={enemy.enemy_type}.{enemy.variant}, "
+                        f"pos=({enemy.position.x:.1f}, {enemy.position.y:.1f}), "
+                        f"hp={enemy.hp:.1f}/{enemy.max_hp}, dist={enemy.distance:.1f}"
+                    )
+                if enemy_count > 3:
+                    logger.debug(f"[Orchestrator]   ... and {enemy_count - 3} more")
+
+            # [DEBUG] 投射物状态
+            proj_count = len(game_state.enemy_projectiles)
+            logger.debug(f"[Orchestrator] [Phase 1] Projectiles: count={proj_count}")
 
             logger.debug(f"[Orchestrator] [Phase 1] Updating environment model...")
             self.environment.update_room(
