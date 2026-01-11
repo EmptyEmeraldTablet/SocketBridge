@@ -627,7 +627,7 @@ class DataProcessor:
 
         logger.debug(f"[DataProcessor] === START process_message ===")
         logger.debug(
-            f"[DataProcessor] input_type: {type(msg).__name__}, input_keys: {list(msg.keys()) if isinstance(msg, dict) else 'N/A'}"
+            f"[DataProcessor] input_type: {type(msg).__name__}, input_keys: {str(list(msg.keys())) if isinstance(msg, dict) else 'N/A'}"
         )
 
         # [DEBUG] 详细格式检测 - 警告可能的格式问题
@@ -651,7 +651,7 @@ class DataProcessor:
                     f"[DataProcessor] CRITICAL: Received payload-only message instead of full message!"
                 )
                 logger.error(
-                    f"[DataProcessor]   Direct channels in msg: {[k for k in msg.keys() if not k.startswith('_')]}"
+                    f"[DataProcessor]   Direct channels in msg: {str([k for k in msg.keys() if not k.startswith('_')])}"
                 )
                 logger.error(
                     f"[DataProcessor]   This breaks process_message() - it expects full format!"
@@ -667,7 +667,7 @@ class DataProcessor:
             f"[DataProcessor] type={msg_type}, frame={frame}, room_index={room_index}"
         )
         logger.debug(
-            f"[DataProcessor] payload keys={list(payload.keys()) if payload else []}"
+            f"[DataProcessor] payload keys={str(list(payload.keys())) if payload else []}"
         )
 
         # [DEBUG] 详细记录每个通道的数据
@@ -680,7 +680,7 @@ class DataProcessor:
                         )
                     elif isinstance(data, dict):
                         logger.debug(
-                            f"[DataProcessor] Channel {channel}: dict keys={list(data.keys())}"
+                            f"[DataProcessor] Channel {channel}: dict keys={str(list(data.keys()))}"
                         )
                     else:
                         logger.debug(
@@ -809,7 +809,7 @@ class DataProcessor:
         - PLAYER_INVENTORY: 玩家物品栏
         """
         logger.debug(
-            f"[DataProcessor] _process_player_data: payload keys = {list(payload.keys())}"
+            f"[DataProcessor] _process_player_data: payload keys = {str(list(payload.keys()))}"
         )
 
         # 位置数据

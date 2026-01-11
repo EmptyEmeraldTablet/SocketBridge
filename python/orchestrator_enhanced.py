@@ -207,7 +207,9 @@ class EnhancedCombatOrchestrator:
             return ControlOutput()
 
         logger.debug(f"[Orchestrator] === START update ===")
-        logger.debug(f"[Orchestrator] raw_message keys: {list(raw_message.keys())}")
+        logger.debug(
+            f"[Orchestrator] raw_message keys: {str(list(raw_message.keys()))}"
+        )
 
         try:
             # 1. Parse data [Phase 1]
