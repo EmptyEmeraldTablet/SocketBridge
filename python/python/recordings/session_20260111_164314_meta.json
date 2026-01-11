@@ -1,0 +1,15 @@
+{
+  "session_id": "session_20260111_164314",
+  "start_time": 1768120994.3069663,
+  "start_timestamp": "20260111_164314",
+  "lua_host": "127.0.0.1",
+  "lua_port": 9527,
+  "total_frames": 10,
+  "total_events": 1,
+  "total_messages": 1073,
+  "duration": 43.15899586677551,
+  "metadata": {
+    "description": "Debug session - \u8bca\u65ad\u6570\u636e\u5f55\u5236\u95ee\u9898",
+    "game_version": "repentance"
+  }
+}

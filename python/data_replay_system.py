@@ -25,7 +25,7 @@ import threading
 import os
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Callable, Generator, Tuple
+from typing import Optional, Dict, Any, List, Callable, Generator, Tuple, Union
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from collections import deque
@@ -73,20 +73,9 @@ class RawMessage:
     """
     完整的原始消息结构
     包含从 Lua 端接收的所有元数据
-
-    消息格式与 DATA_PROTOCOL.md 保持一致:
-    {
-        "version": 2,           # 版本号 (int)
-        "type": "DATA",         # 消息类型 (str)
-        "frame": 123,           # 帧号 (int)
-        "room_index": 5,        # 房间索引 (int)
-        "payload": {...},       # 数据负载 (dict)
-        "channels": ["..."],    # 数据通道列表 (list)
-        "timestamp": 1234567890 # 时间戳 (int, Lua Isaac.GetTime())
-    }
     """
 
-    version: int
+    version: Union[int, str]  # 支持字符串 "2.0" 或整数 2
     msg_type: str
     timestamp: int
     frame: int
@@ -96,6 +85,17 @@ class RawMessage:
     event_type: Optional[str] = None
     event_data: Optional[Dict] = None
     received_at: float = field(default_factory=time.time)
+
+    @staticmethod
+    def _parse_version(v: Union[int, str]) -> Union[int, str]:
+        """解析版本号，支持整数和字符串格式"""
+        if isinstance(v, str):
+            # 处理 "2.0" -> 2 的转换，或者保持原样
+            try:
+                return int(float(v))
+            except (ValueError, TypeError):
+                return v  # 无法转换，保持原字符串
+        return v
 
     def to_dict(self) -> Dict:
         return {
@@ -113,10 +113,29 @@ class RawMessage:
 
     @classmethod
     def from_dict(cls, data: Dict) -> "RawMessage":
+        # 处理版本号，支持字符串 "2.0" 和整数 2
+        version = data["version"]
+        if isinstance(version, str):
+            try:
+                version = int(float(version))
+            except (ValueError, TypeError):
+                pass  # 无法转换，保持原字符串
+
+        # 处理时间戳，过滤异常值（Unix 时间戳 vs Isaac.GetTime()）
+        timestamp = (
+            int(data["timestamp"])
+            if isinstance(data["timestamp"], (int, float))
+            else data["timestamp"]
+        )
+        # Isaac.GetTime() 返回游戏内毫秒数，通常 < 100,000,000
+        # Unix 时间戳（毫秒）通常 > 1,000,000,000,000
+        if timestamp > 1_000_000_000_000:  # 约 2001 年之后的 Unix 时间戳（毫秒）
+            timestamp = 0  # 使用占位值
+
         return cls(
-            version=int(data["version"]),
+            version=version,
             msg_type=data["type"],
-            timestamp=data["timestamp"],
+            timestamp=timestamp,
             frame=data["frame"],
             room_index=data["room_index"],
             payload=data.get("payload"),
@@ -597,6 +616,106 @@ class LuaSimulator:
         self.playback_speed = max(0.1, min(10.0, speed))
         logger.info(f"Playback speed set to {self.playback_speed}x")
 
+    def connect(self, host: str = None, port: int = None, timeout: float = 5.0):
+        """
+        作为客户端连接到服务器（模拟游戏行为）
+
+        与 main.lua 中的 Network.connect() 一致：
+        - 创建 TCP socket
+        - 连接到 isaac_bridge 服务器
+        - 触发 on_connect 回调
+
+        Args:
+            host: 服务器地址 (默认使用初始化时的 host)
+            port: 服务器端口 (默认使用初始化时的 port)
+            timeout: 连接超时时间 (秒)
+
+        Returns:
+            bool: 是否成功连接
+        """
+        target_host = host or self.host
+        target_port = port or self.port
+
+        if self.client:
+            logger.warning("Already connected, closing existing connection")
+            try:
+                self.client.close()
+            except:
+                pass
+            self.client = None
+
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client.settimeout(timeout)
+
+        try:
+            self.client.connect((target_host, target_port))
+            self.running = True
+            self.stop_event.clear()
+            logger.info(f"Connected to {target_host}:{target_port}")
+
+            if self.on_connect:
+                self.on_connect()
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to connect to {target_host}:{target_port}: {e}")
+            self.client = None
+            return False
+
+    def connect_and_play(
+        self, host: str = None, port: int = None, max_messages: int = None
+    ):
+        """
+        连接到服务器并开始发送数据（模拟游戏完整行为）
+
+        组合 connect() 和 play() 的便捷方法：
+        1. 连接到 isaac_bridge 服务器
+        2. 开始发送录制数据
+        3. 发送完成后自动断开
+
+        Args:
+            host: 服务器地址
+            port: 服务器端口
+            max_messages: 最大发送消息数 (None 表示全部发送)
+        """
+        if not self.connect(host, port):
+            return False
+
+        # 设置消息限制
+        original_messages = self.messages
+        if max_messages is not None:
+            self.messages = self.messages[:max_messages]
+
+        # 开始发送
+        self.play()
+
+        # 等待发送完成
+        if self._send_thread:
+            self._send_thread.join()
+
+        # 恢复原始消息列表
+        self.messages = original_messages
+
+        # 断开连接
+        self.disconnect()
+
+        return True
+
+    def disconnect(self):
+        """断开与服务器的连接"""
+        if self.client:
+            try:
+                self.client.shutdown(socket.SHUT_RDWR)
+            except:
+                pass
+            try:
+                self.client.close()
+            except:
+                pass
+            self.client = None
+            logger.info("Disconnected from server")
+
     def _accept_loop(self):
         """接受连接循环（与 isaac_bridge.py 保持一致）"""
         while self.running:
@@ -694,6 +813,20 @@ class LuaSimulator:
             )
             if self.on_playback_complete:
                 self.on_playback_complete()
+
+        # 回放完成
+        if self.current_index >= len(self.messages):
+            logger.info(
+                f"[DEBUG] Playback complete: {self.stats['messages_sent']} messages, "
+                f"{self.stats['frames_sent']} frames"
+            )
+            if self.on_playback_complete:
+                self.on_playback_complete()
+        else:
+            logger.debug(
+                f"[DEBUG] _send_loop exited early: current_index={self.current_index}, "
+                f"running={self.running}, client={'connected' if self.client else 'None'}"
+            )
 
     def get_stats(self) -> Dict:
         """获取统计信息"""
