@@ -844,34 +844,13 @@ class EnhancedCombatOrchestrator:
             )
 
             # [DEBUG] 检查是否支持下标访问
-            try:
-                test_access = safe_spot[0]
-                logger.debug(
-                    f"[Orchestrator] [_get_movement_target] safe_spot[0] works: {test_access}"
-                )
-            except TypeError as e:
-                logger.error(
-                    f"[Orchestrator] [_get_movement_target] safe_spot is NOT subscriptable!"
-                )
-                logger.error(f"[Orchestrator] [_get_movement_target] Error: {e}")
-                logger.error(
-                    f"[Orchestrator] [_get_movement_target] Type: {type(safe_spot)}"
-                )
-                # [FIX] 如果已经 Vector2D，直接返回
-                if isinstance(safe_spot, Vector2D):
-                    logger.debug(
-                        f"[Orchestrator] [_get_movement_target] Returning Vector2D directly"
-                    )
+            if isinstance(safe_spot, Vector2D):
+                # [FIX] 如果是 Vector2D，直接返回（这是正确的行为）
+                return safe_spot
+            else:
+                # 假设是元组或列表
+                if safe_spot:
                     return safe_spot
-        else:
-            logger.debug(f"[Orchestrator] [_get_movement_target] safe_spot is None")
-
-        if safe_spot:
-            # [DEBUG] 记录最终返回值
-            logger.debug(
-                f"[Orchestrator] [_get_movement_target] Returning safe_spot directly"
-            )
-            return safe_spot
 
         # Default to room center
         if game_state.room_info and hasattr(game_state.room_info, "center"):
