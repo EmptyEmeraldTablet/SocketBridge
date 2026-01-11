@@ -203,6 +203,89 @@ logging.getLogger("ThreatAnalysis").setLevel(logging.INFO)
 4. 检查威胁分析结果
 5. 检查最终控制输出是否为空
 
+### 场景5: 消息格式问题 (payload-only)
+
+**症状:**
+- 控制台反复显示 `[Orchestrator] [Phase 1] No player found, returning empty control`
+- 启用DEBUG后看到 `FORMAT ISSUE DETECTED` 警告
+- 玩家位置、血量等信息无法解析
+
+**错误输出示例:**
+```
+[DataProcessor] FORMAT ISSUE DETECTED!
+[DataProcessor]   has_type=False, has_frame=False, has_payload=False
+[DataProcessor] CRITICAL: Received payload-only message instead of full message!
+[DataProcessor]   Direct channels in msg: ['ENEMIES', 'PLAYER_POSITION', 'PROJECTILES']
+[DataProcessor]   Expected: {'type': 'DATA', 'frame': X, 'room_index': Y, 'payload': {...}}
+[DataProcessor]   Received: {'PLAYER_POSITION': [...], 'ENEMIES': [...]} (no type/frame/payload wrapper)
+```
+
+**问题根源:**
+
+数据流中存在消息格式不匹配：
+
+```
+正常流程:
+Lua → {"type":"DATA","frame":123,"room_index":5,"payload":{"PLAYER_POSITION":[...]}}
+  → orchestrator.update() ✓ 可以解析
+
+问题流程 (当前):
+Lua → {"type":"DATA",...,"payload":{"PLAYER_POSITION":[...]}}
+  → isaac_bridge._process_message()
+  → self._trigger_handlers("data", payload)  ← 只传了 payload！
+  → run.py: on_game_data(data)  ← data = {"PLAYER_POSITION": [...], ...}
+  → orchestrator.update(data)  ✗ process_message() 期望完整格式
+```
+
+**问题位置:**
+- `run.py:262-264` 的 `on_game_data` 事件处理器
+- 这里收到的是 `payload` (不完整消息)，不是完整格式
+
+**预期完整消息格式:**
+```json
+{
+  "type": "DATA",
+  "frame": 123,
+  "room_index": 5,
+  "payload": {
+    "PLAYER_POSITION": [...],
+    "ENEMIES": [...],
+    "PROJECTILES": [...]
+  }
+}
+```
+
+**收到的 payload-only 格式:**
+```json
+{
+  "PLAYER_POSITION": [...],
+  "ENEMIES": [...],
+  "PROJECTILES": [...]
+}
+```
+
+**解决方向:**
+- 需要在 `run.py:on_game_data` 中将 payload 包装成完整消息格式
+- 或者在 Lua 端确保发送完整格式消息
+
+**调试输出:**
+启用DEBUG后，`run.py` 会显示:
+```
+[RunAI] on_game_data received: type=dict
+[RunAI]   keys=['ENEMIES', 'PLAYER_POSITION', 'PROJECTILES']
+[RunAI]   ENEMIES: list length=0
+[RunAI]   PLAYER_POSITION: list length=1
+[RunAI]   PROJECTILES: list length=0
+```
+
+控制台会显示警告:
+```
+[DATA FORMAT ISSUE DETECTED]
+  Received: payload-only message (missing type/frame/payload wrapper)
+  Channels: ['ENEMIES', 'PLAYER_POSITION', 'PROJECTILES']
+  This causes 'No player found' error in orchestrator!
+```
+
 ### 场景3: 移动异常
 
 **症状:** 角色移动方向错误
@@ -276,6 +359,7 @@ logging.basicConfig(
 | `[Orchestrator]` | AI决策主循环 | orchestrator_enhanced.py |
 | `[BasicControllers]` | 控制指令计算 | basic_controllers.py |
 | `[ThreatAnalysis]` | 威胁分析 | threat_analysis.py |
+| `[RunAI]` | run.py AI模式数据处理 | run.py |
 | `[Phase 1]` | 基础层（数据/环境） | orchestrator_enhanced.py |
 | `[Phase 2]` | 分析层（威胁） | orchestrator_enhanced.py |
 | `[Phase 3]` | 决策层（状态机/策略/行为树） | orchestrator_enhanced.py |
