@@ -597,6 +597,106 @@ class LuaSimulator:
         self.playback_speed = max(0.1, min(10.0, speed))
         logger.info(f"Playback speed set to {self.playback_speed}x")
 
+    def connect(self, host: str = None, port: int = None, timeout: float = 5.0):
+        """
+        作为客户端连接到服务器（模拟游戏行为）
+
+        与 main.lua 中的 Network.connect() 一致：
+        - 创建 TCP socket
+        - 连接到 isaac_bridge 服务器
+        - 触发 on_connect 回调
+
+        Args:
+            host: 服务器地址 (默认使用初始化时的 host)
+            port: 服务器端口 (默认使用初始化时的 port)
+            timeout: 连接超时时间 (秒)
+
+        Returns:
+            bool: 是否成功连接
+        """
+        target_host = host or self.host
+        target_port = port or self.port
+
+        if self.client:
+            logger.warning("Already connected, closing existing connection")
+            try:
+                self.client.close()
+            except:
+                pass
+            self.client = None
+
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client.settimeout(timeout)
+
+        try:
+            self.client.connect((target_host, target_port))
+            self.running = True
+            self.stop_event.clear()
+            logger.info(f"Connected to {target_host}:{target_port}")
+
+            if self.on_connect:
+                self.on_connect()
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to connect to {target_host}:{target_port}: {e}")
+            self.client = None
+            return False
+
+    def connect_and_play(
+        self, host: str = None, port: int = None, max_messages: int = None
+    ):
+        """
+        连接到服务器并开始发送数据（模拟游戏完整行为）
+
+        组合 connect() 和 play() 的便捷方法：
+        1. 连接到 isaac_bridge 服务器
+        2. 开始发送录制数据
+        3. 发送完成后自动断开
+
+        Args:
+            host: 服务器地址
+            port: 服务器端口
+            max_messages: 最大发送消息数 (None 表示全部发送)
+        """
+        if not self.connect(host, port):
+            return False
+
+        # 设置消息限制
+        original_messages = self.messages
+        if max_messages is not None:
+            self.messages = self.messages[:max_messages]
+
+        # 开始发送
+        self.play()
+
+        # 等待发送完成
+        if self._send_thread:
+            self._send_thread.join()
+
+        # 恢复原始消息列表
+        self.messages = original_messages
+
+        # 断开连接
+        self.disconnect()
+
+        return True
+
+    def disconnect(self):
+        """断开与服务器的连接"""
+        if self.client:
+            try:
+                self.client.shutdown(socket.SHUT_RDWR)
+            except:
+                pass
+            try:
+                self.client.close()
+            except:
+                pass
+            self.client = None
+            logger.info("Disconnected from server")
+
     def _accept_loop(self):
         """接受连接循环（与 isaac_bridge.py 保持一致）"""
         while self.running:

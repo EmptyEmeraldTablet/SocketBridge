@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-综合测试：回放录制数据 + isaac_bridge.py 集成测试
+SocketBridge 集成测试：回放录制数据 + isaac_bridge.py
 
-测试流程：
-1. 启动 LuaSimulator 作为模拟服务器
-2. 使用 isaac_bridge.py 连接到模拟器
-3. 接收并处理回放的数据
-4. 验证数据完整性
+测试流程（模拟实际使用场景）:
+1. 启动 isaac_bridge.py 作为服务器（等待游戏连接）
+2. 使用 LuaSimulator.connect() 模拟游戏连接 isaac_bridge
+3. LuaSimulator.play() 发送录制数据
+4. 验证 isaac_bridge 正确接收和处理数据
 """
 
 import sys
@@ -14,7 +14,6 @@ import time
 import json
 import gzip
 import os
-import socket
 import threading
 from pathlib import Path
 
@@ -26,10 +25,11 @@ from data_replay_system import LuaSimulator, RawMessage
 
 
 class IntegrationTest:
-    def __init__(self, session_dir: str = "recordings", port: int = 9530):
-        self.session_dir = session_dir
-        self.port = port
+    def __init__(self, session_dir: str = "recordings", listen_port: int = 9602):
+        self.session_dir = Path(session_dir)
+        self.listen_port = listen_port  # isaac_bridge 监听端口
         self.running = False
+        self.connected = threading.Event()
 
         # 统计
         self.stats = {
@@ -52,59 +52,75 @@ class IntegrationTest:
         print("步骤 1: 加载录制会话")
         print("=" * 70)
 
-        session_files = sorted(
-            [
-                f
-                for f in os.listdir(self.session_dir)
-                if f.endswith(".json.gz") and "chunk" in f
-            ]
-        )
+        # 查找所有会话的 chunk 文件
+        chunk_files = sorted(self.session_dir.glob("*_chunk_*.json.gz"))
 
-        if not session_files:
-            print(f"❌ 在 {self.session_dir} 中找不到录制文件")
+        if not chunk_files:
+            print(f"   ❌ 在 {self.session_dir} 中找不到录制文件")
             return False
 
-        # 获取会话ID
-        if session_files:
-            session_id = session_files[0].replace("_chunk_0000.json.gz", "")
-            print(f"   会话ID: {session_id}")
-            print(f"   文件数: {len(session_files)}")
+        # 提取会话ID
+        session_ids = set()
+        for f in chunk_files:
+            name = f.name
+            if "_chunk_" in name:
+                session_id = name.rsplit("_chunk_", 1)[0]
+                session_ids.add(session_id)
+
+        if not session_ids:
+            print("   ❌ 无法解析会话ID")
+            return False
+
+        # 选择最新的会话
+        session_id = sorted(session_ids, reverse=True)[0]
+        print(f"   会话ID: {session_id}")
+
+        # 获取该会话的所有 chunk 文件
+        session_files = sorted(
+            [f for f in chunk_files if f.name.startswith(session_id + "_chunk_")]
+        )
+        print(f"   文件数: {len(session_files)}")
 
         # 加载消息
         messages = []
-        for f in session_files:
-            with gzip.open(f"{self.session_dir}/{f}", "rt", encoding="utf-8") as fp:
+        for chunk_file in session_files:
+            with gzip.open(chunk_file, "rt", encoding="utf-8") as fp:
                 data = json.load(fp)
-                # 转换为 RawMessage 对象
                 for msg_dict in data.get("messages", []):
                     messages.append(RawMessage.from_dict(msg_dict))
 
         print(f"   总消息数: {len(messages)}")
 
+        if len(messages) == 0:
+            print("   ❌ 消息数为0")
+            return False
+
         # 创建模拟器
-        self.simulator = LuaSimulator(host="127.0.0.1", port=self.port, reuse_addr=True)
+        self.simulator = LuaSimulator(host="127.0.0.1", port=self.listen_port)
         self.simulator.load_messages(messages)
         print(f"   模拟器已就绪")
 
         return True
 
     def setup_bridge(self):
-        """设置 isaac_bridge.py 连接"""
+        """设置 isaac_bridge.py 服务器"""
         print("\n" + "=" * 70)
-        print("步骤 2: 设置 isaac_bridge.py")
+        print("步骤 2: 设置 isaac_bridge.py 服务器")
         print("=" * 70)
 
-        self.bridge = IsaacBridge(host="127.0.0.1", port=self.port)
+        # isaac_bridge 作为服务器，监听端口等待连接
+        self.bridge = IsaacBridge(host="127.0.0.1", port=self.listen_port)
         self.data = GameDataAccessor(self.bridge)
 
-        # 设置数据接收回调
+        # 设置回调
         @self.bridge.on("connected")
         def on_connected(info):
-            print(f"   ✅ isaac_bridge.py 已连接: {info['address']}")
+            print(f"   ✅ 客户端已连接: {info['address']}")
+            self.connected.set()
 
         @self.bridge.on("disconnected")
         def on_disconnected(_):
-            print(f"   ❌ isaac_bridge.py 已断开连接")
+            print(f"   ❌ 客户端已断开")
             self.running = False
 
         @self.bridge.on("data")
@@ -136,44 +152,98 @@ class IntegrationTest:
             print(f"   📢 事件: {event.type}")
 
         print(f"   回调已注册")
+        print(f"   监听端口: {self.listen_port}")
 
-    def run_test(self, duration: int = 10):
-        """运行测试"""
+    def run_test(self, max_messages: int = 1000, timeout: float = 30.0):
+        """运行测试
+
+        遵循实际使用场景：
+        - isaac_bridge 已启动并等待连接
+        - LuaSimulator.connect() 模拟游戏连接并发送数据
+        - 等待接收指定数量的消息或超时
+        """
         print("\n" + "=" * 70)
-        print(f"步骤 3: 运行测试 (持续 {duration} 秒)")
+        print(
+            f"步骤 3: 运行测试 (等待最多 {timeout} 秒，接收最多 {max_messages} 条消息)"
+        )
         print("=" * 70)
 
         self.running = True
 
-        # 启动模拟器
-        print(f"   启动 LuaSimulator (端口 {self.port})...")
-        self.simulator.start()
-        time.sleep(0.5)
-
-        # 启动 isaac_bridge.py
-        print(f"   启动 isaac_bridge.py...")
+        # 1. 启动 isaac_bridge 服务器
+        print(f"   启动 isaac_bridge.py 服务器 (端口 {self.listen_port})...")
         self.bridge.start()
+        time.sleep(0.3)  # 等待服务器启动
 
-        # 等待测试完成
-        print(f"   测试运行中...")
+        # 2. LuaSimulator 作为客户端连接到 isaac_bridge
+        print(f"   启动 LuaSimulator 客户端，连接到 isaac_bridge...")
+        success = self.simulator.connect(
+            host="127.0.0.1", port=self.listen_port, timeout=5.0
+        )
+        if not success:
+            print("   ❌ 连接失败")
+            self.stop()
+            return self.get_results()
+
+        # 3. 开始发送数据
+        print(f"   开始发送数据...")
+        self.simulator.play()
+
+        # 4. 等待连接建立
+        connected = self.connected.wait(timeout=5.0)
+        if not connected:
+            print("   ❌ 客户端连接超时")
+            self.stop()
+            return self.get_results()
+
+        print(f"   ✅ 客户端已连接，开始接收数据...")
+
+        # 5. 等待接收数据
+        print(f"   接收数据中...")
         start_time = time.time()
+        last_progress_time = start_time
+        progress_interval = 3
 
         try:
-            while self.running and (time.time() - start_time) < duration:
-                time.sleep(1)
+            while self.running:
+                elapsed = time.time() - start_time
 
-                # 定期输出状态
-                elapsed = int(time.time() - start_time)
-                if elapsed % 3 == 0:
+                # 检查超时
+                if elapsed > timeout:
+                    print(f"   ⏱️  超时 ({timeout}秒)，停止测试")
+                    break
+
+                # 检查消息数量
+                if self.stats["data_received"] >= max_messages:
+                    print(f"   ✅ 已接收 {max_messages} 条消息，停止测试")
+                    break
+
+                # 检查发送线程是否结束
+                if (
+                    self.simulator._send_thread
+                    and not self.simulator._send_thread.is_alive()
+                ):
+                    print(f"   ✅ 数据发送完成")
+                    break
+
+                # 定期输出进度
+                if time.time() - last_progress_time >= progress_interval:
                     print(
-                        f"   [{elapsed}/{duration}s] 数据: {self.stats['data_received']}, "
+                        f"   [{int(elapsed)}s] 数据: {self.stats['data_received']}, "
                         f"事件: {self.stats['event_received']}, "
                         f"帧: {self.data.frame}, "
                         f"房间: {self.data.room_index}"
                     )
+                    last_progress_time = time.time()
+
+                time.sleep(0.5)
 
         except KeyboardInterrupt:
             print("\n   用户中断")
+
+        # 等待发送线程结束
+        if self.simulator._send_thread:
+            self.simulator._send_thread.join(timeout=5.0)
 
         # 停止
         self.stop()
@@ -185,19 +255,19 @@ class IntegrationTest:
         print(f"\n   停止测试...")
         self.running = False
 
+        if self.simulator:
+            try:
+                self.simulator.disconnect()
+            except:
+                pass
+
         if self.bridge:
             try:
                 self.bridge.stop()
             except:
                 pass
 
-        if self.simulator:
-            try:
-                self.simulator.stop()
-            except:
-                pass
-
-        time.sleep(0.5)
+        time.sleep(0.2)
         print(f"   已停止")
 
     def get_results(self) -> dict:
@@ -216,26 +286,31 @@ def main():
     print("=" * 70)
     print("SocketBridge 集成测试：回放 + isaac_bridge.py")
     print("=" * 70)
+    print()
+    print("测试流程（模拟实际使用场景）:")
+    print("1. 启动 isaac_bridge.py 作为服务器")
+    print("2. LuaSimulator.connect() 模拟游戏连接")
+    print("3. LuaSimulator.play() 发送录制数据")
+    print("4. 验证 isaac_bridge 正确接收数据")
+    print()
 
-    # 检查录制文件
-    session_dir = "recordings"
-    if not os.path.exists(session_dir):
-        session_dir = "python/recordings"  # 尝试备选路径
+    # 确定录制目录
+    session_dir = Path("recordings")
+    if not session_dir.exists():
+        session_dir = Path(__file__).parent / "recordings"
 
-    if not os.path.exists(session_dir):
+    if not session_dir.exists():
         print(f"❌ {session_dir} 目录不存在")
         print("请先运行录制脚本：python data_replay_examples.py record")
         return 1
 
-    chunk_files = [
-        f for f in os.listdir(session_dir) if f.endswith(".json.gz") and "chunk" in f
-    ]
+    chunk_files = list(session_dir.glob("*_chunk_*.json.gz"))
     if not chunk_files:
         print(f"❌ {session_dir} 目录中没有录制文件")
         return 1
 
-    # 创建测试
-    test = IntegrationTest(session_dir=session_dir, port=9530)
+    # 创建测试（使用端口 9602）
+    test = IntegrationTest(session_dir=str(session_dir), listen_port=9602)
 
     # 步骤 1: 加载会话
     if not test.load_session():
@@ -245,7 +320,7 @@ def main():
     test.setup_bridge()
 
     # 步骤 3: 运行测试
-    results = test.run_test(duration=15)
+    results = test.run_test(max_messages=1000, timeout=30.0)
 
     # 输出结果
     print("\n" + "=" * 70)
@@ -277,27 +352,32 @@ def main():
         if sample["player_pos"]:
             pos = sample["player_pos"]
             if isinstance(pos, list) and pos:
-                p = (
-                    pos[0]
-                    if isinstance(pos[0], dict)
-                    else pos[0][1]
-                    if len(pos[0]) > 1
-                    else pos[0]
-                )
-                print(f"     玩家位置: {p.get('pos', {})}")
+                first_item = pos[0]
+                if isinstance(first_item, dict):
+                    p = first_item
+                elif isinstance(first_item, (list, tuple)) and len(first_item) > 1:
+                    p = first_item[1]
+                else:
+                    p = first_item
+                if isinstance(p, dict):
+                    print(f"     玩家位置: {p.get('pos', {})}")
         print(f"     敌人数: {sample['enemy_count']}")
 
     # 验证
     print(f"\n✅ 验证结果:")
+    success = True
+
     if results["data_received"] > 0:
         print("   ✅ isaac_bridge.py 成功接收 DATA 消息")
     else:
         print("   ❌ 未收到 DATA 消息")
+        success = False
 
     if results["channels_seen"]:
         print(f"   ✅ 成功解析 {len(results['channels_seen'])} 个数据通道")
     else:
         print("   ❌ 未解析到数据通道")
+        success = False
 
     if results["frames_seen"]:
         print(
@@ -305,16 +385,17 @@ def main():
         )
     else:
         print("   ❌ 帧号跟踪异常")
+        success = False
 
     # 总结
     print("\n" + "=" * 70)
-    if results["data_received"] > 0 and results["channels_seen"]:
+    if success:
         print("🎉 集成测试通过！回放系统与 isaac_bridge.py 正常工作")
     else:
         print("⚠️ 集成测试有问题，请检查输出")
     print("=" * 70)
 
-    return 0
+    return 0 if success else 1
 
 
 if __name__ == "__main__":
