@@ -826,13 +826,52 @@ class EnhancedCombatOrchestrator:
         if not player:
             return None
 
-        # Get safe spot for positioning
+        # [DEBUG] 追踪 get_safe_spot 的返回值
+        logger.debug(
+            f"[Orchestrator] [_get_movement_target] Calling environment.get_safe_spot()"
+        )
         safe_spot = self.environment.get_safe_spot(
             player.position, min_distance=50, max_distance=200
         )
 
+        # [DEBUG] 记录 safe_spot 的详细信息
         if safe_spot:
-            return Vector2D(x=safe_spot[0], y=safe_spot[1])
+            logger.debug(
+                f"[Orchestrator] [_get_movement_target] safe_spot type: {type(safe_spot).__name__}"
+            )
+            logger.debug(
+                f"[Orchestrator] [_get_movement_target] safe_spot value: ({safe_spot.x}, {safe_spot.y})"
+            )
+
+            # [DEBUG] 检查是否支持下标访问
+            try:
+                test_access = safe_spot[0]
+                logger.debug(
+                    f"[Orchestrator] [_get_movement_target] safe_spot[0] works: {test_access}"
+                )
+            except TypeError as e:
+                logger.error(
+                    f"[Orchestrator] [_get_movement_target] safe_spot is NOT subscriptable!"
+                )
+                logger.error(f"[Orchestrator] [_get_movement_target] Error: {e}")
+                logger.error(
+                    f"[Orchestrator] [_get_movement_target] Type: {type(safe_spot)}"
+                )
+                # [FIX] 如果已经 Vector2D，直接返回
+                if isinstance(safe_spot, Vector2D):
+                    logger.debug(
+                        f"[Orchestrator] [_get_movement_target] Returning Vector2D directly"
+                    )
+                    return safe_spot
+        else:
+            logger.debug(f"[Orchestrator] [_get_movement_target] safe_spot is None")
+
+        if safe_spot:
+            # [DEBUG] 记录最终返回值
+            logger.debug(
+                f"[Orchestrator] [_get_movement_target] Returning safe_spot directly"
+            )
+            return safe_spot
 
         # Default to room center
         if game_state.room_info and hasattr(game_state.room_info, "center"):
