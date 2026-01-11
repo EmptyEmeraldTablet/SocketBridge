@@ -73,42 +73,58 @@ def example_record_game_session():
         )
 
     # 开始录制
-    recorder.start_session(
-        {
-            "description": "Test session - 录制完整游戏数据",
-            "game_version": "repentance",
-        }
-    )
+    # 注意：不在这里 start_session，而是等到 connected 事件后再开始
+    # recorder.start_session() -> 移到 on_connected 回调中
 
     # 注册回调
     @bridge.on("data")
     def on_data(data: Dict):
-        raw_msg = convert_to_raw_message(data)
-        recorder.record_message(raw_msg)
+        # 只有在录制状态下才记录数据
+        if recorder.recording:
+            raw_msg = convert_to_raw_message(data)
+            recorder.record_message(raw_msg)
 
     @bridge.on("event")
     def on_event(event):
-        # 手动构建事件消息
-        raw_msg = RawMessage(
-            version=2,
-            msg_type=MessageType.EVENT.value,
-            timestamp=int(time.time() * 1000),
-            frame=event.frame,
-            room_index=-1,
-            event_type=event.type,
-            event_data=event.data,
-        )
-        recorder.record_message(raw_msg)
+        # 只有在录制状态下才记录事件
+        if recorder.recording:
+            # 手动构建事件消息
+            raw_msg = RawMessage(
+                version=2,
+                msg_type=MessageType.EVENT.value,
+                timestamp=int(time.time() * 1000),
+                frame=event.frame,
+                room_index=-1,
+                event_type=event.type,
+                event_data=event.data,
+            )
+            recorder.record_message(raw_msg)
 
     @bridge.on("connected")
     def on_connected(info):
         print(f"游戏已连接: {info['address']}")
-        print("开始录制...")
+        if not recorder.recording:
+            # 全新开始
+            recorder.start_session(
+                {
+                    "description": "Test session - 录制完整游戏数据",
+                    "game_version": "repentance",
+                }
+            )
+            print("开始录制...")
+        elif recorder.paused:
+            # 恢复之前的录制会话
+            recorder.resume()
+            print("恢复录制...")
+        else:
+            print("继续录制...")
 
     @bridge.on("disconnected")
     def on_disconnected(_):
         print("游戏已断开连接")
-        recorder.end_session(reason="disconnected")
+        if recorder.recording:
+            recorder.pause()  # 暂停录制，而不是结束会话
+            print("录制已暂停，等待重连...")
 
     # 启动桥接器
     bridge.start()
@@ -117,14 +133,21 @@ def example_record_game_session():
         while True:
             time.sleep(5)
             stats = recorder.get_stats()
+            if recorder.recording and not stats.get("paused"):
+                status = "录制中"
+            elif stats.get("paused"):
+                status = "已暂停"
+            else:
+                status = "等待连接"
             print(
-                f"录制中... 消息: {stats['messages_recorded']}, "
+                f"{status}... 消息: {stats['messages_recorded']}, "
                 f"帧: {stats['frames_recorded']}, "
                 f"缓冲: {stats['buffer_size']}"
             )
     except KeyboardInterrupt:
         print("\n正在停止录制...")
-        recorder.end_session(reason="user_stop")
+        if recorder.recording:
+            recorder.end_session(reason="user_stop")
     finally:
         bridge.stop()
 
