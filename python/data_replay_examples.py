@@ -57,36 +57,31 @@ def example_record_game_session():
     bridge = IsaacBridge()
 
     # 注册回调
-    @bridge.on("data")
-    def on_data(data: Dict):
+    @bridge.on("message")
+    def on_message(msg):
         """
-        录制 DATA 消息
+        录制完整消息 (推荐方式)
 
-        注意：isaac_bridge.py 触发 "data" 回调时传递的是 payload，
-        不是完整消息。因此需要从 bridge.state 获取元数据。
+        使用新的 "message" 回调获取完整消息对象，
+        包含所有元数据：version, timestamp, frame, room_index, payload, channels
         """
-        # 只有在录制状态下才记录数据
         if recorder.recording:
-            # data 就是 payload (PLAYER_POSITION, ENEMIES 等)
-            # 从 bridge.state 获取 frame 和 room_index
+            # msg 是 DataMessage 对象，包含完整消息
             raw_msg = RawMessage(
-                version=2,
-                msg_type="DATA",
-                timestamp=int(time.time() * 1000),  # 录制时的时间戳
-                frame=bridge.state.frame,
-                room_index=bridge.state.room_index,
-                payload=data,  # data 就是 payload
-                channels=list(data.keys()) if isinstance(data, dict) else [],
-                event_type=None,
-                event_data=None,
+                version=msg.version,
+                msg_type=msg.msg_type,
+                timestamp=msg.timestamp,
+                frame=msg.frame,
+                room_index=msg.room_index,
+                payload=msg.payload,
+                channels=msg.channels,
             )
             recorder.record_message(raw_msg)
 
-    @bridge.on("event")
-    def on_event(event):
-        # 只有在录制状态下才记录事件
+    @bridge.on("event_message")
+    def on_event_message(event):
+        """录制事件消息"""
         if recorder.recording:
-            # 手动构建事件消息
             raw_msg = RawMessage(
                 version=2,
                 msg_type=MessageType.EVENT.value,
