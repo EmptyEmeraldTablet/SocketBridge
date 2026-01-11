@@ -335,8 +335,10 @@ def start_ai_mode():
                             first_item = value[0]
                             if isinstance(first_item, dict):
                                 item_keys = list(first_item.keys())[:5]  # 只显示前5个键
+                                # [FIX] 将列表转换为字符串避免格式化问题
+                                item_keys_str = str(item_keys)
                                 logger.debug(
-                                    f"[RunAI]     {channel}[0] keys: {item_keys}..."
+                                    f"[RunAI]     {channel}[0] keys: {item_keys_str}"
                                 )
                     elif isinstance(value, dict):
                         logger.debug(
