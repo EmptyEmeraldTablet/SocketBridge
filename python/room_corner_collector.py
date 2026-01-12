@@ -418,8 +418,9 @@ class RoomCornerCollector:
         if self.current_corner != corner_name:
             self.current_corner = corner_name
             self.corner_stabilize_start_time = time.time()
-            logger.info(
-                f"[CORNER] Started tracking '{corner_name}' at ({player_pos[0]:.0f}, {player_pos[1]:.0f})"
+            self._last_countdown_second = -1
+            print(
+                f"\n[START] Room {room_idx} tracking '{corner_name}' at ({player_pos[0]:.0f}, {player_pos[1]:.0f})"
             )
             return
 
@@ -432,40 +433,36 @@ class RoomCornerCollector:
 
         # 显示倒计时
         if remaining > 0:
-            # 每秒更新一次倒计时（使用取整比较）
+            # 每秒更新一次倒计时
             if int(remaining) != self._last_countdown_second:
                 self._last_countdown_second = int(remaining)
                 print(
-                    f"\r[COUNTDOWN] Room {room_idx} '{corner_name}': {remaining:.1f}s remaining... ",
+                    f"\r[COUNTDOWN] Room {room_idx} | {remaining:5.1f}s | {corner_name:12} ",
                     end="",
                     flush=True,
                 )
             return
 
-        # 重置倒计时显示状态
+        # 时间到，检测位置稳定性
         self._last_countdown_second = -1
 
         # 计算位置方差
         variance = self._calculate_position_variance()
 
         if variance > self.config.stability_threshold:
-            # 位置不稳定，重置计时器但保留位置历史
+            # 位置不稳定，继续计时
+            print(
+                f"\r[WAIT] Position unstable (variance={variance:.1f}), continuing...    "
+            )
             self.corner_stabilize_start_time = time.time()
-            if int(variance) % 5 == 0:  # 每隔一段时间输出一次警告
-                print(
-                    f"\r[WAIT] Position unstable (variance={variance:.1f}), keep holding... ",
-                    end="",
-                    flush=True,
-                )
+            self.position_history.clear()
             return
 
-        # 稳定性验证通过，检查是否已经记录过
-        record_key = (room_idx, corner_name)
-        if record_key in self.recorded_corners:
-            print(f"\n[SKIP] '{corner_name}' already recorded")
-            return
+        # 稳定性验证通过，记录坐标（不检查是否已记录，允许重复记录）
+        print(
+            f"\n[RECORD] Room {room_idx} | {corner_name} | ({player_pos[0]:.0f}, {player_pos[1]:.0f}) | variance={variance:.1f}"
+        )
 
-        print(f"\n[RECORD] Corner '{corner_name}' recorded!")
         # 记录角落
         self._record_corner(
             corner_name=corner_name,
@@ -478,6 +475,10 @@ class RoomCornerCollector:
             stability_duration=elapsed,
             position_variance=variance,
         )
+
+        # 重置状态，继续记录其他位置
+        self.corner_stabilize_start_time = time.time()
+        self.position_history.clear()
 
     def _calculate_position_variance(self) -> float:
         """计算位置方差"""
