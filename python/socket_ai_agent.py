@@ -205,12 +205,43 @@ class SocketAIAgent:
                     shooter_pos=player.position,
                     target=target_enemy,
                     shot_type=shot_type,
+                    check_los=True,
+                    environment_los_checker=self.environment,
                 )
+
+                # DEBUG: 打印瞄准结果和视线状态
+                if self.config.verbose_output and self.current_frame % 30 == 0:
+                    los_status = self.aiming.last_los_result or "N/A"
+                    if target_enemy:
+                        print(
+                            f"[DEBUG-AIM] Target:{target_enemy.id} LOS:{los_status} "
+                            f"Conf:{aim_result.confidence:.2f} Reason:{aim_result.reasoning}"
+                        )
 
             # 6. Movement computation
             move_x, move_y = self._compute_movement(
                 game_state, player, threat, target_enemy
             )
+
+            # DEBUG: 检查移动目标位置是否可走
+            if self.config.verbose_output and self.current_frame % 30 == 0:
+                if move_x != 0 or move_y != 0:
+                    target_pos = Vector2D(
+                        player.position.x + move_x * 50, player.position.y + move_y * 50
+                    )
+                    in_bounds = self.environment.game_map.is_in_bounds(target_pos)
+                    has_obstacle = self.environment.game_map.is_obstacle(
+                        target_pos, 15.0
+                    )
+                    can_reach = self.environment.can_reach_position(
+                        player.position, target_pos
+                    )
+
+                    print(
+                        f"[DEBUG-MOVE] Move:({move_x},{move_y}) -> Target:({target_pos.x:.0f},{target_pos.y:.0f}) "
+                        f"InBounds:{in_bounds} Obstacle:{has_obstacle} CanReach:{can_reach}"
+                    )
+
             control.move_x = int(max(-1, min(1, move_x)))
             control.move_y = int(max(-1, min(1, move_y)))
 

@@ -59,12 +59,20 @@ class SmartAimingSystem:
         self.burst_count = 3  # 突发数量
         self.burst_interval = 5  # 突发间隔（帧）
 
+        # DEBUG: 用于检查视线
+        self.last_los_check = None
+        self.last_los_result = None
+        self.last_aim_direction = None
+        self.last_target_pos = None
+
     def aim(
         self,
         shooter_pos: Vector2D,
         target: EnemyData,
-        target_vel: Vector2D = None,
+        target_vel: Optional[Vector2D] = None,
         shot_type: ShotType = ShotType.NORMAL,
+        check_los: bool = False,
+        environment_los_checker=None,
     ) -> AimResult:
         """计算瞄准方向
 
@@ -73,10 +81,15 @@ class SmartAimingSystem:
             target: 目标敌人
             target_vel: 目标速度（可选，如果未提供则使用目标的当前速度）
             shot_type: 射击类型
+            check_los: 是否检查视线（DEBUG）
+            environment_los_checker: 环境模型用于检查视线（DEBUG）
 
         Returns:
             瞄准结果
         """
+        # DEBUG: 记录瞄准信息
+        self.last_target_pos = target.position
+
         # 获取目标速度
         if target_vel is None:
             target_vel = target.velocity
@@ -86,11 +99,30 @@ class SmartAimingSystem:
         distance = to_target.magnitude()
 
         if distance < 1:
+            self.last_aim_direction = Vector2D(0, 0)
+            self.last_los_result = "target_too_close"
             return AimResult(
                 direction=Vector2D(0, 0),
                 confidence=0.0,
                 reasoning="target_too_close",
             )
+
+        # DEBUG: 检查视线（如果提供了环境检查器）
+        if check_los and environment_los_checker is not None:
+            has_los = environment_los_checker.spatial_query.find_line_of_sight(
+                shooter_pos, target.position
+            )
+            self.last_los_check = (shooter_pos, target.position)
+            self.last_los_result = "BLOCKED" if not has_los else "CLEAR"
+
+            if not has_los:
+                # 视线被遮挡，降低置信度
+                self.last_aim_direction = to_target.normalized()
+                return AimResult(
+                    direction=to_target.normalized(),
+                    confidence=0.1,  # 低置信度表示无法击中
+                    reasoning=f"los_blocked_target_{target.id}",
+                )
 
         # 计算提前量
         lead = self._calculate_lead(shooter_pos, target, target_vel, distance)
