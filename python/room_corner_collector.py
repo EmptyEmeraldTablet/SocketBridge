@@ -58,7 +58,7 @@ class CollectorConfig:
     stability_threshold: float = 5.0
 
     # 位置历史记录帧数（用于稳定性计算）
-    position_history_frames: int = 300  # 60fps * 5s = 300帧
+    position_history_frames: int = 900  # 60fps * 15s = 900帧
 
     # 数据输出目录
     output_dir: str = "./room_data"
