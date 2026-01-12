@@ -493,6 +493,9 @@ class GameStateData:
     room_index: int = -1
     room_info: Optional[RoomInfo] = None
     room_layout: Optional[RoomLayout] = None
+    raw_room_layout: Optional[Dict[str, Any]] = (
+        None  # 原始ROOM_LAYOUT数据（L型房间支持）
+    )
 
     # 玩家 (key: player_idx)
     players: Dict[int, PlayerData] = field(default_factory=dict)

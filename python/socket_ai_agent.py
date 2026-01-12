@@ -205,6 +205,7 @@ class SocketAIAgent:
                     room_info=game_state.room_info,
                     enemies=game_state.enemies,
                     projectiles=game_state.projectiles,
+                    room_layout=game_state.raw_room_layout,
                 )
 
             # 3. Threat analysis

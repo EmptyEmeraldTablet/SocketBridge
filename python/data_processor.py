@@ -505,6 +505,13 @@ class DataProcessor:
             room_info.enemy_count = room_data.get("enemy_count", 0)
             self.current_state.room_info = room_info
 
+        # ============================================================
+        # 存储原始ROOM_LAYOUT数据（用于L型房间支持）
+        # ============================================================
+        layout_data = payload.get("ROOM_LAYOUT") or payload.get("room_layout")
+        if layout_data is not None and isinstance(layout_data, dict):
+            self.current_state.raw_room_layout = layout_data
+
         return self.current_state
 
     def _process_event(self, message: Dict[str, Any]):

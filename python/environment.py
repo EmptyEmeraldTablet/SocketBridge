@@ -30,11 +30,12 @@ logger = logging.getLogger("Environment")
 class TileType(Enum):
     """瓦片类型"""
 
-    EMPTY = 0
-    WALL = 1
-    DOOR = 2
-    HAZARD = 3
-    SPECIAL = 4
+    EMPTY = 0  # 空地，可行走
+    WALL = 1  # 墙壁，不可行走
+    DOOR = 2  # 门
+    HAZARD = 3  # 危险区域
+    SPECIAL = 4  # 特殊区域
+    VOID = 5  # 虚空，不属于房间（L型房间的缺口）
 
 
 @dataclass
@@ -106,6 +107,9 @@ class GameMap:
         # 危险区域
         self.danger_zones: List[DangerZone] = []
 
+        # 虚空区域（L型房间的缺口），这些位置不属于房间
+        self.void_tiles: Set[Tuple[int, int]] = set()
+
         # 初始化为空地图
         self._initialize_empty_map()
 
@@ -144,6 +148,80 @@ class GameMap:
 
         # 默认创建一个空房间（墙壁边界）
         self._create_default_walls()
+
+    def update_from_room_layout(
+        self, room_info: RoomInfo, layout_data: Dict[str, Any], grid_size: float = 40.0
+    ):
+        """从ROOM_LAYOUT数据更新地图（支持L型房间等复杂形状）
+
+        Args:
+            room_info: 房间信息
+            layout_data: ROOM_LAYOUT原始数据，包含grid和doors
+            grid_size: 网格大小（像素）
+        """
+        if layout_data is None:
+            self.update_from_room_info(room_info)
+            return
+
+        # 更新地图尺寸
+        if room_info.grid_width > 0:
+            self.width = room_info.grid_width
+        if room_info.grid_height > 0:
+            self.height = room_info.grid_height
+
+        # 计算像素尺寸
+        self.pixel_width = self.width * grid_size
+        self.pixel_height = self.height * grid_size
+
+        # 清空现有数据
+        self.grid.clear()
+        self.static_obstacles.clear()
+        self.void_tiles.clear()
+
+        # 初始化所有格子为VOID（表示不属于房间）
+        for gx in range(self.width):
+            for gy in range(self.height):
+                self.grid[(gx, gy)] = TileType.VOID
+
+        # 解析网格数据
+        grid_data = layout_data.get("grid", {})
+        if isinstance(grid_data, dict):
+            # grid是字典格式: {"0": {"x": 64, "y": 64, "type": 1000, "collision": 1}, ...}
+            for idx_str, tile_data in grid_data.items():
+                tile_x = tile_data.get("x", 0)
+                tile_y = tile_data.get("y", 0)
+                collision = tile_data.get("collision", 0)
+                tile_type = tile_data.get("type", 0)
+
+                # 转换为网格坐标
+                gx = int(tile_x / grid_size)
+                gy = int(tile_y / grid_size)
+
+                # 检查是否在有效范围内
+                if 0 <= gx < self.width and 0 <= gy < self.height:
+                    if collision > 0:
+                        # 有碰撞，标记为墙壁
+                        self.grid[(gx, gy)] = TileType.WALL
+                        self.static_obstacles.add((gx, gy))
+                    else:
+                        # 无碰撞，标记为空地
+                        self.grid[(gx, gy)] = TileType.EMPTY
+                # 如果超出范围，忽略（可能是门的坐标）
+
+        # 标记哪些格子是虚空（L型房间的缺口）
+        # 任何不在grid_data中且不在边界上的格子都是虚空
+        for gx in range(self.width):
+            for gy in range(self.height):
+                if self.grid.get((gx, gy)) == TileType.VOID:
+                    # 检查是否在边界上（边界格子必须是EMPTY或WALL，不能是VOID）
+                    if self._is_edge_tile(gx, gy):
+                        self.grid[(gx, gy)] = TileType.EMPTY
+                    else:
+                        self.void_tiles.add((gx, gy))
+
+    def _is_edge_tile(self, gx: int, gy: int) -> bool:
+        """检查是否是边界格子（L型房间的边缘必须是实际房间区域）"""
+        return gx == 0 or gx == self.width - 1 or gy == 0 or gy == self.height - 1
 
     def _create_default_walls(self):
         """创建默认墙壁边界"""
@@ -259,13 +337,26 @@ class GameMap:
         return False
 
     def is_in_bounds(self, position: Vector2D) -> bool:
-        """检查位置是否在地图边界内"""
+        """检查位置是否在地图边界内且属于房间区域
+
+        对于L型房间，还需要检查位置是否在房间的实际区域内（不是虚空）
+        """
         # 考虑碰撞半径，留一些边距
         margin = 20.0
-        return (
+
+        # 首先检查像素边界
+        if not (
             margin <= position.x <= self.pixel_width - margin
             and margin <= position.y <= self.pixel_height - margin
-        )
+        ):
+            return False
+
+        # 检查是否是虚空区域（L型房间的缺口）
+        grid_x, grid_y = self._get_grid_coords(position)
+        if (grid_x, grid_y) in self.void_tiles:
+            return False
+
+        return True
 
     def _get_grid_coords(self, position: Vector2D) -> Tuple[int, int]:
         """获取位置对应的网格坐标"""
@@ -615,12 +706,23 @@ class EnvironmentModel:
         room_info: RoomInfo,
         enemies: Dict[int, EnemyData],
         projectiles: Dict[int, ProjectileData],
+        room_layout: Optional[Dict[str, Any]] = None,
     ):
-        """更新环境模型"""
+        """更新环境模型
+
+        Args:
+            room_info: 房间信息
+            enemies: 敌人数据
+            projectiles: 投射物数据
+            room_layout: ROOM_LAYOUT原始数据（支持L型房间）
+        """
         # 如果房间变化了，重置地图
         if room_info and room_info.room_index != self.current_room_index:
             self.current_room_index = room_info.room_index
-            self.game_map.update_from_room_info(room_info)
+            if room_layout:
+                self.game_map.update_from_room_layout(room_info, room_layout)
+            else:
+                self.game_map.update_from_room_info(room_info)
 
         # 更新动态障碍物
         self.game_map.update_dynamic_obstacles(enemies, projectiles)
