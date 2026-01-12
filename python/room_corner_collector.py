@@ -207,32 +207,48 @@ class RoomCornerCollector:
             if not self._running:
                 return
 
+            # 获取 payload（可能是 DataMessage 对象或字典）
+            payload = msg.payload if hasattr(msg, "payload") else msg.get("payload")
+            if not payload:
+                return
+
             # 检查消息是否包含 ROOM_INFO（ROOM_INFO 每30帧才更新）
-            has_room_info = msg.channels and "ROOM_INFO" in msg.channels
-
-            # 如果没有 PLAYER_POSITION，跳过
-            has_player_pos = msg.payload and "PLAYER_POSITION" in msg.payload
-            if not has_player_pos:
-                return
-
-            player_pos = msg.payload["PLAYER_POSITION"]
-            if not player_pos or len(player_pos) == 0:
-                return
-
-            # 获取第一个玩家的位置
-            player_data = player_pos.get("1") or (
-                player_pos[0] if isinstance(player_pos, list) else None
+            channels = (
+                msg.channels if hasattr(msg, "channels") else msg.get("channels", [])
             )
+            has_room_info = "ROOM_INFO" in channels
+
+            # 检查是否有 PLAYER_POSITION
+            if "PLAYER_POSITION" not in payload:
+                return
+
+            player_pos = payload["PLAYER_POSITION"]
+            if not player_pos:
+                return
+
+            # 获取第一个玩家的位置（处理 list 和 dict 两种格式）
+            # Lua 数组 {[1]=...} 序列化后可能是 list 或 dict
+            player_data = None
+            if isinstance(player_pos, list):
+                if len(player_pos) > 0:
+                    player_data = player_pos[0]
+            elif isinstance(player_pos, dict):
+                player_data = player_pos.get("1") or player_pos.get(1)
+
             if not player_data:
                 return
 
-            pos_x = player_data.get("pos", {}).get("x", 0)
-            pos_y = player_data.get("pos", {}).get("y", 0)
+            pos_x = (
+                player_data.get("pos", {}).get("x", 0) if player_data.get("pos") else 0
+            )
+            pos_y = (
+                player_data.get("pos", {}).get("y", 0) if player_data.get("pos") else 0
+            )
 
             # 获取房间信息（如果当前帧有更新）
             room_info = None
-            if has_room_info:
-                room_info = msg.payload.get("ROOM_INFO")
+            if has_room_info and "ROOM_INFO" in payload:
+                room_info = payload["ROOM_INFO"]
             else:
                 # 使用缓存，但检查是否需要触发房间变化检测
                 cached_room_info = self.data.get_room_info()
