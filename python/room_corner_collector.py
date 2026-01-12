@@ -343,19 +343,6 @@ class RoomCornerCollector:
         """处理玩家位置"""
         self.stats["frames_processed"] += 1
 
-        # 获取房间边界
-        top_left = (
-            room_info.get("top_left", {}).get("x", 0),
-            room_info.get("top_left", {}).get("y", 0),
-        )
-        bottom_right = (
-            room_info.get("bottom_right", {}).get("x", 0),
-            room_info.get("bottom_right", {}).get("y", 0),
-        )
-
-        # 获取玩家碰撞箱大小
-        player_size = player_stats.get("size", 15.0)
-
         # 获取玩家速度（用于判断是否静止）
         velocity = player_stats.get("vel", {})
         vel_x = velocity.get("x", 0) if velocity else 0
@@ -369,9 +356,6 @@ class RoomCornerCollector:
         if self.corner_stabilize_start_time is None:
             self.corner_stabilize_start_time = time.time()
             self._last_countdown_second = -1
-            print(
-                f"\n[START] Room {room_info.get('room_idx', -1)} tracking at ({pos_x:.0f}, {pos_y:.0f})"
-            )
             return
 
         elapsed = time.time() - self.corner_stabilize_start_time
@@ -396,7 +380,6 @@ class RoomCornerCollector:
         # 计算位置方差（只统计静止帧）
         history_len = len(self.position_history)
         if history_len < 10:
-            print(f"\r[WAIT] Not enough data, continuing...                    ")
             self.corner_stabilize_start_time = time.time()
             self.position_history.clear()
             return
@@ -407,9 +390,6 @@ class RoomCornerCollector:
 
         # 如果移动超过30%，认为不稳定
         if move_ratio > 0.3:
-            print(
-                f"\r[WAIT] Moving too much ({move_ratio * 100:.0f}%), keep holding...            "
-            )
             self.corner_stabilize_start_time = time.time()
             self.position_history.clear()
             return
@@ -419,25 +399,23 @@ class RoomCornerCollector:
             f"\n[RECORD] Room {room_info.get('room_idx', -1)} | ({pos_x:.0f}, {pos_y:.0f}) | still={still_frames}/{history_len} frames"
         )
 
-        # 计算到最近墙壁的距离（用于确定是角落还是边缘）
-        dist_left = pos_x - top_left[0]
-        dist_right = bottom_right[0] - pos_x
-        dist_top = pos_y - top_left[1]
-        dist_bottom = bottom_right[1] - pos_y
-        min_dist_to_wall = min(dist_left, dist_right, dist_top, dist_bottom)
+        # 获取房间边界
+        top_left = (
+            room_info.get("top_left", {}).get("x", 0),
+            room_info.get("top_left", {}).get("y", 0),
+        )
+        bottom_right = (
+            room_info.get("bottom_right", {}).get("x", 0),
+            room_info.get("bottom_right", {}).get("y", 0),
+        )
 
-        # 根据到墙壁的距离判断记录点类型
-        if min_dist_to_wall < 30:
-            # 靠近墙壁，可能是角落
-            corner_pos = (pos_x, pos_y)
-        else:
-            # 在房间中央或边缘
-            corner_pos = (pos_x, pos_y)
+        # 获取玩家碰撞箱大小
+        player_size = player_stats.get("size", 15.0)
 
         # 记录位置
         self._record_corner(
             corner_name="detected_position",
-            corner_pos=corner_pos,
+            corner_pos=(pos_x, pos_y),
             player_pos=(pos_x, pos_y),
             player_size=player_size,
             top_left=top_left,
