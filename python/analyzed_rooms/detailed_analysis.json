@@ -1,0 +1,248 @@
+{
+  "18": {
+    "stage": 4,
+    "room_type": 5,
+    "room_shape": 4,
+    "game_bounds": [
+      60.0,
+      140.0,
+      580.0,
+      700.0
+    ],
+    "sample_count": 15,
+    "wall_distribution": {
+      "left": 3,
+      "right": 5,
+      "top": 2,
+      "bottom": 5
+    },
+    "missing_sides": [],
+    "inferred_bounds": [
+      75.0,
+      155.0,
+      565.0,
+      405.0
+    ],
+    "shape": "rectangle",
+    "confidence": "高"
+  },
+  "34": {
+    "stage": 4,
+    "room_type": 1,
+    "room_shape": 1,
+    "game_bounds": [
+      60.0,
+      140.0,
+      580.0,
+      420.0
+    ],
+    "sample_count": 9,
+    "wall_distribution": {
+      "left": 1,
+      "right": 3,
+      "top": 1,
+      "bottom": 4
+    },
+    "missing_sides": [
+      "left",
+      "top"
+    ],
+    "inferred_bounds": [
+      75.0,
+      155.0,
+      1085.0,
+      685.0
+    ],
+    "shape": "L_shape?",
+    "confidence": "低（采样不足）"
+  },
+  "45": {
+    "stage": 2,
+    "room_type": 10,
+    "room_shape": 3,
+    "game_bounds": [
+      220.0,
+      140.0,
+      420.0,
+      420.0
+    ],
+    "sample_count": 5,
+    "wall_distribution": {
+      "left": 2,
+      "right": 0,
+      "top": 1,
+      "bottom": 2
+    },
+    "missing_sides": [
+      "right",
+      "top"
+    ],
+    "inferred_bounds": null,
+    "shape": "L_shape?",
+    "confidence": "低（采样不足）"
+  },
+  "48": {
+    "stage": 4,
+    "room_type": 1,
+    "room_shape": 4,
+    "game_bounds": [
+      60.0,
+      140.0,
+      580.0,
+      700.0
+    ],
+    "sample_count": 6,
+    "wall_distribution": {
+      "left": 2,
+      "right": 1,
+      "top": 2,
+      "bottom": 1
+    },
+    "missing_sides": [
+      "right",
+      "bottom"
+    ],
+    "inferred_bounds": [
+      75.0,
+      155.0,
+      565.0,
+      685.0
+    ],
+    "shape": "L_shape?",
+    "confidence": "低（采样不足）"
+  },
+  "58": {
+    "stage": 1,
+    "room_type": 1,
+    "room_shape": 6,
+    "game_bounds": [
+      60.0,
+      140.0,
+      1100.0,
+      420.0
+    ],
+    "sample_count": 9,
+    "wall_distribution": {
+      "left": 2,
+      "right": 2,
+      "top": 3,
+      "bottom": 2
+    },
+    "missing_sides": [],
+    "inferred_bounds": [
+      75.0,
+      155.0,
+      1085.0,
+      405.0
+    ],
+    "shape": "rectangle",
+    "confidence": "高"
+  },
+  "73": {
+    "stage": 4,
+    "room_type": 1,
+    "room_shape": 2,
+    "game_bounds": [
+      60.0,
+      220.0,
+      580.0,
+      340.0
+    ],
+    "sample_count": 6,
+    "wall_distribution": {
+      "left": 2,
+      "right": 3,
+      "top": 0,
+      "bottom": 1
+    },
+    "missing_sides": [
+      "top",
+      "bottom"
+    ],
+    "inferred_bounds": null,
+    "shape": "L_shape?",
+    "confidence": "低（采样不足）"
+  },
+  "83": {
+    "stage": 1,
+    "room_type": 6,
+    "room_shape": 1,
+    "game_bounds": [
+      60.0,
+      140.0,
+      580.0,
+      420.0
+    ],
+    "sample_count": 7,
+    "wall_distribution": {
+      "left": 2,
+      "right": 1,
+      "top": 3,
+      "bottom": 1
+    },
+    "missing_sides": [
+      "right",
+      "bottom"
+    ],
+    "inferred_bounds": [
+      75.0,
+      155.0,
+      565.0,
+      405.0
+    ],
+    "shape": "L_shape?",
+    "confidence": "低（采样不足）"
+  },
+  "107": {
+    "stage": 6,
+    "room_type": 1,
+    "room_shape": 1,
+    "game_bounds": [
+      60.0,
+      140.0,
+      580.0,
+      420.0
+    ],
+    "sample_count": 29,
+    "wall_distribution": {
+      "left": 3,
+      "right": 9,
+      "top": 6,
+      "bottom": 11
+    },
+    "missing_sides": [],
+    "inferred_bounds": [
+      235.0,
+      155.0,
+      1085.0,
+      685.0
+    ],
+    "shape": "rectangle",
+    "confidence": "高"
+  },
+  "121": {
+    "stage": 3,
+    "room_type": 5,
+    "room_shape": 1,
+    "game_bounds": [
+      60.0,
+      140.0,
+      580.0,
+      420.0
+    ],
+    "sample_count": 7,
+    "wall_distribution": {
+      "left": 0,
+      "right": 0,
+      "top": 3,
+      "bottom": 4
+    },
+    "missing_sides": [
+      "left",
+      "right"
+    ],
+    "inferred_bounds": null,
+    "shape": "L_shape?",
+    "confidence": "低（采样不足）"
+  }
+}

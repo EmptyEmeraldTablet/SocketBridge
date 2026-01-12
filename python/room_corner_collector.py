@@ -148,7 +148,7 @@ class RoomCornerCollector:
     5. 稳定性验证通过后，自动记录该角落
     """
 
-    def __init__(self, bridge: IsaacBridge, config: CollectorConfig = None):
+    def __init__(self, bridge: IsaacBridge, config: Optional[CollectorConfig] = None):
         """
         初始化采集器
 

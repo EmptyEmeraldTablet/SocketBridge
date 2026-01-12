@@ -1,0 +1,164 @@
+============================================================
+Room Geometry Analysis Report v2.0
+============================================================
+Generated: 2026-01-13T03:07:39.731644
+Input: room_data
+Rooms analyzed: 9
+
+Analysis Method: Time-based sample matching
+Improvement: Correctly matches samples to rooms even when
+              multiple rooms share the same boundary coordinates
+
+------------------------------------------------------------
+Room 18
+------------------------------------------------------------
+  Stage: 4, Type: 5
+  Room shape code: 4
+  Shape: rectangle (confidence: 0.95)
+  Bounds: (75, 155) - (565, 405)
+  Dimensions: 490 x 250
+  Samples: 15
+  Avg move ratio: 0.07
+  Walls detected: 4
+    - left: confidence=0.00, samples=3
+    - right: confidence=0.00, samples=5
+    - top: confidence=0.00, samples=2
+    - bottom: confidence=0.00, samples=5
+
+------------------------------------------------------------
+Room 34
+------------------------------------------------------------
+  Stage: 4, Type: 1
+  Room shape code: 1
+  Shape: rectangle (confidence: 0.95)
+  Bounds: (75, 155) - (1085, 685)
+  Dimensions: 1010 x 530
+  Samples: 9
+  Avg move ratio: 0.06
+  Walls detected: 4
+    - left: confidence=0.50, samples=1
+    - right: confidence=0.00, samples=3
+    - top: confidence=0.50, samples=1
+    - bottom: confidence=0.00, samples=4
+
+------------------------------------------------------------
+Room 45
+------------------------------------------------------------
+  Stage: 2, Type: 10
+  Room shape code: 3
+  Shape: L_shape (confidence: 0.85)
+  Missing corner: right_side
+  Bounds: (235, 155) - (420, 405)
+  Dimensions: 185 x 250
+  Samples: 5
+  Avg move ratio: 0.14
+  Walls detected: 4
+    - left: confidence=0.00, samples=2
+    - right: confidence=0.00, samples=0
+    - top: confidence=0.50, samples=1
+    - bottom: confidence=1.00, samples=2
+
+------------------------------------------------------------
+Room 48
+------------------------------------------------------------
+  Stage: 4, Type: 1
+  Room shape code: 4
+  Shape: rectangle (confidence: 0.95)
+  Bounds: (75, 155) - (565, 685)
+  Dimensions: 490 x 530
+  Samples: 6
+  Avg move ratio: 0.00
+  Walls detected: 4
+    - left: confidence=0.00, samples=2
+    - right: confidence=0.50, samples=1
+    - top: confidence=0.00, samples=2
+    - bottom: confidence=0.50, samples=1
+
+------------------------------------------------------------
+Room 58
+------------------------------------------------------------
+  Stage: 1, Type: 1
+  Room shape code: 6
+  Shape: rectangle (confidence: 0.95)
+  Bounds: (75, 155) - (1085, 405)
+  Dimensions: 1010 x 250
+  Samples: 9
+  Avg move ratio: 0.08
+  Walls detected: 4
+    - left: confidence=0.00, samples=2
+    - right: confidence=1.00, samples=2
+    - top: confidence=0.00, samples=3
+    - bottom: confidence=1.00, samples=2
+
+------------------------------------------------------------
+Room 73
+------------------------------------------------------------
+  Stage: 4, Type: 1
+  Room shape code: 2
+  Shape: L_shape (confidence: 0.85)
+  Missing corner: top_side
+  Bounds: (75, 220) - (565, 325)
+  Dimensions: 490 x 105
+  Samples: 6
+  Avg move ratio: 0.03
+  Walls detected: 4
+    - left: confidence=1.00, samples=2
+    - right: confidence=0.00, samples=3
+    - top: confidence=0.00, samples=0
+    - bottom: confidence=0.50, samples=1
+
+------------------------------------------------------------
+Room 83
+------------------------------------------------------------
+  Stage: 1, Type: 6
+  Room shape code: 1
+  Shape: rectangle (confidence: 0.95)
+  Bounds: (75, 155) - (565, 405)
+  Dimensions: 490 x 250
+  Samples: 7
+  Avg move ratio: 0.15
+  Walls detected: 4
+    - left: confidence=0.00, samples=2
+    - right: confidence=0.50, samples=1
+    - top: confidence=0.00, samples=3
+    - bottom: confidence=0.50, samples=1
+
+------------------------------------------------------------
+Room 107
+------------------------------------------------------------
+  Stage: 6, Type: 1
+  Room shape code: 1
+  Shape: rectangle (confidence: 0.95)
+  Bounds: (235, 155) - (1085, 685)
+  Dimensions: 850 x 530
+  Samples: 29
+  Avg move ratio: 0.08
+  Walls detected: 4
+    - left: confidence=0.00, samples=3
+    - right: confidence=0.00, samples=9
+    - top: confidence=0.00, samples=6
+    - bottom: confidence=0.00, samples=11
+
+------------------------------------------------------------
+Room 121
+------------------------------------------------------------
+  Stage: 3, Type: 5
+  Room shape code: 1
+  Shape: L_shape (confidence: 0.70)
+  Missing corner: left_side
+  Bounds: (60, 155) - (580, 405)
+  Dimensions: 520 x 250
+  Samples: 7
+  Avg move ratio: 0.09
+  Walls detected: 4
+    - left: confidence=0.00, samples=0
+    - right: confidence=0.00, samples=0
+    - top: confidence=0.00, samples=3
+    - bottom: confidence=0.00, samples=4
+
+============================================================
+L-Shape Rooms Summary (向内折角)
+============================================================
+  Room 45: right_side missing (185x250), samples=5
+  Room 121: left_side missing (520x250), samples=7
+  Room 73: top_side missing (490x105), samples=6
