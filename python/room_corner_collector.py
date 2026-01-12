@@ -727,8 +727,8 @@ def main():
     parser.add_argument(
         "--stability",
         type=float,
-        default=5.0,
-        help="Stability verification duration in seconds (default: 5)",
+        default=15.0,
+        help="Stability verification duration in seconds (default: 15)",
     )
     parser.add_argument(
         "--output-dir",
