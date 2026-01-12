@@ -145,8 +145,36 @@ class SocketAIAgent:
         control = ControlOutput()
 
         try:
+            # === DEBUG: 打印原始消息结构 ===
+            if self.config.verbose_output and self.current_frame <= 5:
+                print(f"[DEBUG] update() frame={self.current_frame}")
+                print(f"[DEBUG]   raw_message type: {type(raw_message)}")
+                if isinstance(raw_message, dict):
+                    print(f"[DEBUG]   raw_message keys: {list(raw_message.keys())}")
+                    if "payload" in raw_message:
+                        payload = raw_message["payload"]
+                        print(f"[DEBUG]   payload type: {type(payload)}")
+                        if isinstance(payload, dict):
+                            print(f"[DEBUG]   payload keys: {list(payload.keys())}")
+                        else:
+                            print(f"[DEBUG]   payload value: {payload}")
+                    else:
+                        print(f"[DEBUG]   NO 'payload' key in raw_message!")
+                else:
+                    print(f"[DEBUG]   raw_message is not a dict!")
+
             # 1. Process game data
             game_state = self.data_processor.process_message(raw_message)
+
+            # === DEBUG: 验证处理结果 ===
+            if self.config.verbose_output and self.current_frame <= 10:
+                print(f"[DEBUG] After process_message:")
+                print(f"[DEBUG]   frame: {game_state.frame}")
+                print(f"[DEBUG]   players: {list(game_state.players.keys())}")
+                print(f"[DEBUG]   player count: {len(game_state.players)}")
+                print(f"[DEBUG]   enemies: {len(game_state.active_enemies)}")
+                print(f"[DEBUG]   room_info: {game_state.room_info is not None}")
+
             player = game_state.get_primary_player()
 
             if not player:
@@ -476,7 +504,22 @@ def run_realtime_test(host: str = "127.0.0.1", port: int = 9527):
 
     @bridge.on("data")
     def on_data(data):
+        # === DEBUG: 打印原始数据 ===
+        if agent.current_frame <= 3:
+            print(
+                f"[DEBUG] on_data called - type: {type(data)}, keys: {list(data.keys()) if isinstance(data, dict) else 'N/A'}"
+            )
+
         control = agent.update(data)
+
+        # === DEBUG: 打印处理结果 ===
+        if agent.current_frame <= 10 and agent.current_frame % 5 == 0:
+            state = agent.data_processor.current_state
+            print(
+                f"[DEBUG] After update - frame: {state.frame}, players: {list(state.players.keys())}, enemies: {len(state.active_enemies)}"
+            )
+            print(f"[DEBUG] Current threat: {agent.current_threat}")
+
         if agent.enabled and (
             control.move_x != 0 or control.move_y != 0 or control.shoot
         ):
@@ -489,11 +532,21 @@ def run_realtime_test(host: str = "127.0.0.1", port: int = 9527):
                 bridge.send_input(move=(control.move_x, control.move_y))
 
         if agent.current_frame % 30 == 0:
+            state = agent.data_processor.current_state
+            player = state.get_primary_player()
             threat = agent.current_threat
+
+            player_info = (
+                f"PlayerPos: ({player.position.x:.1f},{player.position.y:.1f})"
+                if player
+                else "NoPlayer"
+            )
+            enemy_count = len(state.active_enemies)
             threat_level = threat.overall_threat_level.name if threat else "N/A"
+
             print(
-                f"Frame {agent.current_frame} | Threat: {threat_level} | "
-                f"Move: ({control.move_x},{control.move_y}) | Shoot: {control.shoot}"
+                f"Frame {agent.current_frame:5d} | {player_info:20} | Enemies: {enemy_count:2} | "
+                f"Threat: {threat_level:8} | Move: ({control.move_x:2},{control.move_y:2}) | Shoot: {control.shoot}"
             )
 
     @bridge.on("event:PLAYER_DAMAGE")
