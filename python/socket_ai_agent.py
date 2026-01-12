@@ -175,6 +175,25 @@ class SocketAIAgent:
                 print(f"[DEBUG]   enemies: {len(game_state.active_enemies)}")
                 print(f"[DEBUG]   room_info: {game_state.room_info is not None}")
 
+            # === DEBUG: 打印房间信息（关键：grid_width和grid_height）===
+            if self.config.verbose_output and self.current_frame % 30 == 0:
+                if game_state.room_info:
+                    # 计算房间边界（假设每个格子40像素）
+                    room_left = 280  # 从Lua端获取的固定偏移
+                    room_top = 140
+                    room_width = game_state.room_info.grid_width * 40
+                    room_height = game_state.room_info.grid_height * 40
+                    room_right = room_left + room_width
+                    room_bottom = room_top + room_height
+
+                    print(
+                        f"[DEBUG-ROOM] grid={game_state.room_info.grid_width}x{game_state.room_info.grid_height}, "
+                        f"bounds=({room_left},{room_top})-({room_right},{room_bottom}), "
+                        f"enemy_count={game_state.room_info.enemy_count}"
+                    )
+                else:
+                    print("[DEBUG-ROOM] No room_info available")
+
             player = game_state.get_primary_player()
 
             if not player:
@@ -214,8 +233,9 @@ class SocketAIAgent:
                     los_status = self.aiming.last_los_result or "N/A"
                     if target_enemy:
                         print(
-                            f"[DEBUG-AIM] Target:{target_enemy.id} LOS:{los_status} "
-                            f"Conf:{aim_result.confidence:.2f} Reason:{aim_result.reasoning}"
+                            f"[DEBUG-AIM] Target={target_enemy.id} LOS={los_status} "
+                            f"Conf={aim_result.confidence:.2f} Reason={aim_result.reasoning} "
+                            f"TargetPos=({target_enemy.position.x:.0f},{target_enemy.position.y:.0f})"
                         )
 
             # 6. Movement computation
@@ -237,9 +257,15 @@ class SocketAIAgent:
                         player.position, target_pos
                     )
 
+                    # 额外调试：检查玩家当前位置是否在边界内
+                    player_in_bounds = self.environment.game_map.is_in_bounds(
+                        player.position
+                    )
+
                     print(
-                        f"[DEBUG-MOVE] Move:({move_x},{move_y}) -> Target:({target_pos.x:.0f},{target_pos.y:.0f}) "
-                        f"InBounds:{in_bounds} Obstacle:{has_obstacle} CanReach:{can_reach}"
+                        f"[DEBUG-MOVE] Move=({move_x:.2f},{move_y:.2f}) "
+                        f"Player=({player.position.x:.0f},{player.position.y:.0f})->Target=({target_pos.x:.0f},{target_pos.y:.0f}) "
+                        f"PlayerInBounds={player_in_bounds} TargetInBounds={in_bounds} Obstacle={has_obstacle} CanReach={can_reach}"
                     )
 
             control.move_x = int(max(-1, min(1, move_x)))
@@ -594,10 +620,23 @@ def run_realtime_test(host: str = "127.0.0.1", port: int = 9527):
             enemy_count = len(state.active_enemies)
             threat_level = threat.overall_threat_level.name if threat else "N/A"
 
+            # === DEBUG: 环境状态 ===
+            env = agent.environment
+            if hasattr(env, "game_map") and env.game_map:
+                game_map = env.game_map
+                map_size = f"MapSize: {game_map.width}x{game_map.height} ({game_map.pixel_width}x{game_map.pixel_height}px)"
+                static_obs = len(game_map.static_obstacles)
+                dynamic_obs = len(game_map.dynamic_obstacles)
+                env_info = f" StaticObs: {static_obs}, DynamicObs: {dynamic_obs}"
+            else:
+                map_size = "No map"
+                env_info = ""
+
             print(
                 f"Frame {agent.current_frame:5d} | {player_info:20} | Enemies: {enemy_count:2} | "
                 f"Threat: {threat_level:8} | Move: ({control.move_x:2},{control.move_y:2}) | Shoot: {control.shoot}"
             )
+            print(f"                | {map_size}{env_info}")
 
     @bridge.on("event:PLAYER_DAMAGE")
     def on_damage(data):
