@@ -1,0 +1,30 @@
+{
+  "session_id": "room_corner_session_20260113_032133",
+  "start_time": "2026-01-13T03:21:33.732068",
+  "config": {
+    "corner_detection_threshold": 50.0,
+    "stability_duration": 5.0,
+    "stability_threshold": 20.0,
+    "position_history_frames": 300,
+    "output_dir": "./room_data"
+  },
+  "rooms": [
+    "70",
+    "84",
+    "97",
+    "98",
+    "99",
+    "86",
+    "61",
+    "71",
+    "56",
+    "55",
+    "42",
+    "29",
+    "28",
+    "83",
+    "82"
+  ],
+  "total_corners_recorded": 114,
+  "total_rooms_visited": 15
+}

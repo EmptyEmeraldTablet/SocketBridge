@@ -2,8 +2,8 @@
   {
     "recorded_name": "detected_position",
     "position": [
-      505.33004760742,
-      280.0
+      242.34269714355,
+      150.70199584961
     ],
     "room_top_left": [
       60.0,
@@ -14,96 +14,16 @@
       420.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:23:04.357708",
-    "frame": 36149,
-    "stability_duration": 11.7,
-    "move_ratio": 0.02
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.081298828125,
-      150.46975708008
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:23:14.389984",
-    "frame": 36422,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.081298828125,
-      409.57830810547
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:23:19.421448",
-    "frame": 36573,
-    "stability_duration": 5.03,
-    "move_ratio": 0.23
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.54815673828,
-      409.57830810547
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:23:29.455514",
-    "frame": 36861,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.54815673828,
-      150.03053283691
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:23:34.488356",
-    "frame": 37012,
-    "stability_duration": 5.03,
+    "recorded_at": "2026-01-13T03:22:04.132286",
+    "frame": 419,
+    "stability_duration": 9.73,
     "move_ratio": 0.26
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      317.93682861328,
-      150.03053283691
+      242.34266662598,
+      150.70204162598
     ],
     "room_top_left": [
       60.0,
@@ -114,616 +34,16 @@
       420.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:23:39.521046",
-    "frame": 37163,
-    "stability_duration": 5.03,
-    "move_ratio": 0.28
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.475997924805,
-      150.03053283691
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:23:44.523527",
-    "frame": 37313,
-    "stability_duration": 5.0,
-    "move_ratio": 0.23
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.9370117188,
-      150.02087402344
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:24:13.054592",
-    "frame": 38101,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.9370117188,
-      409.52404785156
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:24:18.054635",
-    "frame": 38251,
-    "stability_duration": 5.0,
-    "move_ratio": 0.25
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.9370117188,
-      409.52404785156
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:24:23.087495",
-    "frame": 38402,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.007164001465,
-      409.52404785156
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:24:33.154618",
-    "frame": 38704,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.007164001465,
-      150.03437805176
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:24:38.190114",
-    "frame": 38855,
-    "stability_duration": 5.04,
-    "move_ratio": 0.23
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      599.71594238281,
-      150.03437805176
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:24:48.238245",
-    "frame": 39156,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      599.71594238281,
-      409.55172729492
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:24:53.270951",
-    "frame": 39307,
-    "stability_duration": 5.03,
-    "move_ratio": 0.23
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      599.71594238281,
-      409.55172729492
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:24:58.271809",
-    "frame": 39457,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      639.44415283203,
-      150.02592468262
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:25:08.303185",
-    "frame": 39758,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      409.54901123047,
-      150.32763671875
-    ],
-    "room_top_left": [
-      220.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      420.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:26:03.238665",
-    "frame": 40979,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      409.54901123047,
-      409.97775268555
-    ],
-    "room_top_left": [
-      220.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      420.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:26:08.253779",
-    "frame": 41129,
-    "stability_duration": 5.01,
-    "move_ratio": 0.27
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      409.54901123047,
-      409.97775268555
-    ],
-    "room_top_left": [
-      220.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      420.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:26:13.255026",
-    "frame": 41279,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      230.02224731445,
-      409.97775268555
-    ],
-    "room_top_left": [
-      220.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      420.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:26:18.269920",
-    "frame": 41429,
-    "stability_duration": 5.01,
-    "move_ratio": 0.17
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      230.02224731445,
-      150.44779968262
-    ],
-    "room_top_left": [
-      220.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      420.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:26:23.303146",
-    "frame": 41580,
-    "stability_duration": 5.03,
-    "move_ratio": 0.26
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.668464660645,
-      409.54916381836
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:28:45.899691",
-    "frame": 44970,
-    "stability_duration": 5.03,
-    "move_ratio": 0.15
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.668464660645,
-      150.0326385498
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:28:50.917650",
-    "frame": 45119,
-    "stability_duration": 5.02,
-    "move_ratio": 0.26
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.668464660645,
-      150.0326385498
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:28:55.920617",
-    "frame": 45267,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      582.72015380859,
-      150.0326385498
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:29:05.966087",
-    "frame": 45564,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      582.72015380859,
-      409.54949951172
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:29:10.966199",
-    "frame": 45713,
-    "stability_duration": 5.0,
-    "move_ratio": 0.23
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      582.72015380859,
-      409.54949951172
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:29:15.982950",
-    "frame": 45863,
-    "stability_duration": 5.02,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.5451660156,
-      409.54949951172
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:29:26.049225",
-    "frame": 46165,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.046478271484,
-      230.55857849121
-    ],
-    "room_top_left": [
-      60.0,
-      220.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      340.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:29:48.215083",
-    "frame": 46799,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.046478271484,
-      230.55857849121
-    ],
-    "room_top_left": [
-      60.0,
-      220.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      340.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:29:53.247699",
-    "frame": 46950,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.046478271484,
-      329.98159790039
-    ],
-    "room_top_left": [
-      60.0,
-      220.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      340.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:29:58.248222",
-    "frame": 47100,
-    "stability_duration": 5.0,
-    "move_ratio": 0.1
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.98400878906,
-      329.98159790039
-    ],
-    "room_top_left": [
-      60.0,
-      220.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      340.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:30:08.264648",
-    "frame": 47400,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.98400878906,
-      230.45565795898
-    ],
-    "room_top_left": [
-      60.0,
-      220.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      340.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:30:13.300142",
-    "frame": 47551,
-    "stability_duration": 5.03,
-    "move_ratio": 0.1
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.98400878906,
-      230.45565795898
-    ],
-    "room_top_left": [
-      60.0,
-      220.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      340.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:30:18.332015",
-    "frame": 47702,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.53381347656,
-      689.68273925781
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:30:43.517274",
-    "frame": 48389,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.025573730469,
-      689.68273925781
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:30:53.548945",
-    "frame": 48689,
+    "recorded_at": "2026-01-13T03:22:09.148222",
+    "frame": 569,
     "stability_duration": 5.01,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      70.025573730469,
-      150.00836181641
+      70.165000915527,
+      150.70204162598
     ],
     "room_top_left": [
       60.0,
@@ -731,279 +51,19 @@
     ],
     "room_bottom_right": [
       580.0,
-      700.0
+      420.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:31:03.581343",
-    "frame": 48990,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.97235107422,
-      150.00836181641
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:31:13.613935",
-    "frame": 49291,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.97235107422,
-      467.83349609375
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:31:23.630104",
-    "frame": 49591,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.463539123535,
-      467.83349609375
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:31:33.663619",
-    "frame": 49892,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.5256347656,
-      689.60571289063
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:31:44.297420",
-    "frame": 50188,
-    "stability_duration": 5.01,
-    "move_ratio": 0.26
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.5256347656,
-      689.60571289063
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:31:49.314401",
-    "frame": 50338,
-    "stability_duration": 5.02,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.466278076172,
-      689.60571289063
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:31:59.364274",
-    "frame": 50637,
-    "stability_duration": 5.02,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.466278076172,
-      689.60571289063
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:32:04.396772",
-    "frame": 50788,
+    "recorded_at": "2026-01-13T03:22:14.178682",
+    "frame": 720,
     "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.466278076172,
-      150.47560119629
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:32:14.427835",
-    "frame": 51088,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      684.04577636719,
-      150.47560119629
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:32:24.462522",
-    "frame": 51386,
-    "stability_duration": 5.02,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.5256347656,
-      150.47560119629
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:32:34.464263",
-    "frame": 51685,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.5256347656,
-      397.29806518555
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:32:39.480133",
-    "frame": 51835,
-    "stability_duration": 5.02,
-    "move_ratio": 0.28
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.5256347656,
-      397.67279052734
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:32:44.514312",
-    "frame": 51986,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.54870605469,
-      689.96789550781
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:33:00.280126",
-    "frame": 52409,
-    "stability_duration": 5.01,
     "move_ratio": 0.16
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      569.54870605469,
-      689.96789550781
+      70.165000915527,
+      252.22955322266
     ],
     "room_top_left": [
       60.0,
@@ -1011,19 +71,39 @@
     ],
     "room_bottom_right": [
       580.0,
-      700.0
+      420.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:33:05.311880",
-    "frame": 52560,
+    "recorded_at": "2026-01-13T03:22:19.181168",
+    "frame": 869,
+    "stability_duration": 5.0,
+    "move_ratio": 0.17
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.165000915527,
+      252.22955322266
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      580.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:22:24.211790",
+    "frame": 1020,
     "stability_duration": 5.03,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      70.009216308594,
-      689.96789550781
+      70.165000915527,
+      409.54470825195
     ],
     "room_top_left": [
       60.0,
@@ -1031,79 +111,39 @@
     ],
     "room_bottom_right": [
       580.0,
-      700.0
+      420.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:33:15.345554",
-    "frame": 52861,
+    "recorded_at": "2026-01-13T03:22:29.211827",
+    "frame": 1170,
+    "stability_duration": 5.0,
+    "move_ratio": 0.18
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.165000915527,
+      409.54470825195
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      580.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:22:34.213382",
+    "frame": 1320,
     "stability_duration": 5.0,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      70.009216308594,
-      150.45809936523
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:33:25.411008",
-    "frame": 53163,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.5498046875,
-      150.45809936523
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:33:35.478166",
-    "frame": 53465,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.5498046875,
-      512.42572021484
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:33:45.544543",
-    "frame": 53766,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.449653625488,
-      409.53982543945
+      418.89007568359,
+      409.54470825195
     ],
     "room_top_left": [
       60.0,
@@ -1114,56 +154,16 @@
       420.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:34:01.928593",
-    "frame": 54060,
-    "stability_duration": 5.03,
-    "move_ratio": 0.15
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.449653625488,
-      150.02769470215
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:34:06.961942",
-    "frame": 54211,
-    "stability_duration": 5.03,
-    "move_ratio": 0.26
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.54833984375,
-      150.02769470215
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:34:17.027384",
-    "frame": 54513,
+    "recorded_at": "2026-01-13T03:22:44.278654",
+    "frame": 1621,
     "stability_duration": 5.03,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      569.54833984375,
-      409.54455566406
+      569.40747070313,
+      409.54470825195
     ],
     "room_top_left": [
       60.0,
@@ -1174,16 +174,36 @@
       420.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:34:22.061666",
-    "frame": 54664,
-    "stability_duration": 5.03,
+    "recorded_at": "2026-01-13T03:22:49.294074",
+    "frame": 1771,
+    "stability_duration": 5.02,
+    "move_ratio": 0.14
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      569.40747070313,
+      241.80363464355
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      580.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:22:54.310815",
+    "frame": 1921,
+    "stability_duration": 5.02,
     "move_ratio": 0.23
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      569.54833984375,
-      409.54455566406
+      569.40747070313,
+      241.80363464355
     ],
     "room_top_left": [
       60.0,
@@ -1194,116 +214,16 @@
       420.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:34:27.094466",
-    "frame": 54815,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.54833984375,
-      409.54455566406
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:34:32.127914",
-    "frame": 54966,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      445.94973754883,
-      409.54455566406
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:34:37.160712",
-    "frame": 55117,
-    "stability_duration": 5.03,
-    "move_ratio": 0.19
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      445.94973754883,
-      409.54455566406
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:34:42.193162",
-    "frame": 55268,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.463661193848,
-      409.54455566406
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      580.0,
-      420.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:34:52.227857",
-    "frame": 55569,
-    "stability_duration": 5.0,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      70.457122802734,
-      689.54571533203
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:37:47.894817",
-    "frame": 59999,
+    "recorded_at": "2026-01-13T03:22:59.327394",
+    "frame": 2070,
     "stability_duration": 5.02,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      313.21209716797,
-      689.54571533203
+      70.451835632324,
+      689.77508544922
     ],
     "room_top_left": [
       60.0,
@@ -1314,36 +234,16 @@
       700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:37:57.926284",
-    "frame": 60299,
-    "stability_duration": 5.02,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      569.53192138672,
-      689.54571533203
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:02.926928",
-    "frame": 60449,
-    "stability_duration": 5.0,
+    "recorded_at": "2026-01-13T03:23:13.379774",
+    "frame": 2458,
+    "stability_duration": 5.03,
     "move_ratio": 0.22
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      569.53002929688,
-      689.54571533203
+      70.451835632324,
+      689.77508544922
     ],
     "room_top_left": [
       60.0,
@@ -1354,16 +254,36 @@
       700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:07.942347",
-    "frame": 60598,
+    "recorded_at": "2026-01-13T03:23:18.380361",
+    "frame": 2607,
+    "stability_duration": 5.0,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.451835632324,
+      385.19271850586
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:23:28.427514",
+    "frame": 2908,
     "stability_duration": 5.02,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      569.53002929688,
-      504.55856323242
+      70.451835632324,
+      208.62310791016
     ],
     "room_top_left": [
       60.0,
@@ -1374,16 +294,16 @@
       700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:12.975595",
-    "frame": 60747,
-    "stability_duration": 5.03,
-    "move_ratio": 0.26
+    "recorded_at": "2026-01-13T03:23:33.427851",
+    "frame": 3058,
+    "stability_duration": 5.0,
+    "move_ratio": 0.23
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      569.53002929688,
-      521.81372070313
+      175.32069396973,
+      150.32345581055
     ],
     "room_top_left": [
       60.0,
@@ -1394,16 +314,36 @@
       700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:17.989973",
-    "frame": 60896,
+    "recorded_at": "2026-01-13T03:23:38.445500",
+    "frame": 3208,
+    "stability_duration": 5.02,
+    "move_ratio": 0.24
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      175.32069396973,
+      150.32345581055
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:23:43.460358",
+    "frame": 3358,
     "stability_duration": 5.01,
-    "move_ratio": 0.07
+    "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      569.53002929688,
-      521.81372070313
+      700.61535644531,
+      150.32345581055
     ],
     "room_top_left": [
       60.0,
@@ -1414,16 +354,156 @@
       700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:22.990558",
-    "frame": 61045,
+    "recorded_at": "2026-01-13T03:23:53.510598",
+    "frame": 3659,
+    "stability_duration": 5.01,
+    "move_ratio": 0.14
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      700.61535644531,
+      150.32345581055
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:23:58.526454",
+    "frame": 3808,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.9731445313,
+      150.32345581055
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:24:08.577686",
+    "frame": 4107,
+    "stability_duration": 5.03,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.9731445313,
+      512.291015625
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:24:18.645580",
+    "frame": 4408,
+    "stability_duration": 5.03,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      874.48022460938,
+      689.54748535156
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:24:28.676600",
+    "frame": 4708,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      565.48376464844,
+      689.54748535156
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:24:38.746348",
+    "frame": 5009,
+    "stability_duration": 5.03,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.5362548828,
+      689.94927978516
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:25:02.042778",
+    "frame": 5460,
+    "stability_duration": 5.03,
+    "move_ratio": 0.22
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.5362548828,
+      689.94927978516
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:25:07.044277",
+    "frame": 5610,
     "stability_duration": 5.0,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      792.36779785156,
-      404.90628051758
+      904.13848876953,
+      689.94927978516
     ],
     "room_top_left": [
       60.0,
@@ -1434,156 +514,16 @@
       700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:33.057343",
-    "frame": 61345,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      911.55212402344,
-      404.90628051758
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:38.089795",
-    "frame": 61496,
-    "stability_duration": 5.03,
-    "move_ratio": 0.19
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      911.55212402344,
-      404.90628051758
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:43.106697",
-    "frame": 61646,
-    "stability_duration": 5.02,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      911.55212402344,
-      404.90628051758
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:48.123445",
-    "frame": 61796,
-    "stability_duration": 5.02,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.9721679688,
-      404.90628051758
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:53.156806",
-    "frame": 61947,
-    "stability_duration": 5.03,
-    "move_ratio": 0.19
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.9721679688,
-      404.90628051758
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:38:58.171917",
-    "frame": 62097,
-    "stability_duration": 5.02,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.9721679688,
-      404.90628051758
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:39:03.205046",
-    "frame": 62248,
-    "stability_duration": 5.03,
-    "move_ratio": 0.0
-  },
-  {
-    "recorded_name": "detected_position",
-    "position": [
-      1089.9721679688,
-      150.0218963623
-    ],
-    "room_top_left": [
-      60.0,
-      140.0
-    ],
-    "room_bottom_right": [
-      1100.0,
-      700.0
-    ],
-    "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:39:08.222193",
-    "frame": 62398,
-    "stability_duration": 5.02,
+    "recorded_at": "2026-01-13T03:25:12.058774",
+    "frame": 5760,
+    "stability_duration": 5.01,
     "move_ratio": 0.23
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      1089.9721679688,
-      150.0218963623
+      904.13848876953,
+      689.94927978516
     ],
     "room_top_left": [
       60.0,
@@ -1594,16 +534,16 @@
       700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:39:13.258280",
-    "frame": 62549,
+    "recorded_at": "2026-01-13T03:25:17.091812",
+    "frame": 5911,
     "stability_duration": 5.03,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      626.47717285156,
-      150.0218963623
+      701.08392333984,
+      689.94927978516
     ],
     "room_top_left": [
       60.0,
@@ -1614,16 +554,76 @@
       700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:39:23.326043",
-    "frame": 62849,
+    "recorded_at": "2026-01-13T03:25:22.125147",
+    "frame": 6061,
+    "stability_duration": 5.03,
+    "move_ratio": 0.25
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      701.08392333984,
+      689.94927978516
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:25:27.140433",
+    "frame": 6211,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      590.02825927734,
+      689.94927978516
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:25:32.158573",
+    "frame": 6360,
+    "stability_duration": 5.02,
+    "move_ratio": 0.12
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      590.02825927734,
+      689.94927978516
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:25:37.191447",
+    "frame": 6511,
     "stability_duration": 5.03,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      343.96594238281,
-      150.0218963623
+      590.02825927734,
+      689.94927978516
     ],
     "room_top_left": [
       60.0,
@@ -1634,16 +634,16 @@
       700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:39:33.373134",
-    "frame": 63149,
-    "stability_duration": 5.03,
+    "recorded_at": "2026-01-13T03:25:42.207874",
+    "frame": 6661,
+    "stability_duration": 5.02,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      1089.9580078125,
-      289.53887939453
+      590.02825927734,
+      619.32177734375
     ],
     "room_top_left": [
       60.0,
@@ -1654,96 +654,576 @@
       700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:39:43.392700",
-    "frame": 63449,
+    "recorded_at": "2026-01-13T03:25:47.209882",
+    "frame": 6811,
     "stability_duration": 5.0,
-    "move_ratio": 0.03
+    "move_ratio": 0.15
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      230.17974853516,
-      409.96801757813
+      590.02825927734,
+      619.32177734375
     ],
     "room_top_left": [
-      220.0,
+      60.0,
       140.0
     ],
     "room_bottom_right": [
-      420.0,
-      420.0
+      1100.0,
+      700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:39:51.740659",
-    "frame": 63689,
+    "recorded_at": "2026-01-13T03:25:52.224453",
+    "frame": 6961,
+    "stability_duration": 5.01,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      590.02825927734,
+      561.93682861328
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:25:57.224668",
+    "frame": 7111,
+    "stability_duration": 5.0,
+    "move_ratio": 0.13
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      590.02825927734,
+      508.96932983398
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:26:02.241551",
+    "frame": 7261,
     "stability_duration": 5.02,
-    "move_ratio": 0.23
+    "move_ratio": 0.13
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      230.17974853516,
-      409.96801757813
+      590.02825927734,
+      508.96603393555
     ],
     "room_top_left": [
-      220.0,
+      60.0,
       140.0
     ],
     "room_bottom_right": [
-      420.0,
-      420.0
+      1100.0,
+      700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:39:56.773984",
-    "frame": 63840,
+    "recorded_at": "2026-01-13T03:26:07.260296",
+    "frame": 7411,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      590.02825927734,
+      433.92401123047
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:26:12.261475",
+    "frame": 7560,
+    "stability_duration": 5.0,
+    "move_ratio": 0.15
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      491.45391845703,
+      409.5442199707
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:26:17.293852",
+    "frame": 7709,
+    "stability_duration": 5.03,
+    "move_ratio": 0.28
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      491.45391845703,
+      409.5442199707
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:26:22.327964",
+    "frame": 7859,
     "stability_duration": 5.03,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      230.17974853516,
-      150.4556427002
+      363.44097900391,
+      409.5442199707
     ],
     "room_top_left": [
-      220.0,
+      60.0,
       140.0
     ],
     "room_bottom_right": [
-      420.0,
-      420.0
+      1100.0,
+      700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:40:01.804001",
-    "frame": 63991,
-    "stability_duration": 5.03,
-    "move_ratio": 0.23
+    "recorded_at": "2026-01-13T03:26:27.340586",
+    "frame": 8007,
+    "stability_duration": 5.01,
+    "move_ratio": 0.2
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      230.17974853516,
-      150.4556427002
+      363.44097900391,
+      409.5442199707
     ],
     "room_top_left": [
-      220.0,
+      60.0,
       140.0
     ],
     "room_bottom_right": [
-      420.0,
-      420.0
+      1100.0,
+      700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:40:06.805167",
-    "frame": 64141,
+    "recorded_at": "2026-01-13T03:26:32.340765",
+    "frame": 8157,
     "stability_duration": 5.0,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      409.53311157227,
-      150.4556427002
+      217.77105712891,
+      409.5442199707
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:26:37.359272",
+    "frame": 8307,
+    "stability_duration": 5.02,
+    "move_ratio": 0.21
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      217.77105712891,
+      409.5442199707
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:26:42.391643",
+    "frame": 8458,
+    "stability_duration": 5.03,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.833251953125,
+      409.5442199707
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:26:47.408787",
+    "frame": 8608,
+    "stability_duration": 5.02,
+    "move_ratio": 0.15
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.833251953125,
+      369.8161315918
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:26:52.424129",
+    "frame": 8758,
+    "stability_duration": 5.02,
+    "move_ratio": 0.11
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.833251953125,
+      369.8161315918
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:26:57.440066",
+    "frame": 8908,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.833251953125,
+      228.56036376953
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:02.442217",
+    "frame": 9058,
+    "stability_duration": 5.0,
+    "move_ratio": 0.21
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.833251953125,
+      228.56036376953
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:07.458437",
+    "frame": 9207,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.833251953125,
+      150.47380065918
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:12.474364",
+    "frame": 9357,
+    "stability_duration": 5.01,
+    "move_ratio": 0.1
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      216.50315856934,
+      150.47380065918
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:17.492287",
+    "frame": 9507,
+    "stability_duration": 5.02,
+    "move_ratio": 0.21
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      649.09844970703,
+      150.47380065918
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:27.539709",
+    "frame": 9806,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      834.49621582031,
+      150.47380065918
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:32.573764",
+    "frame": 9957,
+    "stability_duration": 5.03,
+    "move_ratio": 0.24
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      931.56896972656,
+      150.47380065918
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:37.589731",
+    "frame": 10107,
+    "stability_duration": 5.02,
+    "move_ratio": 0.17
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      931.60913085938,
+      150.47380065918
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:42.606586",
+    "frame": 10257,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.5400390625,
+      150.47380065918
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:47.623495",
+    "frame": 10406,
+    "stability_duration": 5.02,
+    "move_ratio": 0.18
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.5400390625,
+      150.47380065918
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:52.639530",
+    "frame": 10556,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.5400390625,
+      327.04333496094
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:27:57.674463",
+    "frame": 10706,
+    "stability_duration": 5.03,
+    "move_ratio": 0.23
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.5400390625,
+      327.04333496094
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:28:02.704775",
+    "frame": 10856,
+    "stability_duration": 5.03,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.5400390625,
+      512.44116210938
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:28:07.704887",
+    "frame": 11006,
+    "stability_duration": 5.0,
+    "move_ratio": 0.24
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.5400390625,
+      605.14001464844
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:28:12.706219",
+    "frame": 11156,
+    "stability_duration": 5.0,
+    "move_ratio": 0.17
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      230.30461120605,
+      409.98297119141
     ],
     "room_top_left": [
       220.0,
@@ -1754,16 +1234,56 @@
       420.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:40:11.839807",
-    "frame": 64292,
+    "recorded_at": "2026-01-13T03:29:05.323287",
+    "frame": 12449,
+    "stability_duration": 5.02,
+    "move_ratio": 0.21
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      230.30461120605,
+      409.98297119141
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:29:10.339347",
+    "frame": 12598,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      230.30461120605,
+      312.86981201172
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:29:15.373137",
+    "frame": 12748,
     "stability_duration": 5.03,
     "move_ratio": 0.17
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      409.53311157227,
-      409.548828125
+      230.30461120605,
+      237.82775878906
     ],
     "room_top_left": [
       220.0,
@@ -1774,88 +1294,988 @@
       420.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:40:16.871462",
-    "frame": 64443,
+    "recorded_at": "2026-01-13T03:29:20.404979",
+    "frame": 12898,
+    "stability_duration": 5.03,
+    "move_ratio": 0.15
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      230.30461120605,
+      198.09970092773
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:29:25.439470",
+    "frame": 13049,
+    "stability_duration": 5.03,
+    "move_ratio": 0.12
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      230.30461120605,
+      198.09970092773
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:29:30.472117",
+    "frame": 13200,
+    "stability_duration": 5.03,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      230.30461120605,
+      150.03845214844
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:29:35.503608",
+    "frame": 13351,
+    "stability_duration": 5.03,
+    "move_ratio": 0.06
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      230.30461120605,
+      150.03845214844
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:29:40.504713",
+    "frame": 13500,
+    "stability_duration": 5.0,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      296.51818847656,
+      150.03845214844
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:29:45.522695",
+    "frame": 13649,
+    "stability_duration": 5.02,
+    "move_ratio": 0.15
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      296.51818847656,
+      150.03845214844
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:29:50.554838",
+    "frame": 13799,
+    "stability_duration": 5.03,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      358.31744384766,
+      150.03845214844
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:29:55.572766",
+    "frame": 13949,
+    "stability_duration": 5.02,
+    "move_ratio": 0.14
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      384.802734375,
+      150.03845214844
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:30:00.604698",
+    "frame": 14099,
+    "stability_duration": 5.03,
+    "move_ratio": 0.1
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      409.27593994141,
+      150.03845214844
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:30:05.606483",
+    "frame": 14249,
+    "stability_duration": 5.0,
+    "move_ratio": 0.04
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      409.27593994141,
+      247.1516418457
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:30:10.636482",
+    "frame": 14400,
+    "stability_duration": 5.03,
+    "move_ratio": 0.17
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      409.27593994141,
+      322.19366455078
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:30:15.637537",
+    "frame": 14550,
+    "stability_duration": 5.0,
+    "move_ratio": 0.15
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      409.27593994141,
+      392.82153320313
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:30:20.670651",
+    "frame": 14701,
+    "stability_duration": 5.03,
+    "move_ratio": 0.15
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      409.27593994141,
+      409.7467956543
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:30:25.706234",
+    "frame": 14851,
+    "stability_duration": 5.03,
+    "move_ratio": 0.03
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      356.30502319336,
+      409.7467956543
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:30:30.706258",
+    "frame": 14999,
+    "stability_duration": 5.0,
+    "move_ratio": 0.13
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      263.60614013672,
+      409.7467956543
+    ],
+    "room_top_left": [
+      220.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      420.0,
+      420.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:30:35.720980",
+    "frame": 15149,
+    "stability_duration": 5.01,
+    "move_ratio": 0.17
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.8133544922,
+      689.53314208984
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:30:48.821640",
+    "frame": 15508,
+    "stability_duration": 5.02,
+    "move_ratio": 0.26
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      798.4736328125,
+      689.53314208984
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:30:58.871474",
+    "frame": 15806,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      560.10504150391,
+      689.53314208984
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:31:03.903624",
+    "frame": 15957,
+    "stability_duration": 5.03,
+    "move_ratio": 0.28
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      560.10504150391,
+      689.53314208984
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:31:08.937500",
+    "frame": 16108,
+    "stability_duration": 5.03,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      282.00805664063,
+      689.53314208984
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:31:19.008114",
+    "frame": 16409,
+    "stability_duration": 5.03,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      193.72323608398,
+      689.53314208984
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:31:24.036295",
+    "frame": 16557,
+    "stability_duration": 5.03,
+    "move_ratio": 0.16
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      193.72323608398,
+      689.53314208984
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:31:29.068914",
+    "frame": 16708,
+    "stability_duration": 5.03,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.788352966309,
+      689.53314208984
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:31:34.086599",
+    "frame": 16857,
+    "stability_duration": 5.02,
+    "move_ratio": 0.13
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.788352966309,
+      548.27764892578
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:31:39.102093",
+    "frame": 17007,
+    "stability_duration": 5.02,
+    "move_ratio": 0.21
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.788352966309,
+      548.27764892578
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:31:44.118859",
+    "frame": 17157,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.788352966309,
+      468.8212890625
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:31:49.155187",
+    "frame": 17308,
     "stability_duration": 5.03,
     "move_ratio": 0.23
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      409.53311157227,
-      409.548828125
+      70.788352966309,
+      430.02642822266
     ],
     "room_top_left": [
-      220.0,
+      60.0,
       140.0
     ],
     "room_bottom_right": [
-      420.0,
-      420.0
+      1100.0,
+      700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:40:21.905454",
-    "frame": 64594,
+    "recorded_at": "2026-01-13T03:31:54.185441",
+    "frame": 17458,
     "stability_duration": 5.03,
+    "move_ratio": 0.07
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      70.788352966309,
+      430.02642822266
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:31:59.221257",
+    "frame": 17609,
+    "stability_duration": 5.04,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      409.53311157227,
-      290.36431884766
+      172.31587219238,
+      430.02642822266
     ],
     "room_top_left": [
-      220.0,
+      60.0,
       140.0
     ],
     "room_bottom_right": [
-      420.0,
-      420.0
+      1100.0,
+      700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:40:26.937844",
-    "frame": 64745,
+    "recorded_at": "2026-01-13T03:32:04.238861",
+    "frame": 17759,
+    "stability_duration": 5.02,
+    "move_ratio": 0.17
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      260.60052490234,
+      430.02642822266
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:32:09.272003",
+    "frame": 17909,
+    "stability_duration": 5.03,
+    "move_ratio": 0.16
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      260.60052490234,
+      430.02642822266
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:32:14.289478",
+    "frame": 18059,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      375.37084960938,
+      430.02642822266
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:32:19.301038",
+    "frame": 18208,
+    "stability_duration": 5.01,
+    "move_ratio": 0.19
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      375.37084960938,
+      430.02642822266
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:32:24.318260",
+    "frame": 18357,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      481.31265258789,
+      430.02642822266
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:32:29.334191",
+    "frame": 18507,
+    "stability_duration": 5.01,
+    "move_ratio": 0.18
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      551.94018554688,
+      430.02642822266
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:32:34.350701",
+    "frame": 18657,
+    "stability_duration": 5.02,
+    "move_ratio": 0.15
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      587.25396728516,
+      430.02642822266
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:32:39.384354",
+    "frame": 18807,
+    "stability_duration": 5.03,
+    "move_ratio": 0.11
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      587.25396728516,
+      430.02642822266
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:32:44.386363",
+    "frame": 18957,
+    "stability_duration": 5.0,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      590.44757080078,
+      343.79083251953
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:32:49.417480",
+    "frame": 19108,
     "stability_duration": 5.03,
     "move_ratio": 0.19
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      409.53311157227,
-      290.36431884766
+      590.44757080078,
+      242.26327514648
     ],
     "room_top_left": [
-      220.0,
+      60.0,
       140.0
     ],
     "room_bottom_right": [
-      420.0,
-      420.0
+      1100.0,
+      700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:40:31.970307",
-    "frame": 64896,
+    "recorded_at": "2026-01-13T03:32:54.452743",
+    "frame": 19259,
     "stability_duration": 5.03,
+    "move_ratio": 0.17
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      590.44757080078,
+      242.26327514648
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:32:59.453858",
+    "frame": 19409,
+    "stability_duration": 5.0,
     "move_ratio": 0.0
   },
   {
     "recorded_name": "detected_position",
     "position": [
-      230.03332519531,
-      308.96371459961
+      590.44757080078,
+      242.26327514648
     ],
     "room_top_left": [
-      220.0,
+      60.0,
       140.0
     ],
     "room_bottom_right": [
-      420.0,
-      420.0
+      1100.0,
+      700.0
     ],
     "player_size": 15.0,
-    "recorded_at": "2026-01-13T02:40:41.972926",
-    "frame": 65196,
+    "recorded_at": "2026-01-13T03:33:04.470656",
+    "frame": 19559,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      590.44757080078,
+      150.48896789551
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:33:09.503640",
+    "frame": 19709,
+    "stability_duration": 5.03,
+    "move_ratio": 0.1
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      590.44757080078,
+      150.48896789551
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:33:14.518606",
+    "frame": 19858,
+    "stability_duration": 5.01,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      665.48956298828,
+      150.48896789551
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:33:19.534376",
+    "frame": 20008,
+    "stability_duration": 5.02,
+    "move_ratio": 0.15
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      842.05889892578,
+      150.48896789551
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:33:24.534536",
+    "frame": 20158,
+    "stability_duration": 5.0,
+    "move_ratio": 0.23
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      842.05889892578,
+      150.48896789551
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:33:29.551289",
+    "frame": 20308,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.9694824219,
+      150.48896789551
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:33:34.584606",
+    "frame": 20458,
+    "stability_duration": 5.03,
+    "move_ratio": 0.21
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.9694824219,
+      150.48896789551
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:33:39.602930",
+    "frame": 20608,
+    "stability_duration": 5.02,
+    "move_ratio": 0.0
+  },
+  {
+    "recorded_name": "detected_position",
+    "position": [
+      1089.9694824219,
+      446.24298095703
+    ],
+    "room_top_left": [
+      60.0,
+      140.0
+    ],
+    "room_bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "player_size": 15.0,
+    "recorded_at": "2026-01-13T03:33:49.620579",
+    "frame": 20905,
     "stability_duration": 5.0,
     "move_ratio": 0.0
   }
