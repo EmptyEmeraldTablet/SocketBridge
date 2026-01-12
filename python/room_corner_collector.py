@@ -177,7 +177,7 @@ class RoomCornerCollector:
         self.recorded_corners: Set[Tuple[int, str]] = set()  # (room_idx, corner_name)
 
         # 已记录的角落数据
-        self.recorded_corners_data: List[CornerPosition] = []
+        self.recorded_corners_data: List[dict] = []
 
         # 统计信息
         self.stats = {
@@ -429,99 +429,6 @@ class RoomCornerCollector:
         self.corner_stabilize_start_time = time.time()
         self.position_history.clear()
 
-    def _find_nearest_corner(
-        self, pos_x: float, pos_y: float, corners: Dict[str, Tuple[float, float]]
-    ) -> Tuple[Optional[str], float]:
-        """找到最近的角落"""
-        min_distance = float("inf")
-        nearest = None
-
-        for name, (cx, cy) in corners.items():
-            distance = math.sqrt((pos_x - cx) ** 2 + (pos_y - cy) ** 2)
-            if distance < min_distance:
-                min_distance = distance
-                nearest = name
-
-        return nearest, min_distance
-
-    def _check_corner_stability(
-        self,
-        corner_name: str,
-        corner_pos: Tuple[float, float],
-        player_pos: Tuple[float, float],
-        player_size: float,
-        top_left: Tuple[float, float],
-        bottom_right: Tuple[float, float],
-        room_idx: int,
-    ):
-        """检查角落位置稳定性"""
-
-        # 如果是新的角落，重置计时器并开始追踪
-        if self.current_corner != corner_name:
-            self.current_corner = corner_name
-            self.corner_stabilize_start_time = time.time()
-            self._last_countdown_second = -1
-            print(
-                f"\n[START] Room {room_idx} tracking '{corner_name}' at ({player_pos[0]:.0f}, {player_pos[1]:.0f})"
-            )
-            return
-
-        # 检查是否已经稳定足够时间
-        if self.corner_stabilize_start_time is None:
-            return
-
-        elapsed = time.time() - self.corner_stabilize_start_time
-        remaining = self.config.stability_duration - elapsed
-
-        # 显示倒计时
-        if remaining > 0:
-            # 每秒更新一次倒计时
-            if int(remaining) != self._last_countdown_second:
-                self._last_countdown_second = int(remaining)
-                print(
-                    f"\r[COUNTDOWN] Room {room_idx} | {remaining:5.1f}s | {corner_name:12} ",
-                    end="",
-                    flush=True,
-                )
-            return
-
-        # 时间到，检测位置稳定性
-        self._last_countdown_second = -1
-
-        # 计算位置方差
-        variance = self._calculate_position_variance()
-
-        if variance > self.config.stability_threshold:
-            # 位置不稳定，继续计时
-            print(
-                f"\r[WAIT] Position unstable (variance={variance:.1f}), continuing...    "
-            )
-            self.corner_stabilize_start_time = time.time()
-            self.position_history.clear()
-            return
-
-        # 稳定性验证通过，记录坐标（不检查是否已记录，允许重复记录）
-        print(
-            f"\n[RECORD] Room {room_idx} | {corner_name} | ({player_pos[0]:.0f}, {player_pos[1]:.0f}) | variance={variance:.1f}"
-        )
-
-        # 记录角落
-        self._record_corner(
-            corner_name=corner_name,
-            corner_pos=corner_pos,
-            player_pos=player_pos,
-            player_size=player_size,
-            top_left=top_left,
-            bottom_right=bottom_right,
-            room_idx=room_idx,
-            stability_duration=elapsed,
-            position_variance=variance,
-        )
-
-        # 重置状态，继续记录其他位置
-        self.corner_stabilize_start_time = time.time()
-        self.position_history.clear()
-
     def _calculate_position_variance(self) -> float:
         """计算位置方差"""
         history_len = len(self.position_history)
@@ -555,67 +462,30 @@ class RoomCornerCollector:
         stability_duration: float,
         position_variance: float,
     ):
-        """记录角落数据"""
-        # 计算到理论角落的距离
-        distance_to_corner = math.sqrt(
-            (player_pos[0] - corner_pos[0]) ** 2 + (player_pos[1] - corner_pos[1]) ** 2
-        )
-
-        logger.info(
-            f"[RECORD] Room {room_idx}, '{corner_name}': player=({player_pos[0]:.0f},{player_pos[1]:.0f}), "
-            f"corner=({corner_pos[0]:.0f},{corner_pos[1]:.0f}), distance={distance_to_corner:.1f}"
-        )
-
-        # 创建角落位置数据
-        corner_data = CornerPosition(
-            corner_name=corner_name,
-            player_position=player_pos,
-            room_top_left=top_left,
-            room_bottom_right=bottom_right,
-            theoretical_corner=corner_pos,
-            distance_to_corner=distance_to_corner,
-            player_size=player_size,
-            recorded_at=datetime.now().isoformat(),
-            frame=self.data.frame,
-            is_stable=True,
-            stability_duration=stability_duration,
-            position_variance=position_variance,
-        )
+        """记录位置数据"""
+        # 创建位置数据
+        position_data = {
+            "recorded_name": corner_name,
+            "position": player_pos,
+            "room_top_left": top_left,
+            "room_bottom_right": bottom_right,
+            "player_size": player_size,
+            "recorded_at": datetime.now().isoformat(),
+            "frame": self.data.frame,
+            "stability_duration": round(stability_duration, 2),
+            "move_ratio": round(position_variance, 2),
+        }
 
         # 保存到列表
-        self.recorded_corners_data.append(corner_data)
-
-        # 更新记录集合
-        self.record_key = (room_idx, corner_name)
-        self.recorded_corners.add(self.record_key)
-
-        # 更新房间数据
-        if self.current_room:
-            self.current_room.auto_detected_corners.append(
-                {
-                    "corner_name": corner_name,
-                    "player_position": player_pos,
-                    "theoretical_corner": corner_pos,
-                    "distance_to_corner": round(distance_to_corner, 2),
-                    "player_size": player_size,
-                    "recorded_at": corner_data.recorded_at,
-                    "frame": corner_data.frame,
-                    "is_stable": True,
-                    "stability_duration": round(stability_duration, 2),
-                    "position_variance": round(position_variance, 2),
-                }
-            )
-            self.current_room.last_updated_at = datetime.now().isoformat()
+        self.recorded_corners_data.append(position_data)
 
         # 更新统计
         self.stats["corners_recorded"] += 1
-        self.stats["stability_checks"] += 1
 
         if self.session:
             self.session.total_corners_recorded += 1
 
-        # 重置状态，避免重复记录
-        self.current_corner = None
+        # 重置状态，继续记录
         self.corner_stabilize_start_time = None
 
     def start(self):
@@ -665,29 +535,10 @@ class RoomCornerCollector:
         if not self.recorded_corners_data and not self.session:
             return
 
-        # 保存角落数据
-        corners_file = self.output_dir / "recorded_corners.json"
-        corners_data = [
-            {
-                "corner_name": c.corner_name,
-                "room_index": self.current_room_idx if self.current_room else -1,
-                "player_position": list(c.player_position),
-                "room_top_left": list(c.room_top_left),
-                "room_bottom_right": list(c.room_bottom_right),
-                "theoretical_corner": list(c.theoretical_corner),
-                "distance_to_corner": round(c.distance_to_corner, 2),
-                "player_size": c.player_size,
-                "recorded_at": c.recorded_at,
-                "frame": c.frame,
-                "is_stable": c.is_stable,
-                "stability_duration": round(c.stability_duration, 2),
-                "position_variance": round(c.position_variance, 2),
-            }
-            for c in self.recorded_corners_data
-        ]
-
-        with open(corners_file, "w", encoding="utf-8") as f:
-            json.dump(corners_data, f, indent=2, ensure_ascii=False)
+        # 保存位置数据
+        positions_file = self.output_dir / "recorded_positions.json"
+        with open(positions_file, "w", encoding="utf-8") as f:
+            json.dump(self.recorded_corners_data, f, indent=2, ensure_ascii=False)
 
         # 保存房间数据
         if self.session:
@@ -816,39 +667,15 @@ def main():
     collector.start()
 
     try:
-        # 主循环：定期输出状态
-        last_stats_time = time.time()
+        # 主循环
         while True:
             time.sleep(1)
 
-            # 每10秒输出一次状态
-            if time.time() - last_stats_time >= 10:
-                stats = collector.get_stats()
-                summary = collector.get_room_summary()
-
-                logger.info(
-                    f"Stats: corners={stats['corners_recorded']}, "
-                    f"rooms={stats['rooms_visited']}, "
-                    f"frames={stats['frames_processed']}"
-                )
-
-                if summary:
-                    logger.info(
-                        f"Current room: {summary['room_index']}, "
-                        f"stage={summary['stage']}, "
-                        f"size={summary['grid_size']}, "
-                        f"corners={summary['corners_recorded']}"
-                    )
-
-                last_stats_time = time.time()
-
     except KeyboardInterrupt:
-        logger.info("Stopping...")
+        pass
     finally:
         collector.stop()
         bridge.stop()
-
-    logger.info("Done!")
 
 
 if __name__ == "__main__":
