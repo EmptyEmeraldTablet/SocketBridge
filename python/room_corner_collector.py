@@ -353,38 +353,103 @@ class RoomCornerCollector:
             room_info.get("bottom_right", {}).get("y", 0),
         )
 
-        # 计算4个理论角落
-        corners = {
-            "top_left": top_left,
-            "top_right": (bottom_right[0], top_left[1]),
-            "bottom_left": (top_left[0], bottom_right[1]),
-            "bottom_right": bottom_right,
-        }
-
         # 获取玩家碰撞箱大小
         player_size = player_stats.get("size", 15.0)
 
-        # 检测玩家靠近哪个角落
-        nearest_corner, distance = self._find_nearest_corner(pos_x, pos_y, corners)
+        # 获取玩家速度（用于判断是否静止）
+        velocity = player_stats.get("vel", {})
+        vel_x = velocity.get("x", 0) if velocity else 0
+        vel_y = velocity.get("y", 0) if velocity else 0
+        is_moving = abs(vel_x) > 0.1 or abs(vel_y) > 0.1
 
         # 更新位置历史
-        self.position_history.append((pos_x, pos_y))
+        self.position_history.append((pos_x, pos_y, is_moving))
 
-        # 如果靠近角落，开始稳定性验证
-        if nearest_corner and distance <= self.config.corner_detection_threshold:
-            self._check_corner_stability(
-                corner_name=nearest_corner,
-                corner_pos=corners[nearest_corner],
-                player_pos=(pos_x, pos_y),
-                player_size=player_size,
-                top_left=top_left,
-                bottom_right=bottom_right,
-                room_idx=room_info.get("room_idx", -1),
+        # 开始新的稳定性检查（无条件触发）
+        if self.corner_stabilize_start_time is None:
+            self.corner_stabilize_start_time = time.time()
+            self._last_countdown_second = -1
+            print(
+                f"\n[START] Room {room_info.get('room_idx', -1)} tracking at ({pos_x:.0f}, {pos_y:.0f})"
             )
+            return
+
+        elapsed = time.time() - self.corner_stabilize_start_time
+        remaining = self.config.stability_duration - elapsed
+
+        # 显示倒计时
+        if remaining > 0:
+            # 每秒更新一次倒计时
+            if int(remaining) != self._last_countdown_second:
+                self._last_countdown_second = int(remaining)
+                move_status = "[MOVING]" if is_moving else "[STILL  ]"
+                print(
+                    f"\r[COUNTDOWN] Room {room_info.get('room_idx', -1)} | {remaining:5.1f}s | {move_status} | ({pos_x:.0f}, {pos_y:.0f})   ",
+                    end="",
+                    flush=True,
+                )
+            return
+
+        # 时间到，检测位置稳定性
+        self._last_countdown_second = -1
+
+        # 计算位置方差（只统计静止帧）
+        history_len = len(self.position_history)
+        if history_len < 10:
+            print(f"\r[WAIT] Not enough data, continuing...                    ")
+            self.corner_stabilize_start_time = time.time()
+            self.position_history.clear()
+            return
+
+        # 统计静止帧的比例
+        still_frames = sum(1 for _, _, moving in self.position_history if not moving)
+        move_ratio = 1.0 - (still_frames / history_len)
+
+        # 如果移动超过30%，认为不稳定
+        if move_ratio > 0.3:
+            print(
+                f"\r[WAIT] Moving too much ({move_ratio * 100:.0f}%), keep holding...            "
+            )
+            self.corner_stabilize_start_time = time.time()
+            self.position_history.clear()
+            return
+
+        # 稳定性验证通过，记录坐标
+        print(
+            f"\n[RECORD] Room {room_info.get('room_idx', -1)} | ({pos_x:.0f}, {pos_y:.0f}) | still={still_frames}/{history_len} frames"
+        )
+
+        # 计算到最近墙壁的距离（用于确定是角落还是边缘）
+        dist_left = pos_x - top_left[0]
+        dist_right = bottom_right[0] - pos_x
+        dist_top = pos_y - top_left[1]
+        dist_bottom = bottom_right[1] - pos_y
+        min_dist_to_wall = min(dist_left, dist_right, dist_top, dist_bottom)
+
+        # 根据到墙壁的距离判断记录点类型
+        if min_dist_to_wall < 30:
+            # 靠近墙壁，可能是角落
+            corner_pos = (pos_x, pos_y)
         else:
-            # 重置角落检测状态
-            self.current_corner = None
-            self.corner_stabilize_start_time = None
+            # 在房间中央或边缘
+            corner_pos = (pos_x, pos_y)
+
+        # 记录位置
+        self._record_corner(
+            corner_name="detected_position",
+            corner_pos=corner_pos,
+            player_pos=(pos_x, pos_y),
+            player_size=player_size,
+            top_left=top_left,
+            bottom_right=bottom_right,
+            room_idx=room_info.get("room_idx", -1),
+            stability_duration=elapsed,
+            position_variance=move_ratio,
+        )
+
+        # 重置状态，继续记录
+        self.corner_stabilize_start_time = time.time()
+        self.position_history.clear()
 
     def _find_nearest_corner(
         self, pos_x: float, pos_y: float, corners: Dict[str, Tuple[float, float]]
