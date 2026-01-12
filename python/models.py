@@ -360,6 +360,7 @@ class RoomInfo:
 
     # 房间类型
     room_type: str = "normal"  # normal, treasure, shop, boss, secret, etc.
+    room_shape: int = 0  # 房间形状 (0=normal, 1-4=L-shape variants, etc.)
 
     # 状态
     is_clear: bool = False

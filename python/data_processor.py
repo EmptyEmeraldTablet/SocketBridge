@@ -501,6 +501,7 @@ class DataProcessor:
             room_info.pixel_width = room_data.get("pixel_width", 0)
             room_info.pixel_height = room_data.get("pixel_height", 0)
             room_info.room_type = room_data.get("room_type", "normal")
+            room_info.room_shape = room_data.get("room_shape", 0)
             room_info.is_clear = room_data.get("is_clear", False)
             room_info.enemy_count = room_data.get("enemy_count", 0)
             self.current_state.room_info = room_info
