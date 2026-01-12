@@ -710,12 +710,6 @@ def main():
         default="./room_data",
         help="Output directory for collected data (default: ./room_data)",
     )
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="./room_data",
-        help="Output directory for collected data (default: ./room_data)",
-    )
 
     args = parser.parse_args()
 
