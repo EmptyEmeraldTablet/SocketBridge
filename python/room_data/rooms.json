@@ -1,0 +1,1034 @@
+{
+  "71": {
+    "room_index": 71,
+    "stage": 1,
+    "stage_type": 1,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": false,
+    "first_visited_at": "2026-01-13T02:22:34.724863",
+    "last_updated_at": "2026-01-13T02:22:34.724863",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "84": {
+    "room_index": 84,
+    "stage": 1,
+    "stage_type": 1,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": false,
+    "first_visited_at": "2026-01-13T02:22:45.056022",
+    "last_updated_at": "2026-01-13T02:22:45.056022",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "83": {
+    "room_index": 83,
+    "stage": 1,
+    "stage_type": 1,
+    "room_type": 6,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:22:52.657635",
+    "last_updated_at": "2026-01-13T02:22:52.657635",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "85": {
+    "room_index": 85,
+    "stage": 1,
+    "stage_type": 1,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": false,
+    "first_visited_at": "2026-01-13T02:23:51.372122",
+    "last_updated_at": "2026-01-13T02:23:51.372122",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "86": {
+    "room_index": 86,
+    "stage": 1,
+    "stage_type": 1,
+    "room_type": 4,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:23:53.691058",
+    "last_updated_at": "2026-01-13T02:23:53.691058",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "58": {
+    "room_index": 58,
+    "stage": 1,
+    "stage_type": 1,
+    "room_type": 1,
+    "room_shape": 6,
+    "grid_width": 28,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      1100.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:24:02.991489",
+    "last_updated_at": "2026-01-13T02:24:02.991489",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "59": {
+    "room_index": 59,
+    "stage": 1,
+    "stage_type": 1,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:25:11.339076",
+    "last_updated_at": "2026-01-13T02:25:11.339076",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "46": {
+    "room_index": 46,
+    "stage": 1,
+    "stage_type": 1,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:25:13.673739",
+    "last_updated_at": "2026-01-13T02:25:13.673739",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "33": {
+    "room_index": 33,
+    "stage": 1,
+    "stage_type": 1,
+    "room_type": 5,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:25:15.857007",
+    "last_updated_at": "2026-01-13T02:25:15.857007",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "97": {
+    "room_index": 97,
+    "stage": 2,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:25:30.886862",
+    "last_updated_at": "2026-01-13T02:25:30.886862",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "82": {
+    "room_index": 82,
+    "stage": 2,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:25:37.869789",
+    "last_updated_at": "2026-01-13T02:25:37.869789",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "95": {
+    "room_index": 95,
+    "stage": 2,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:25:42.221438",
+    "last_updated_at": "2026-01-13T02:25:42.221438",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "45": {
+    "room_index": 45,
+    "stage": 2,
+    "stage_type": 0,
+    "room_type": 10,
+    "room_shape": 3,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      220.0,
+      140.0
+    ],
+    "bottom_right": [
+      420.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:25:53.221291",
+    "last_updated_at": "2026-01-13T02:25:53.221291",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "57": {
+    "room_index": 57,
+    "stage": 2,
+    "stage_type": 0,
+    "room_type": 4,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:26:29.952267",
+    "last_updated_at": "2026-01-13T02:26:29.952267",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "108": {
+    "room_index": 108,
+    "stage": 2,
+    "stage_type": 0,
+    "room_type": 5,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:26:48.418924",
+    "last_updated_at": "2026-01-13T02:26:48.418924",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "-1": {
+    "room_index": -1,
+    "stage": 2,
+    "stage_type": 0,
+    "room_type": 14,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:26:55.789683",
+    "last_updated_at": "2026-01-13T02:26:55.789683",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "110": {
+    "room_index": 110,
+    "stage": 3,
+    "stage_type": 2,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:27:23.037925",
+    "last_updated_at": "2026-01-13T02:27:23.037925",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "123": {
+    "room_index": 123,
+    "stage": 3,
+    "stage_type": 2,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:27:24.352632",
+    "last_updated_at": "2026-01-13T02:27:24.352632",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "136": {
+    "room_index": 136,
+    "stage": 3,
+    "stage_type": 2,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:27:25.719587",
+    "last_updated_at": "2026-01-13T02:27:25.719587",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "122": {
+    "room_index": 122,
+    "stage": 3,
+    "stage_type": 2,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:27:33.452359",
+    "last_updated_at": "2026-01-13T02:27:33.452359",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "111": {
+    "room_index": 111,
+    "stage": 3,
+    "stage_type": 2,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:27:39.401827",
+    "last_updated_at": "2026-01-13T02:27:39.401827",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "87": {
+    "room_index": 87,
+    "stage": 3,
+    "stage_type": 2,
+    "room_type": 4,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:27:56.485614",
+    "last_updated_at": "2026-01-13T02:27:56.485614",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "99": {
+    "room_index": 99,
+    "stage": 3,
+    "stage_type": 2,
+    "room_type": 2,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:28:01.152773",
+    "last_updated_at": "2026-01-13T02:28:01.152773",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "121": {
+    "room_index": 121,
+    "stage": 3,
+    "stage_type": 2,
+    "room_type": 5,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:28:16.520789",
+    "last_updated_at": "2026-01-13T02:28:16.520789",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "72": {
+    "room_index": 72,
+    "stage": 4,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 6,
+    "grid_width": 28,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      1100.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": false,
+    "first_visited_at": "2026-01-13T02:29:35.866897",
+    "last_updated_at": "2026-01-13T02:29:35.866897",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "73": {
+    "room_index": 73,
+    "stage": 4,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 2,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      220.0
+    ],
+    "bottom_right": [
+      580.0,
+      340.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:29:38.200260",
+    "last_updated_at": "2026-01-13T02:29:38.200260",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "74": {
+    "room_index": 74,
+    "stage": 4,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 2,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      220.0
+    ],
+    "bottom_right": [
+      580.0,
+      340.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:30:20.568334",
+    "last_updated_at": "2026-01-13T02:30:20.568334",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "75": {
+    "room_index": 75,
+    "stage": 4,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:30:24.881545",
+    "last_updated_at": "2026-01-13T02:30:24.881545",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "62": {
+    "room_index": 62,
+    "stage": 4,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:30:28.217488",
+    "last_updated_at": "2026-01-13T02:30:28.217488",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "49": {
+    "room_index": 49,
+    "stage": 4,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:30:31.167684",
+    "last_updated_at": "2026-01-13T02:30:31.167684",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "48": {
+    "room_index": 48,
+    "stage": 4,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 4,
+    "grid_width": 15,
+    "grid_height": 16,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      700.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:30:33.501108",
+    "last_updated_at": "2026-01-13T02:30:33.501108",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "34": {
+    "room_index": 34,
+    "stage": 4,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:31:35.914855",
+    "last_updated_at": "2026-01-13T02:31:35.914855",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "18": {
+    "room_index": 18,
+    "stage": 4,
+    "stage_type": 0,
+    "room_type": 5,
+    "room_shape": 4,
+    "grid_width": 15,
+    "grid_height": 16,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      700.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:32:55.265816",
+    "last_updated_at": "2026-01-13T02:32:55.265816",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "69": {
+    "room_index": 69,
+    "stage": 5,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:35:00.978428",
+    "last_updated_at": "2026-01-13T02:35:00.978428",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "68": {
+    "room_index": 68,
+    "stage": 5,
+    "stage_type": 0,
+    "room_type": 11,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:35:04.295098",
+    "last_updated_at": "2026-01-13T02:35:04.295098",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "32": {
+    "room_index": 32,
+    "stage": 5,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:35:17.993485",
+    "last_updated_at": "2026-01-13T02:35:17.993485",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "60": {
+    "room_index": 60,
+    "stage": 5,
+    "stage_type": 0,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:35:28.344205",
+    "last_updated_at": "2026-01-13T02:35:28.344205",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "70": {
+    "room_index": 70,
+    "stage": 6,
+    "stage_type": 2,
+    "room_type": 1,
+    "room_shape": 8,
+    "grid_width": 28,
+    "grid_height": 16,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      1100.0,
+      700.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:36:34.926644",
+    "last_updated_at": "2026-01-13T02:36:34.927571",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "19": {
+    "room_index": 19,
+    "stage": 6,
+    "stage_type": 2,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:36:45.342617",
+    "last_updated_at": "2026-01-13T02:36:45.342617",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "31": {
+    "room_index": 31,
+    "stage": 6,
+    "stage_type": 2,
+    "room_type": 4,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:36:49.993474",
+    "last_updated_at": "2026-01-13T02:36:49.993474",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "81": {
+    "room_index": 81,
+    "stage": 6,
+    "stage_type": 2,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:37:13.144052",
+    "last_updated_at": "2026-01-13T02:37:13.144052",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "94": {
+    "room_index": 94,
+    "stage": 6,
+    "stage_type": 2,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:37:14.492409",
+    "last_updated_at": "2026-01-13T02:37:14.492409",
+    "visit_count": 1,
+    "notes": ""
+  },
+  "107": {
+    "room_index": 107,
+    "stage": 6,
+    "stage_type": 2,
+    "room_type": 1,
+    "room_shape": 1,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": [
+      60.0,
+      140.0
+    ],
+    "bottom_right": [
+      580.0,
+      420.0
+    ],
+    "auto_detected_corners": [],
+    "manual_verified_corners": [],
+    "is_first_visit": true,
+    "first_visited_at": "2026-01-13T02:37:16.808971",
+    "last_updated_at": "2026-01-13T02:37:16.808971",
+    "visit_count": 1,
+    "notes": ""
+  }
+}
