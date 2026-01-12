@@ -1,0 +1,106 @@
+{
+  "metadata": {
+    "export_time": "2026-01-12 22:21:46",
+    "total_rooms": 2
+  },
+  "calibrations": [
+    {
+      "room_index": 71,
+      "corners_recorded": [
+        "bottom_right",
+        "inner_corner",
+        "top_left",
+        "top_right"
+      ],
+      "measurements": {
+        "top_left": {
+          "x": 320.5,
+          "y": 395.7,
+          "radius": 20.0,
+          "timestamp": 1768227706.8261204
+        },
+        "top_right": {
+          "x": 280.5,
+          "y": 280.5,
+          "radius": 20.0,
+          "timestamp": 1768227706.8261347
+        },
+        "inner_corner": {
+          "x": 360.5,
+          "y": 280.5,
+          "radius": 20.0,
+          "timestamp": 1768227706.8261406
+        },
+        "bottom_right": {
+          "x": 320.5,
+          "y": 440.5,
+          "radius": 20.0,
+          "timestamp": 1768227706.8261476
+        }
+      },
+      "calculated_bounds": {
+        "top_left": {
+          "x": 280.5,
+          "y": 280.5
+        },
+        "bottom_right": {
+          "x": 360.5,
+          "y": 440.5
+        }
+      },
+      "calculated_size": {
+        "width": 80.0,
+        "height": 160.0
+      }
+    },
+    {
+      "room_index": 110,
+      "corners_recorded": [
+        "bottom_right",
+        "inner_corner",
+        "top_left",
+        "top_right"
+      ],
+      "measurements": {
+        "top_left": {
+          "x": 60.5,
+          "y": 140.5,
+          "radius": 20.0,
+          "timestamp": 1768227706.8261542
+        },
+        "top_right": {
+          "x": 1100.5,
+          "y": 140.5,
+          "radius": 20.0,
+          "timestamp": 1768227706.8261597
+        },
+        "inner_corner": {
+          "x": 60.5,
+          "y": 420.5,
+          "radius": 20.0,
+          "timestamp": 1768227706.8261638
+        },
+        "bottom_right": {
+          "x": 1100.5,
+          "y": 420.5,
+          "radius": 20.0,
+          "timestamp": 1768227706.8261693
+        }
+      },
+      "calculated_bounds": {
+        "top_left": {
+          "x": 60.5,
+          "y": 140.5
+        },
+        "bottom_right": {
+          "x": 1100.5,
+          "y": 420.5
+        }
+      },
+      "calculated_size": {
+        "width": 1040.0,
+        "height": 280.0
+      }
+    }
+  ]
+}

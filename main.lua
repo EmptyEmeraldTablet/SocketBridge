@@ -1,1788 +1,497 @@
---[[
-    The Binding of Isaac: Repentance - 模块化数据采集框架
-    
-    架构设计:
-    1. CollectorRegistry - 可扩展的数据收集器注册系统
-    2. Network - 网络通信层
-    3. Protocol - 消息协议层
-    4. InputExecutor - 输入执行模块
-    5. EventSystem - 事件系统
-    
-    支持功能:
-    - 分频采集 (HIGH/MEDIUM/LOW/ON_CHANGE)
-    - 动态启用/禁用采集通道
-    - 增量数据更新
-    - 双向命令通信
-]]
-
-local mod = RegisterMod("SocketBridge", 1)
-local json = require("json")
-
 -- ============================================================================
--- 配置系统
+-- SocketBridge 房间数据采集脚本 (Room Data Collector)
 -- ============================================================================
-local Config = {
-    HOST = "127.0.0.1",
-    PORT = 9527,
+-- 使用方法:
+-- 1. 在游戏中按 F7 开启/关闭采集模式
+-- 2. 飞行到房间角落（内角），按 F8 记录该角落坐标
+-- 3. 完成 4 个角落（L型 5 个）后，按 F9 导出数据
+-- 4. 数据会自动发送到 Python 端并保存到文件
+-- ============================================================================
+
+local ROOM_COLLECTOR = {
+    -- 状态
+    enabled = false,
+    recording_mode = false,
+    corners = {},
+    current_room = nil,
+    recorded_data = {},
     
-    -- 采集频率配置（帧数间隔）
-    CollectIntervals = {
-        HIGH = 1,       -- 每帧采集
-        MEDIUM = 5,     -- 5帧一次
-        LOW = 30,       -- 30帧一次
-        RARE = 90,      -- 90帧一次
-        ON_CHANGE = -1  -- 仅在变化时采集
+    -- 配置
+    corner_threshold = 5.0,  -- 停留时间阈值（秒）
+    corner_timer = 0,
+    last_position = nil,
+    corner_names = {
+        "top_left", "top_right", "bottom_left", "bottom_right"
     },
+    
+    -- 玩家碰撞箱半径 (Isaac 标准约 20-35)
+    player_radius = 25,
 }
 
 -- ============================================================================
--- 全局状态
+-- 核心功能函数
 -- ============================================================================
-local State = {
-    connected = false,
-    socket = nil,
-    frameCounter = 0,
-    currentRoomIndex = -1,
-    
-    -- 控制模式
-    -- 模式选项:
-    --   "MANUAL"      - 手动控制
-    --   "AUTO"        - 自动切换（有敌人AI，无敌人手动）
-    --   "FORCE_AI"    - 强制AI模式（无敌人也生效）
-    controlMode = "AUTO",
-    
-    -- 内部状态追踪
-    lastEnemyCount = 0,
-    wasInCombat = false,  -- 上一帧是否在战斗中
-    aiActive = false,     -- AI 是否正在发送非零输入
-    toggleCooldown = 0,
-    showModeMessage = false,
-    modeMessageTimer = 0,
-}
 
--- ============================================================================
--- 输入执行模块
--- ============================================================================
-local InputExecutor = {
-    moveDirection = {x = 0, y = 0},
-    shootDirection = {x = 0, y = 0},
-    useItem = false,
-    useBomb = false,
-    useCard = false,
-    usePill = false,
-    drop = false,
-}
-
-function InputExecutor.applyCommand(command)
-    if not command then return end
-    
-    local hasInput = false
-    
-    if command.move then
-        InputExecutor.moveDirection = command.move
-        -- 检查是否有非零移动输入
-        if command.move.x ~= 0 or command.move.y ~= 0 then
-            hasInput = true
+function ROOM_COLLECTOR:init()
+    -- 注册按键回调
+    mod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, inputAction, hook)
+        if inputAction == InputAction.IS_DEBUG_MENU and self.enabled then
+            -- F7: 开关采集模式
+            self:toggleMode()
+            return true
         end
-    end
-    if command.shoot then
-        InputExecutor.shootDirection = command.shoot
-        -- 检查是否有非零射击输入
-        if command.shoot.x ~= 0 or command.shoot.y ~= 0 then
-            hasInput = true
+        if inputAction == InputAction.MENU_ACCEPT and self.enabled then
+            -- F8: 记录角落
+            self:recordCorner()
+            return true
         end
-    end
-    if command.use_item ~= nil then
-        InputExecutor.useItem = command.use_item
-        if command.use_item then hasInput = true end
-    end
-    if command.use_bomb ~= nil then
-        InputExecutor.useBomb = command.use_bomb
-        if command.use_bomb then hasInput = true end
-    end
-    if command.use_card ~= nil then
-        InputExecutor.useCard = command.use_card
-        if command.use_card then hasInput = true end
-    end
-    if command.use_pill ~= nil then
-        InputExecutor.usePill = command.use_pill
-        if command.use_pill then hasInput = true end
-    end
-    if command.drop ~= nil then
-        InputExecutor.drop = command.drop
-        if command.drop then hasInput = true end
-    end
-    
-    -- 标记 AI 是否正在发送有效输入
-    State.aiActive = hasInput
-end
-
-function InputExecutor.reset()
-    InputExecutor.moveDirection = {x = 0, y = 0}
-    InputExecutor.shootDirection = {x = 0, y = 0}
-    InputExecutor.useItem = false
-    InputExecutor.useBomb = false
-    InputExecutor.useCard = false
-    InputExecutor.usePill = false
-    InputExecutor.drop = false
-    State.aiActive = false
-end
-
--- 获取当前控制模式
-function GetControlMode()
-    return State.controlMode
-end
-
--- 设置控制模式
-function SetControlMode(mode)
-    if mode == "MANUAL" or mode == "AUTO" or mode == "FORCE_AI" then
-        State.controlMode = mode
-        State.forceAI = (mode == "FORCE_AI")
-        -- 切换到手动模式时立即重置输入
-        if mode == "MANUAL" then
-            InputExecutor.reset()
-            State.wasInCombat = false
+        if inputAction == InputAction.REORDER_CARDS and self.enabled then
+            -- F9: 导出数据
+            self:exportData()
+            return true
         end
-        print("[SocketBridge] Control mode set to: " .. mode)
-    end
-end
-
--- 判断当前是否应该由 AI 控制
-local function shouldAIControl()
-    local mode = State.controlMode
-    
-    if mode == "MANUAL" then
-        -- 总是确保手动模式下没有残留的 AI 输入
-        if State.wasInCombat then
-            InputExecutor.reset()
-            State.wasInCombat = false
-        end
-        -- 即使 wasInCombat 为 false，也确保重置输入（处理从未战斗的情况）
-        InputExecutor.reset()
-        return false
-    elseif mode == "FORCE_AI" then
-        State.wasInCombat = true
-        return true
-    end
-    
-    -- AUTO 模式: 根据敌人存在与否自动切换
-    local room = Game():GetRoom()
-    local enemyCount = room and room:GetAliveEnemiesCount() or 0
-    
-    -- 检测战斗状态变化
-    local isInCombat = enemyCount > 0
-    
-    -- 状态变化检测
-    -- 只有当 AI 实际发送输入时，才认为 AI 在控制
-    if State.aiActive then
-        State.wasInCombat = true
-    end
-    
-    -- AI 正在控制且有敌人时，阻止玩家输入
-    if isInCombat and State.aiActive then
-        return true
-    end
-    
-    -- 如果没有敌人，或者敌人存在但 AI 未发送输入，玩家可以手动控制
-    if not isInCombat then
-        -- 战斗结束，切换回手动
-        if State.wasInCombat then
-            InputExecutor.reset()
-            State.wasInCombat = false
-        end
-    end
-    
-    return false
-end
-
--- ============================================================================
--- 辅助函数
--- ============================================================================
-local Helpers = {}
-
-function Helpers.vectorToTable(vec)
-    if vec then
-        return { x = vec.X, y = vec.Y }
-    end
-    return { x = 0, y = 0 }
-end
-
-function Helpers.colorToTable(color)
-    if color then
-        return { r = color.R, g = color.G, b = color.B, a = color.A }
-    end
-    return nil
-end
-
-function Helpers.getGame()
-    return Game()
-end
-
-function Helpers.getRoom()
-    return Game():GetRoom()
-end
-
-function Helpers.getLevel()
-    return Game():GetLevel()
-end
-
-function Helpers.getPlayers()
-    local game = Game()
-    local players = {}
-    for i = 0, game:GetNumPlayers() - 1 do
-        local player = Isaac.GetPlayer(i)
-        if player then
-            table.insert(players, player)
-        end
-    end
-    return players
-end
-
--- ============================================================================
--- 网络层
--- ============================================================================
-local Network = {
-    retryInterval = 60,
-    lastRetryFrame = 0,
-}
-
-function Network.connect()
-    if State.connected then return true end
-    
-    if State.frameCounter - Network.lastRetryFrame < Network.retryInterval then
-        return false
-    end
-    Network.lastRetryFrame = State.frameCounter
-    
-    local success, result = pcall(function()
-        local socket = require("socket.core")
-        local tcp = socket.tcp()
-        tcp:settimeout(0.01)
-        local connectResult = tcp:connect(Config.HOST, Config.PORT)
-        return tcp, connectResult
     end)
     
-    if success and result then
-        State.socket = result
-        State.connected = true
-        print("[SocketBridge] Connected to server")
-        return true
-    end
-    
-    return false
-end
-
-function Network.disconnect()
-    if State.socket then
-        pcall(function() State.socket:close() end)
-        State.socket = nil
-    end
-    State.connected = false
-end
-
-function Network.send(data)
-    if not State.connected then return false end
-    
-    local success, err = pcall(function()
-        local payload = json.encode(data) .. "\n"
-        State.socket:send(payload)
+    -- 注册帧更新回调
+    mod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
+        if not self.enabled then return end
+        self:update()
     end)
     
-    if not success then
-        Network.disconnect()
-        return false
-    end
-    return true
+    print("[RoomCollector] Initialized - F7: Toggle | F8: Record Corner | F9: Export")
 end
 
-function Network.receive()
-    if not State.connected then return nil end
-    
-    local success, line, err = pcall(function()
-        return State.socket:receive("*l")
-    end)
-    
-    if success and line then
-        local ok, data = pcall(json.decode, line)
-        if ok then
-            return data
-        end
-    elseif err == "closed" then
-        Network.disconnect()
+function ROOM_COLLECTOR:toggleMode()
+    self.recording_mode = not self.recording_mode
+    if self.recording_mode then
+        self:startRecording()
+    else
+        self:stopRecording()
     end
-    
-    return nil
+    print("[RoomCollector] Recording mode: " .. tostring(self.recording_mode))
 end
 
--- ============================================================================
--- 协议层
--- ============================================================================
-local Protocol = {
-    VERSION = "2.0",
-    MessageType = {
-        DATA = "DATA",
-        FULL_STATE = "FULL",
-        EVENT = "EVENT",
-        COMMAND = "CMD",
+function ROOM_COLLECTOR:startRecording()
+    self.corners = {}
+    self.corner_timer = 0
+    self.last_position = nil
+    self:scanCurrentRoom()
+    print("[RoomCollector] Started recording - Fly to corners and press F8")
+end
+
+function ROOM_COLLECTOR:stopRecording()
+    self.corner_timer = 0
+    self.last_position = nil
+    print("[RoomCollector] Stopped recording")
+end
+
+function ROOM_COLLECTOR:scanCurrentRoom()
+    -- 自动扫描房间网格，获取墙壁信息
+    local room = Isaac.GetRoom()
+    if not room then return end
+    
+    local grid_width = room:GetGridWidth()
+    local grid_height = room:GetGridHeight()
+    local grid_size = room:GetGridWidth() * 40 / grid_width  -- 估算
+    
+    local tl = room:GetTopLeftPos()
+    local br = room:GetBottomRightPos()
+    
+    self.current_room = {
+        grid_width = grid_width,
+        grid_height = grid_height,
+        grid_size = grid_size,
+        top_left = {x = tl.X, y = tl.Y},
+        bottom_right = {x = br.X, y = br.Y},
+        shape = room:GetRoomShape(),
+        wall_positions = {},
+        obstacles = {}
     }
-}
-
-function Protocol.createDataMessage(data, channels)
-    return {
-        version = Protocol.VERSION,
-        type = Protocol.MessageType.DATA,
-        timestamp = Isaac.GetTime(),
-        frame = State.frameCounter,
-        room_index = State.currentRoomIndex,
-        payload = data,
-        channels = channels
-    }
-end
-
-function Protocol.createEventMessage(eventType, eventData)
-    return {
-        version = Protocol.VERSION,
-        type = Protocol.MessageType.EVENT,
-        timestamp = Isaac.GetTime(),
-        frame = State.frameCounter,
-        event = eventType,
-        data = eventData
-    }
-end
-
--- ============================================================================
--- 收集器注册系统
--- ============================================================================
-local CollectorRegistry = {
-    collectors = {},
-    cache = {},
-    frameCounters = {},
-    changeHashes = {},
-}
-
-function CollectorRegistry:register(name, config)
-    self.collectors[name] = {
-        name = name,
-        enabled = config.enabled ~= false,
-        interval = config.interval or "MEDIUM",
-        priority = config.priority or 5,
-        collect = config.collect,
-        hash = config.hash,
-    }
-    self.frameCounters[name] = 0
-    self.cache[name] = nil
-    self.changeHashes[name] = nil
-end
-
-function CollectorRegistry:setEnabled(name, enabled)
-    if self.collectors[name] then
-        self.collectors[name].enabled = enabled
-    end
-end
-
-function CollectorRegistry:setInterval(name, interval)
-    if self.collectors[name] then
-        self.collectors[name].interval = interval
-    end
-end
-
-function CollectorRegistry:shouldCollect(name)
-    local collector = self.collectors[name]
-    if not collector or not collector.enabled then
-        return false
-    end
     
-    local interval = Config.CollectIntervals[collector.interval]
-    if interval == -1 then
-        return true -- ON_CHANGE 模式
-    end
-    
-    self.frameCounters[name] = (self.frameCounters[name] or 0) + 1
-    if self.frameCounters[name] >= interval then
-        self.frameCounters[name] = 0
-        return true
-    end
-    return false
-end
-
--- 简单哈希用于变化检测
-local function simpleHash(data)
-    if type(data) ~= "table" then
-        return tostring(data)
-    end
-    local str = ""
-    for k, v in pairs(data) do
-        if type(v) == "table" then
-            str = str .. k .. simpleHash(v)
-        else
-            str = str .. k .. tostring(v)
-        end
-    end
-    return str
-end
-
-function CollectorRegistry:collect(name, forceCollect)
-    local collector = self.collectors[name]
-    if not collector then return nil end
-    
-    if not forceCollect and not self:shouldCollect(name) then
-        return nil
-    end
-    
-    local success, data = pcall(collector.collect)
-    if not success or data == nil then
-        return nil
-    end
-    
-    -- ON_CHANGE 变化检测
-    if collector.interval == "ON_CHANGE" and not forceCollect then
-        local hashFunc = collector.hash or simpleHash
-        local newHash = hashFunc(data)
-        if self.changeHashes[name] == newHash then
-            return nil
-        end
-        self.changeHashes[name] = newHash
-    end
-    
-    self.cache[name] = data
-    return data
-end
-
-function CollectorRegistry:collectAll()
-    local results = {}
-    local collectedChannels = {}
-    
-    for name, _ in pairs(self.collectors) do
-        local data = self:collect(name, false)
-        if data ~= nil then
-            results[name] = data
-            table.insert(collectedChannels, name)
-        end
-    end
-    
-    return results, collectedChannels
-end
-
-function CollectorRegistry:forceCollectAll()
-    local results = {}
-    for name, _ in pairs(self.collectors) do
-        local data = self:collect(name, true)
-        if data ~= nil then
-            results[name] = data
-        end
-    end
-    return results
-end
-
-function CollectorRegistry:getCached(name)
-    return self.cache[name]
-end
-
-function CollectorRegistry:getAllCached()
-    local results = {}
-    for name, data in pairs(self.cache) do
-        if data ~= nil then
-            results[name] = data
-        end
-    end
-    return results
-end
-
-function CollectorRegistry:getConfig()
-    local config = {}
-    for name, collector in pairs(self.collectors) do
-        config[name] = {
-            enabled = collector.enabled,
-            interval = collector.interval,
-            priority = collector.priority
-        }
-    end
-    return config
-end
-
--- ============================================================================
--- 数据收集器定义
--- ============================================================================
-
--- 玩家位置 (高频)
-CollectorRegistry:register("PLAYER_POSITION", {
-    interval = "HIGH",
-    priority = 10,
-    collect = function()
-        local players = Helpers.getPlayers()
-        local data = {}
-        for i, player in ipairs(players) do
-            data[i] = {
-                pos = Helpers.vectorToTable(player.Position),
-                vel = Helpers.vectorToTable(player.Velocity),
-                move_dir = player:GetMovementDirection(),
-                fire_dir = player:GetFireDirection(),
-                head_dir = player:GetHeadDirection(),
-                aim_dir = Helpers.vectorToTable(player:GetAimDirection()),
-            }
-        end
-        return data
-    end
-})
-
--- 玩家属性 (低频)
-CollectorRegistry:register("PLAYER_STATS", {
-    interval = "LOW",
-    priority = 5,
-    collect = function()
-        local players = Helpers.getPlayers()
-        local data = {}
-        for i, player in ipairs(players) do
-            local tearRange = player.TearRange
-            data[i] = {
-                player_type = player:GetPlayerType(),
-                damage = player.Damage,
-                speed = player.MoveSpeed,
-                tears = player.MaxFireDelay,
-                range = player.TearRange,
-                tear_range = tearRange,
-                shot_speed = player.ShotSpeed,
-                luck = player.Luck,
-                tear_height = player.TearHeight,
-                tear_falling_speed = player.TearFallingSpeed,
-                can_fly = player.CanFly,
-                size = player.Size,
-                sprite_scale = player.SpriteScale.X,
-            }
-        end
-        return data
-    end
-})
-
--- 玩家生命值 (实时检测，稍低频率)
-CollectorRegistry:register("PLAYER_HEALTH", {
-    interval = "LOW",
-    priority = 8,
-    collect = function()
-        local players = Helpers.getPlayers()
-        local data = {}
-        for i, player in ipairs(players) do
-            data[i] = {
-                red_hearts = player:GetHearts(),
-                max_hearts = player:GetMaxHearts(),
-                soul_hearts = player:GetSoulHearts(),
-                black_hearts = player:GetBlackHearts(),
-                bone_hearts = player:GetBoneHearts(),
-                golden_hearts = player:GetGoldenHearts(),
-                eternal_hearts = player:GetEternalHearts(),
-                rotten_hearts = player:GetRottenHearts(),
-                broken_hearts = player:GetBrokenHearts(),
-                extra_lives = player:GetExtraLives(),
-            }
-        end
-        return data
-    end
-})
-
--- 玩家物品栏 (低频采集)
-CollectorRegistry:register("PLAYER_INVENTORY", {
-    interval = "RARE",
-    priority = 3,
-    collect = function()
-        local players = Helpers.getPlayers()
-        local data = {}
-        for i, player in ipairs(players) do
-            -- 基础资源（这些应该总是能获取到）
-            local playerData = {
-                -- 消耗品
-                coins = player:GetNumCoins(),
-                bombs = player:GetNumBombs(),
-                keys = player:GetNumKeys(),
-                -- 饰品
-                trinket_0 = player:GetTrinket(0),
-                trinket_1 = player:GetTrinket(1),
-                -- 卡牌/药丸
-                card_0 = player:GetCard(0),
-                pill_0 = player:GetPill(0),
-                -- 收集品总数
-                collectible_count = player:GetCollectibleCount(),
-            }
+    -- 扫描网格实体（墙壁、障碍物）
+    for i = 0, room:GetGridSize() - 1 do
+        local entity = room:GetGridEntity(i)
+        if entity then
+            local pos = entity.Position
+            local collision = entity.CollisionClass
+            local grid_type = entity:GetType()
             
-            -- 收集物品（使用安全的固定上限）
-            local items = {}
-            local maxItemId = 733  -- Repentance 最大物品 ID（固定值避免常量问题）
-            
-            -- 只在有收集品时才遍历
-            if playerData.collectible_count > 0 then
-                for itemId = 1, maxItemId do
-                    -- 先用 HasCollectible 检查（更快）
-                    if player:HasCollectible(itemId, true) then
-                        local count = player:GetCollectibleNum(itemId, true)
-                        if count > 0 then
-                            items[tostring(itemId)] = count
-                        end
-                    end
-                end
-            end
-            playerData.collectibles = items
-            
-            -- 主动道具槽位
-            local activeSlots = {}
-            for slot = 0, 3 do
-                local activeItem = player:GetActiveItem(slot)
-                if activeItem > 0 then
-                    activeSlots[tostring(slot)] = {
-                        item = activeItem,
-                        charge = player:GetActiveCharge(slot),
-                        max_charge = player:GetActiveMaxCharge(slot),
-                        battery_charge = player:GetBatteryCharge(slot)
-                    }
-                end
-            end
-            playerData.active_items = activeSlots
-            
-            data[i] = playerData
+            table.insert(self.current_room.wall_positions, {
+                index = i,
+                x = pos.X,
+                y = pos.Y,
+                collision = collision,
+                type = grid_type
+            })
         end
-        return data
     end
-})
-
--- 敌人 (高频)
-CollectorRegistry:register("ENEMIES", {
-    interval = "HIGH",
-    priority = 7,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local enemies = {}
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            if entity:IsActiveEnemy(false) and entity:IsVulnerableEnemy() then
-                local npc = entity:ToNPC()
-                
-                local targetPos = {x = 0, y = 0}
-                if npc then
-                    local target = npc:GetPlayerTarget()
-                    if target then
-                        targetPos = Helpers.vectorToTable(target.Position)
-                    end
-                end
-                
-                local dist = playerPos:Distance(entity.Position)
-                
-                table.insert(enemies, {
-                    id = entity.Index,
-                    type = entity.Type,
-                    variant = entity.Variant,
-                    subtype = entity.SubType,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    vel = Helpers.vectorToTable(entity.Velocity),
-                    hp = entity.HitPoints,
-                    max_hp = entity.MaxHitPoints,
-                    is_boss = entity:IsBoss(),
-                    is_champion = npc and npc:IsChampion() or false,
-                    state = npc and npc.State or 0,
-                    state_frame = npc and npc.StateFrame or 0,
-                    projectile_cooldown = npc and npc.ProjectileCooldown or 0,
-                    projectile_delay = npc and npc.ProjectileDelay or 0,
-                    collision_radius = entity.Size,
-                    distance = dist,
-                    target_pos = targetPos,
-                    v1 = npc and Helpers.vectorToTable(npc.V1) or {x=0, y=0},
-                    v2 = npc and Helpers.vectorToTable(npc.V2) or {x=0, y=0},
-                })
-            end
-        end
-        
-        return enemies
-    end
-})
-
--- 投射物 (高频)
-CollectorRegistry:register("PROJECTILES", {
-    interval = "HIGH",
-    priority = 9,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local data = {
-            enemy_projectiles = {},
-            player_tears = {},
-            lasers = {},
-        }
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            if entity.Type == EntityType.ENTITY_PROJECTILE then
-                local proj = entity:ToProjectile()
-                table.insert(data.enemy_projectiles, {
-                    id = entity.Index,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    vel = Helpers.vectorToTable(entity.Velocity),
-                    variant = entity.Variant,
-                    collision_radius = entity.Size,
-                    height = proj and proj.Height or 0,
-                    falling_speed = proj and proj.FallingSpeed or 0,
-                    falling_accel = proj and proj.FallingAccel or 0,
-                })
-            elseif entity.Type == EntityType.ENTITY_TEAR then
-                local tear = entity:ToTear()
-                local tearData = {
-                    id = entity.Index,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    vel = Helpers.vectorToTable(entity.Velocity),
-                    variant = entity.Variant,
-                    collision_radius = entity.Size,
-                    height = tear and tear.Height or 0,
-                    scale = tear and tear.Scale or 1,
-                }
-                if entity.SpawnerType == EntityType.ENTITY_PLAYER then
-                    table.insert(data.player_tears, tearData)
-                else
-                    table.insert(data.enemy_projectiles, tearData)
-                end
-            elseif entity.Type == EntityType.ENTITY_LASER then
-                local laser = entity:ToLaser()
-                if laser then
-                    table.insert(data.lasers, {
-                        id = entity.Index,
-                        pos = Helpers.vectorToTable(entity.Position),
-                        angle = laser.Angle,
-                        max_distance = laser.MaxDistance,
-                        is_enemy = entity:IsEnemy(),
-                    })
-                end
-            end
-            
-            ::continue::
-        end
-        
-        return data
-    end
-})
-
--- 房间信息 (中频 - 战斗中 is_clear 状态变化频繁)
-CollectorRegistry:register("ROOM_INFO", {
-    interval = "LOW",
-    priority = 4,
-    collect = function()
-        local room = Helpers.getRoom()
-        local level = Helpers.getLevel()
-        if not room then return nil end
-        
-        local tl = room:GetTopLeftPos()
-        local br = room:GetBottomRightPos()
-        local roomDesc = level:GetCurrentRoomDesc()
-        
-        return {
-            room_type = room:GetType(),
-            room_shape = room:GetRoomShape(),
-            room_idx = level:GetCurrentRoomIndex(),
-            stage = level:GetStage(),
-            stage_type = level:GetStageType(),
-            difficulty = Game().Difficulty,
-            is_clear = room:IsClear(),
-            is_first_visit = room:IsFirstVisit(),
-            grid_width = room:GetGridWidth(),
-            grid_height = room:GetGridHeight(),
-            top_left = Helpers.vectorToTable(tl),
-            bottom_right = Helpers.vectorToTable(br),
-            has_boss = room:GetBossID() > 0,
-            enemy_count = room:GetAliveEnemiesCount(),
-            room_variant = roomDesc and roomDesc.Data and roomDesc.Data.Variant or 0,
-        }
-    end
-})
-
--- 房间布局/障碍物 (变化时)
-CollectorRegistry:register("ROOM_LAYOUT", {
-    interval = "LOW",
-    priority = 2,
-    collect = function()
-        local room = Helpers.getRoom()
-        if not room then return nil end
-
-        local grid = {}
-        local doors = {}
-        local width = room:GetGridWidth()
-
-        -- 石头类型 (GridType 1000-1020 范围)
-        local ROCK_VARIANTS = {
-            [0] = "NORMAL",       -- 普通石头
-            [1] = "TINTED",       -- 标记石头
-            [2] = "SUPER_TINTED", -- 超级标记石头
-            [3] = "BOMB_ROCK",    -- 炸弹石头
-            [4] = "SPIKED",       -- 尖刺石头
-            [5] = "FOOLS_GOLD",   -- 愚人金
-        }
-
-        -- 其它石头类型 (GridType 1000+)
-        local STONE_VARIANTS = {
-            [0] = "NORMAL",       -- 普通石头
-            [1] = "TINTED",       -- 标记石头
-        }
-
-        -- 可破坏的"石头"变体
-        local DESTRUCTIBLE_STONE_VARIANTS = {
-            [0] = "URN",          -- 罐子
-            [1] = "BUCKET_EMPTY", -- 空桶
-            [2] = "BUCKET_WATER", -- 水桶
-            [3] = "BUCKET_POOP",  -- 粪桶
-            [4] = "MUSHROOM",     -- 蘑菇
-            [5] = "SKULL",        -- 头骨
-            [6] = "TINTED_SKULL", -- 标记头骨
-            [7] = "POLYP",        -- 息肉
-            [8] = "STICKY_URN",   -- 黏液罐
-        }
-
-        -- 方块类型
-        local BLOCK_VARIANTS = {
-            [0] = "METAL",        -- 钢铁方块
-            [1] = "KEY",          -- 钥匙方块
-            [2] = "PILLAR",       -- 柱子
-        }
-
-        -- 坑类型
-        local PIT_VARIANTS = {
-            [0] = "POOL",         -- 坑池
-            [1] = "HOLE",         -- 洞
-        }
-
-        for i = 0, room:GetGridSize() - 1 do
-            local gridEntity = room:GetGridEntity(i)
-            if gridEntity then
-                local gridType = gridEntity:GetType()
-                local collision = gridEntity.CollisionClass
-                local variant = gridEntity:GetVariant()
-                local state = gridEntity.State
-
-                -- 只收集基本不可变的障碍物
-                local shouldCollect = false
-                local variantName = nil
-
-                -- 石头类 (GridType 1000-1020, 但 1006 是 TNT 需要排除)
-                if gridType >= 1000 and gridType <= 1020 and gridType ~= 1006 and gridType ~= 1011 then
-                    shouldCollect = true
-                    -- 根据 GridType 确定具体类型
-                    if gridType == 1000 then
-                        variantName = ROCK_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1001 then
-                        variantName = STONE_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1002 then
-                        variantName = "CRACKED"
-                    elseif gridType == 1003 then
-                        variantName = "COBBLE"
-                    elseif gridType == 1004 then
-                        variantName = "WOODEN"
-                    elseif gridType == 1005 then
-                        variantName = DESTRUCTIBLE_STONE_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1007 then
-                        variantName = "BUCKET_WATER"
-                    elseif gridType == 1008 then
-                        variantName = "BUCKET_POOP"
-                    elseif gridType == 1009 then
-                        variantName = "EVENT"
-                    elseif gridType == 1010 then
-                        variantName = DESTRUCTIBLE_STONE_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1012 then
-                        variantName = "MOSS"
-                    elseif gridType == 1013 then
-                        variantName = "FIREPLACE"  -- 火堆由 FIRE_HAZARDS 处理
-                    elseif gridType == 1014 then
-                        variantName = "WALL"
-                    elseif gridType == 1015 then
-                        variantName = "POT"
-                    elseif gridType == 1016 then
-                        variantName = BLOCK_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1017 then
-                        variantName = PIT_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1018 then
-                        variantName = "SPIKES"
-                    elseif gridType == 1019 then
-                        variantName = "WEB"
-                    elseif gridType == 1020 then
-                        variantName = "TRAPDOOR"
-                    end
-                end
-
-                -- 方块 (GridType 16)
-                if gridType == 16 then
-                    shouldCollect = true
-                    variantName = BLOCK_VARIANTS[variant] or "UNKNOWN"
-                end
-
-                -- 坑 (GridType 17)
-                if gridType == 17 then
-                    shouldCollect = true
-                    variantName = PIT_VARIANTS[variant] or "UNKNOWN"
-                end
-
-                -- 尖刺 (GridType 8-9) - 保留作为危险地形
-                if gridType == 8 or gridType == 9 then
-                    shouldCollect = true
-                    variantName = (gridType == 8) and "SPIKES" or "POISON_SPIKES"
-                end
-
-                -- 蜘蛛网 (GridType 10)
-                if gridType == 10 then
-                    shouldCollect = true
-                    variantName = "WEB"
-                end
-
-                if shouldCollect then
-                    local pos = room:GetGridPosition(i)
-                    grid[tostring(i)] = {
-                        type = gridType,
-                        variant = variant,
-                        variant_name = variantName,
-                        state = state,
-                        collision = collision,
-                        x = pos.X,
-                        y = pos.Y,
-                    }
-                end
-            end
-        end
-
-        for slot = 0, DoorSlot.NUM_DOOR_SLOTS - 1 do
-            local door = room:GetDoor(slot)
-            if door then
-                doors[tostring(slot)] = {
-                    target_room = door.TargetRoomIndex,
-                    target_room_type = door.TargetRoomType,
-                    is_open = door:IsOpen(),
-                    is_locked = door:IsLocked(),
-                }
-            end
-        end
-
-        return {
-            grid = grid,
-            doors = doors,
-            grid_size = room:GetGridSize(),
-            width = width,
-            height = room:GetGridHeight(),
-        }
-    end
-})
-
--- 按钮 (中频)
-CollectorRegistry:register("BUTTONS", {
-    interval = "LOW",
-    priority = 3,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-
-        local playerPos = player.Position
-        local room = Helpers.getRoom()
-        local buttons = {}
-
-        -- 按钮变种类型
-        local BUTTON_VARIANTS = {
-            [0] = "NORMAL",       -- 普通按钮/奖励按钮
-            [1] = "SILVER",       -- 银按钮
-            [2] = "RED",          -- 击杀按钮
-            [3] = "YELLOW",       -- 铁轨按钮
-            [4] = "BROWN",        -- 事件按钮
-            [5] = "ARENA",        -- 竞技场按钮
-            [6] = "ARENA_BOSS",   -- 竞技场头目按钮
-            [7] = "ARENA_NIGHTMARE", -- 竞技场噩梦按钮
-        }
-
-        -- 按钮状态常量
-        local BUTTON_STATE_UNPRESSED = 0
-        local BUTTON_STATE_PRESSED = 1000
-
-        for i = 0, room:GetGridSize() - 1 do
-            local grid = room:GetGridEntity(i)
-            if grid and grid:GetType() == 18 then  -- GridType 18 = 按钮
-                local variant = grid:GetVariant()
-                local state = grid.State
-                local pos = room:GetGridPosition(i)
-                local dist = playerPos:Distance(pos)
-
-                if dist < 800 then
-                    local buttonType = BUTTON_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
-                    local isPressed = state == BUTTON_STATE_PRESSED
-
-                    buttons[tostring(i)] = {
-                        type = 18,
-                        variant = variant,
-                        variant_name = buttonType,
-                        state = state,
-                        is_pressed = isPressed,
-                        x = pos.X,
-                        y = pos.Y,
-                        distance = dist,
-                    }
-                end
-            end
-        end
-
-        return buttons
-    end
-})
-
--- 炸弹 (中频)
-CollectorRegistry:register("BOMBS", {
-    interval = "LOW",
-    priority = 5,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local bombs = {}
-        
-        -- 炸弹变种类型定义
-        local BOMB_VARIANTS = {
-            [0] = "NORMAL",          -- 普通炸弹
-            [1] = "BIG",             -- 大型炸弹
-            [2] = "DECOY",           -- 诱饵
-            [3] = "TROLL",           -- 即爆炸弹
-            [4] = "MEGA_TROLL",      -- 超级即爆炸弹
-            [5] = "POISON",          -- 毒性炸弹
-            [6] = "BIG_POISON",      -- 大型毒性炸弹
-            [7] = "SAD",             -- 伤心炸弹
-            [8] = "HOT",             -- 燃烧炸弹
-            [9] = "BUTT",            -- 大便炸弹
-            [10] = "MR_MEGA",        -- 大爆弹先生炸弹
-            [11] = "BOBBY",          -- 波比炸弹
-            [12] = "GLITTER",        -- 闪光炸弹
-            [13] = "THROWABLE",      -- 可投掷炸弹
-            [14] = "SMALL",          -- 小炸弹
-            [15] = "BRIMSTONE",      -- 硫磺火炸弹
-            [16] = "BLOODY_SAD",     -- 鲜血伤心炸弹
-            [17] = "GIGA",           -- 巨型炸弹
-            [18] = "GOLDEN_TROLL",   -- 金即爆炸弹
-            [19] = "ROCKET",         -- 火箭
-            [20] = "GIGA_ROCKET",    -- 巨型火箭
-        }
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            if entity.Type == EntityType.ENTITY_BOMB then
-                local variant = entity.Variant
-                local bomb = entity:ToBomb()
-                local dist = playerPos:Distance(entity.Position)
-                
-                local bombType = BOMB_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
-                
-                table.insert(bombs, {
-                    id = entity.Index,
-                    type = entity.Type,
-                    variant = variant,
-                    variant_name = bombType,
-                    sub_type = entity.SubType,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    vel = Helpers.vectorToTable(entity.Velocity),
-                    explosion_radius = bomb and bomb.ExplosionRadius or 0,
-                    timer = bomb and bomb.Timer or 0,
-                    distance = dist,
-                })
-            end
-        end
-        
-        return bombs
-    end
-})
-
--- 可互动实体 (中频)
-CollectorRegistry:register("INTERACTABLES", {
-    interval = "LOW",
-    priority = 4,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local interactables = {}
-        
-        -- 可互动实体变种类型定义
-        local INTERACTABLE_VARIANTS = {
-            [1] = "SLOT_MACHINE",         -- 赌博机
-            [2] = "BLOOD_DONATION",       -- 献血机
-            [3] = "FORTUNE_TELLING",      -- 预言机
-            [4] = "BEGGAR",               -- 乞丐
-            [5] = "DEVIL_BEGGAR",         -- 恶魔乞丐
-            [6] = "SHELL_GAME",           -- 赌博乞丐
-            [7] = "KEY_MASTER",           -- 钥匙大师
-            [8] = "DONATION_MACHINE",     -- 捐款机
-            [9] = "BOMB_BUM",             -- 炸弹乞丐
-            [10] = "RESTOCK_MACHINE",     -- 补货机
-            [11] = "GREED_MACHINE",       -- 贪婪机
-            [12] = "MOMS_DRESSING_TABLE", -- 妈妈的梳妆台
-            [13] = "BATTERY_BUM",         -- 电池乞丐
-            [14] = "ISAAC_SECRET",        -- 以撒（隐藏）
-            [15] = "HELL_GAME",           -- 赌命乞丐
-            [16] = "CRANE_GAME",          -- 娃娃机
-            [17] = "CONFESSIONAL",        -- 忏悔室
-            [18] = "ROTTEN_BEGGAR",       -- 腐烂乞丐
-            [19] = "REVIVE_MACHINE",      -- 复活机
-        }
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            if entity.Type == EntityType.ENTITY_PLAYER then
-                goto continue
-            end
-            
-            -- 检查是否是可互动实体 (Type 6)
-            if entity.Type == 6 then
-                local variant = entity.Variant
-                local npc = entity:ToNPC()
-                local dist = playerPos:Distance(entity.Position)
-                
-                local interactType = INTERACTABLE_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
-                
-                -- 获取状态信息
-                local state = npc and npc.State or 0
-                local stateFrame = npc and npc.StateFrame or 0
-                local target = npc and npc:GetPlayerTarget()
-                local targetPos = target and Helpers.vectorToTable(target.Position) or {x = 0, y = 0}
-                
-                table.insert(interactables, {
-                    id = entity.Index,
-                    type = entity.Type,
-                    variant = variant,
-                    variant_name = interactType,
-                    sub_type = entity.SubType,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    vel = Helpers.vectorToTable(entity.Velocity),
-                    state = state,
-                    state_frame = stateFrame,
-                    target_pos = targetPos,
-                    distance = dist,
-                })
-            end
-            
-            ::continue::
-        end
-        
-        return interactables
-    end
-})
-
--- 可拾取物 (中频)
-CollectorRegistry:register("PICKUPS", {
-    interval = "LOW",
-    priority = 4,
-    collect = function()
-        local pickups = {}
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            if entity.Type == EntityType.ENTITY_PICKUP then
-                local pickup = entity:ToPickup()
-                table.insert(pickups, {
-                    id = entity.Index,
-                    variant = entity.Variant,
-                    sub_type = entity.SubType,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    price = pickup and pickup.Price or 0,
-                    shop_item_id = pickup and pickup.ShopItemId or -1,
-                    wait = pickup and pickup.Wait or 0,
-                })
-            end
-        end
-        
-        return pickups
-    end
-})
-
--- 火焰危险物 (中频)
-CollectorRegistry:register("FIRE_HAZARDS", {
-    interval = "LOW",
-    priority = 6,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local fires = {}
-        
-        local DANGEROUS_FIRE_EFFECTS = {
-            [51] = true,  -- HOT_BOMB_FIRE
-            [52] = true,  -- RED_CANDLE_FLAME
-        }
-        
-        -- 火堆变种类型定义
-        local FIREPLACE_TYPES = {
-            [0] = "NORMAL",      -- 普通火堆
-            [1] = "RED",         -- 红色火堆
-            [2] = "BLUE",        -- 蓝色火堆
-            [3] = "PURPLE",      -- 紫色火堆
-            [4] = "WHITE",       -- 白色火堆
-            [10] = "MOVABLE",    -- 可移动火堆
-            [11] = "COAL",       -- 火炭
-            [12] = "MOVABLE_BLUE",   -- 可移动蓝色火堆
-            [13] = "MOVABLE_PURPLE", -- 可移动紫色火堆
-        }
-        
-        -- 火堆状态常量
-        local FIREPLACE_STATE_EXTINGUISHED = 1000
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            -- 处理火焰效果（如炸弹火焰、蜡烛火焰）
-            if entity.Type == EntityType.ENTITY_EFFECT then
-                if DANGEROUS_FIRE_EFFECTS[entity.Variant] then
-                    local dist = playerPos:Distance(entity.Position)
-                    if dist < 500 then
-                        table.insert(fires, {
-                            id = entity.Index,
-                            type = "EFFECT",
-                            variant = entity.Variant,
-                            pos = Helpers.vectorToTable(entity.Position),
-                            collision_radius = entity.Size > 0 and entity.Size or 20,
-                            distance = dist,
-                        })
-                    end
-                end
-            elseif entity.Type == 33 then  -- ENTITY_FIREPLACE
-                local dist = playerPos:Distance(entity.Position)
-                if dist < 500 then
-                    local variant = entity.Variant
-                    local subVariant = entity.SubType
-                    
-                    -- 确定火堆类型名称
-                    local fireplaceType = FIREPLACE_TYPES[variant] or ("UNKNOWN_" .. tostring(variant))
-                    
-                    -- 判断火堆是否点燃（State == 1000 表示已熄灭）
-                    local isExtinguished = entity.State == FIREPLACE_STATE_EXTINGUISHED
-                    
-                    -- 红色/紫色火堆发射泪弹状态检测
-                    local isShooting = false
-                    local npc = entity:ToNPC()
-                    if npc and (variant == 1 or variant == 3) then
-                        -- 红色和紫色火堆发射状态是 8
-                        isShooting = (npc.State == 8)
-                    end
-                    
-                    table.insert(fires, {
-                        id = entity.Index,
-                        type = "FIREPLACE",
-                        fireplace_type = fireplaceType,
-                        variant = variant,
-                        sub_variant = subVariant,
-                        pos = Helpers.vectorToTable(entity.Position),
-                        hp = entity.HitPoints,
-                        max_hp = entity.MaxHitPoints,
-                        state = entity.State,
-                        is_extinguished = isExtinguished,
-                        collision_radius = entity.Size > 0 and entity.Size or 25,
-                        distance = dist,
-                        is_shooting = isShooting,
-                        sprite_scale = entity.SpriteScale.X,
-                    })
-                end
-            end
-        end
-        
-        return fires
-    end
-})
-
--- 可破坏障碍物 (中频)
-CollectorRegistry:register("DESTRUCTIBLES", {
-    interval = "LOW",
-    priority = 3,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local room = Helpers.getRoom()
-        local obstacles = {}
-        
-        -- 可被泪弹直接破坏的障碍物类型（排除火堆和罐子）
-        local DESTRUCTIBLE_TYPES = {
-            [12] = "tnt",
-            [14] = "poop",  -- 大便 (已特殊处理类型)
-        }
-        
-        -- 大便变种类型
-        local POOP_VARIANTS = {
-            [0] = "NORMAL",      -- 普通大便
-            [1] = "CORN",        -- 玉米大便
-            [2] = "RED",         -- 红大便 (燃烧伤害，3秒后重生)
-            [3] = "GOLD",        -- 金大便 (6-12击，掉落硬币/假币)
-            [4] = "RAINBOW",     -- 彩虹大便 (回复红心)
-            [5] = "BLACK",       -- 黑大便 (房间变暗，敌人混沌)
-            [6] = "HOLY",        -- 白大便 (光环效果)
-            [7] = "GIANT",       -- 巨型大便 (20-40击)
-            [8] = "CHARMING",    -- 友好大便 (产生粪滴跟班)
-        }
-        
-        for i = 0, room:GetGridSize() - 1 do
-            local grid = room:GetGridEntity(i)
-            if grid then
-                local gridType = grid:GetType()
-                local typeName = DESTRUCTIBLE_TYPES[gridType]
-                
-                if typeName then
-                    local pos = room:GetGridPosition(i)
-                    local dist = playerPos:Distance(pos)
-                    
-                    if dist < 500 then
-                        local obstacleData = {
-                            grid_index = i,
-                            type = gridType,
-                            name = typeName,
-                            pos = Helpers.vectorToTable(pos),
-                            state = grid.State,
-                            distance = dist,
-                        }
-                        
-                        -- 大便特殊处理
-                        if gridType == 14 then
-                            local variant = grid:GetVariant() or 0
-                            obstacleData.variant = variant
-                            obstacleData.variant_name = POOP_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
-                        end
-                        
-                        table.insert(obstacles, obstacleData)
-                    end
-                end
-            end
-        end
-        
-        return obstacles
-    end
-})
-
--- ============================================================================
--- 命令处理器
--- ============================================================================
-local CommandHandler = {
-    handlers = {}
-}
-
-function CommandHandler.register(command, handler)
-    CommandHandler.handlers[command] = handler
+    
+    print("[RoomCollector] Scanned room: " .. grid_width .. "x" .. grid_height .. 
+          ", shape=" .. self.current_room.shape ..
+          ", walls=" .. #self.current_room.wall_positions)
 end
 
-function CommandHandler.process(cmdMessage)
-    if not cmdMessage then return nil end
-    
-    -- 直接是输入指令 (move/shoot)
-    if cmdMessage.move or cmdMessage.shoot then
-        return nil  -- 由 InputExecutor 处理
-    end
-    
-    -- 命令类型消息
-    if cmdMessage.command then
-        local handler = CommandHandler.handlers[cmdMessage.command]
-        if handler then
-            return handler(cmdMessage.params or {})
-        end
-    end
-    
-    return nil
-end
-
--- 注册命令
-CommandHandler.register("SET_CHANNEL", function(params)
-    if params.channel and params.enabled ~= nil then
-        CollectorRegistry:setEnabled(params.channel, params.enabled)
-        return { success = true, channel = params.channel, enabled = params.enabled }
-    end
-    return { success = false, error = "Invalid params" }
-end)
-
-CommandHandler.register("SET_INTERVAL", function(params)
-    if params.channel and params.interval then
-        CollectorRegistry:setInterval(params.channel, params.interval)
-        return { success = true }
-    end
-    return { success = false, error = "Invalid params" }
-end)
-
-CommandHandler.register("GET_FULL_STATE", function(params)
-    local fullState = CollectorRegistry:forceCollectAll()
-    Network.send({
-        version = Protocol.VERSION,
-        type = Protocol.MessageType.FULL_STATE,
-        frame = State.frameCounter,
-        payload = fullState
-    })
-    return { success = true }
-end)
-
-CommandHandler.register("GET_CONFIG", function(params)
-    return { success = true, config = CollectorRegistry:getConfig() }
-end)
-
-CommandHandler.register("SET_MANUAL", function(params)
-    if params.enabled ~= nil then
-        if params.enabled then
-            State.controlMode = "MANUAL"
-        else
-            State.controlMode = "AUTO"  -- 切换回自动模式
-        end
-        -- 清除正在进行的输入
-        InputExecutor.moveDirection = {x = 0, y = 0}
-        InputExecutor.shootDirection = {x = 0, y = 0}
-        return { success = true, mode = State.controlMode }
-    end
-    return { success = false, error = "Invalid params" }
-end)
-
--- 强制AI模式（无敌人时也生效）- 保留向后兼容
-CommandHandler.register("SET_FORCE_AI", function(params)
-    if params.enabled ~= nil then
-        State.controlMode = params.enabled and "FORCE_AI" or "AUTO"
-        return { success = true, mode = State.controlMode }
-    end
-    return { success = false, error = "Invalid params" }
-end)
-
--- 设置控制模式（支持三种模式）
-CommandHandler.register("SET_CONTROL_MODE", function(params)
-    local mode = params.mode
-    if mode and (mode == "MANUAL" or mode == "AUTO" or mode == "FORCE_AI") then
-        State.controlMode = mode
-        -- 清除正在进行的输入
-        InputExecutor.moveDirection = {x = 0, y = 0}
-        InputExecutor.shootDirection = {x = 0, y = 0}
-        return { success = true, mode = mode }
-    end
-    return { success = false, error = "Invalid mode. Use: MANUAL, AUTO, or FORCE_AI" }
-end)
-
--- 获取当前控制模式
-CommandHandler.register("GET_CONTROL_MODE", function(params)
-    return { success = true, mode = State.controlMode }
-end)
-
--- 控制台指令执行
-CommandHandler.register("EXEC_CONSOLE", function(params)
-    if params.command then
-        -- 使用 Isaac.ExecuteCommand 执行控制台指令
-        local success, result = pcall(function()
-            return Isaac.ExecuteCommand(params.command)
-        end)
-        
-        if success then
-            return { 
-                success = true, 
-                command = params.command,
-                result = result or ""
-            }
-        else
-            return { 
-                success = false, 
-                error = result,
-                command = params.command
-            }
-        end
-    end
-    return { success = false, error = "No command provided" }
-end)
-
--- ============================================================================
--- 事件系统
--- ============================================================================
-local EventSystem = {
-    pendingEvents = {}
-}
-
-function EventSystem.emit(eventType, eventData)
-    table.insert(EventSystem.pendingEvents, {
-        type = eventType,
-        data = eventData or {},
-        frame = State.frameCounter
-    })
-end
-
-function EventSystem.flush()
-    for _, event in ipairs(EventSystem.pendingEvents) do
-        Network.send(Protocol.createEventMessage(event.type, event.data))
-    end
-    EventSystem.pendingEvents = {}
-end
-
--- ============================================================================
--- 回调函数
--- ============================================================================
-
--- 每帧更新
-mod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
-    State.frameCounter = State.frameCounter + 1
-    
-    -- 冷却计时
-    if State.toggleCooldown > 0 then State.toggleCooldown = State.toggleCooldown - 1 end
-    if State.modeMessageTimer > 0 then State.modeMessageTimer = State.modeMessageTimer - 1 end
-    
-    -- F3 切换手动/AI模式
-    if Input.IsButtonPressed(Keyboard.KEY_F3, 0) and State.toggleCooldown == 0 then
-        State.forceManual = not State.forceManual
-        State.toggleCooldown = 20
-        State.showModeMessage = true
-        State.modeMessageTimer = 90
-        print("[SocketBridge] Manual mode: " .. (State.forceManual and "ON" or "OFF"))
-        
-        if State.forceManual then
-            InputExecutor.reset()
-        end
-    end
-    
+function ROOM_COLLECTOR:update()
     local player = Isaac.GetPlayer(0)
     if not player then return end
     
-    -- 连接服务器
-    if not State.connected then
-        Network.connect()
-    end
+    local pos = player.Position
+    local room = Isaac.GetRoom()
     
     -- 检测房间变化
-    local currentRoom = Game():GetLevel():GetCurrentRoomIndex()
-    if currentRoom ~= State.currentRoomIndex then
-        State.currentRoomIndex = currentRoom
-        
-        -- 强制更新房间相关数据
-        CollectorRegistry:collect("ROOM_INFO", true)
-        CollectorRegistry:collect("ROOM_LAYOUT", true)
-        CollectorRegistry:collect("PICKUPS", true)
-        
-        EventSystem.emit("ROOM_ENTER", {
-            room_index = currentRoom,
-            room_info = CollectorRegistry:getCached("ROOM_INFO"),
-            room_layout = CollectorRegistry:getCached("ROOM_LAYOUT"),
-        })
+    if self.current_room and room:GetRoomShape() ~= self.current_room.shape then
+        print("[RoomCollector] Room changed, rescan needed")
+        self:scanCurrentRoom()
     end
     
-    -- 收集并发送数据
-    if State.connected then
-        local data, channels = CollectorRegistry:collectAll()
-        if next(data) then
-            Network.send(Protocol.createDataMessage(data, channels))
-        end
-        
-        -- 发送待处理事件
-        EventSystem.flush()
-        
-        -- 接收并处理命令
-        local command = Network.receive()
-        if command then
-            -- 处理系统命令
-            local result = CommandHandler.process(command)
-            if result then
-                Network.send({
-                    version = Protocol.VERSION,
-                    type = Protocol.MessageType.COMMAND,
-                    frame = State.frameCounter,
-                    result = result
-                })
-            end
-            
-            -- 处理输入命令
-            InputExecutor.applyCommand(command)
-        end
-    end
-end)
-
--- 输入回调
-mod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, hook, action)
-    if not entity or entity.Type ~= EntityType.ENTITY_PLAYER then return nil end
-    
-    -- 非 AI 控制模式：不拦截
-    if not shouldAIControl() then return nil end
-    
-    local function ret(isActive)
-        if hook == InputHook.IS_ACTION_PRESSED or hook == InputHook.IS_ACTION_TRIGGERED then
-            return isActive
-        end
-        if hook == InputHook.GET_ACTION_VALUE then
-            return isActive and 1.0 or 0.0
-        end
-        return nil
-    end
-    
-    local moveDir = InputExecutor.moveDirection
-    local shootDir = InputExecutor.shootDirection
-    
-    -- 移动输入
-    if action == ButtonAction.ACTION_LEFT then
-        return ret(moveDir and moveDir.x == -1)
-    elseif action == ButtonAction.ACTION_RIGHT then
-        return ret(moveDir and moveDir.x == 1)
-    elseif action == ButtonAction.ACTION_UP then
-        return ret(moveDir and moveDir.y == -1)
-    elseif action == ButtonAction.ACTION_DOWN then
-        return ret(moveDir and moveDir.y == 1)
-    end
-    
-    -- 射击输入
-    if action == ButtonAction.ACTION_SHOOTLEFT then
-        return ret(shootDir and shootDir.x == -1)
-    elseif action == ButtonAction.ACTION_SHOOTRIGHT then
-        return ret(shootDir and shootDir.x == 1)
-    elseif action == ButtonAction.ACTION_SHOOTUP then
-        return ret(shootDir and shootDir.y == -1)
-    elseif action == ButtonAction.ACTION_SHOOTDOWN then
-        return ret(shootDir and shootDir.y == 1)
-    end
-    
-    -- 预留其他操控输入
-    if action == ButtonAction.ACTION_ITEM then
-        return ret(InputExecutor.useItem)
-    elseif action == ButtonAction.ACTION_BOMB then
-        return ret(InputExecutor.useBomb)
-    elseif action == ButtonAction.ACTION_PILLCARD then
-        return ret(InputExecutor.useCard or InputExecutor.usePill)
-    elseif action == ButtonAction.ACTION_DROP then
-        return ret(InputExecutor.drop)
-    end
-    
-    return nil
-end)
-
--- 房间清除
-mod:AddCallback(ModCallbacks.MC_PRE_SPAWN_CLEAN_AWARD, function()
-    InputExecutor.reset()
-    EventSystem.emit("ROOM_CLEAR", {
-        room_index = State.currentRoomIndex,
-    })
-end)
-
--- 玩家受伤
-mod:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG, function(_, entity, amount, flags, source)
-    if entity.Type ~= EntityType.ENTITY_PLAYER then return end
-    
-    local player = entity:ToPlayer()
-    EventSystem.emit("PLAYER_DAMAGE", {
-        amount = amount,
-        flags = flags,
-        source_type = source and source.Type or -1,
-        hp_after = player:GetHearts() + player:GetSoulHearts(),
-    })
-end)
-
--- NPC 死亡
-mod:AddCallback(ModCallbacks.MC_POST_NPC_DEATH, function(_, npc)
-    EventSystem.emit("NPC_DEATH", {
-        type = npc.Type,
-        variant = npc.Variant,
-        subtype = npc.SubType,
-        pos = Helpers.vectorToTable(npc.Position),
-        is_boss = npc:IsBoss(),
-    })
-end)
-
--- 玩家死亡
-mod:AddCallback(ModCallbacks.MC_POST_PLAYER_DEATH, function(_, player)
-    EventSystem.emit("PLAYER_DEATH", {
-        player_idx = player:GetPlayerIndex(),
-    })
-    Network.disconnect()
-end)
-
--- 游戏开始
-mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, continued)
-    State.frameCounter = 0
-    State.currentRoomIndex = -1
-    InputExecutor.reset()
-    
-    -- 重置所有收集器缓存
-    for name, _ in pairs(CollectorRegistry.collectors) do
-        CollectorRegistry.cache[name] = nil
-        CollectorRegistry.changeHashes[name] = nil
-    end
-    
-    EventSystem.emit("GAME_START", {
-        continued = continued,
-    })
-    
-    -- 发送完整初始状态
-    if State.connected then
-        local fullState = CollectorRegistry:forceCollectAll()
-        Network.send({
-            version = Protocol.VERSION,
-            type = Protocol.MessageType.FULL_STATE,
-            frame = State.frameCounter,
-            payload = fullState
-        })
-    end
-end)
-
--- 游戏退出
-mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, function(_, shouldSave)
-    EventSystem.emit("GAME_END", {
-        reason = shouldSave and "exit_save" or "exit_nosave",
-    })
-    EventSystem.flush()
-    Network.disconnect()
-end)
-
--- 获得道具
-mod:AddCallback(ModCallbacks.MC_POST_ADD_COLLECTIBLE, function(_, itemId, charge, firstTime, slot, varData, player)
-    EventSystem.emit("ITEM_COLLECTED", {
-        item_id = itemId,
-        first_time = firstTime,
-        slot = slot,
-        player_idx = player:GetPlayerIndex()
-    })
-end)
-
--- 渲染 (仅显示模式切换提示)
-mod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
-    if State.showModeMessage and State.modeMessageTimer > 0 then
-        local alpha = math.min(1.0, State.modeMessageTimer / 30)
-        local txt = State.forceManual and "MANUAL MODE (F3)" or "AI MODE (F3)"
-        local r = State.forceManual and 1.0 or 0.2
-        local g = 1.0
-        local b = State.forceManual and 0.2 or 1.0
-        Isaac.RenderText(txt, 50, 20, r, g, b, alpha)
-    end
-    
-    -- 连接状态小提示 (右上角)
-    local connTxt = State.connected and "●" or "○"
-    local connR = State.connected and 0.2 or 0.8
-    local connG = State.connected and 1.0 or 0.2
-    Isaac.RenderText(connTxt, Isaac.GetScreenWidth() - 20, 5, connR, connG, 0.2, 0.8)
-end)
-
--- ============================================================================
--- 调试命令 (控制台输入 sbdebug 测试物品获取)
--- ============================================================================
-mod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, cmd, params)
-    if cmd == "sbdebug" then
-        local player = Isaac.GetPlayer(0)
-        if player then
-            print("[SocketBridge Debug] === Player Inventory Test ===")
-            print("  Coins: " .. player:GetNumCoins())
-            print("  Bombs: " .. player:GetNumBombs())
-            print("  Keys: " .. player:GetNumKeys())
-            print("  Collectible Count: " .. player:GetCollectibleCount())
-            print("  Trinket 0: " .. player:GetTrinket(0))
-            print("  Trinket 1: " .. player:GetTrinket(1))
-            
-            -- 测试几个常见物品
-            local testItems = {1, 2, 3, 4, 5, 245, 246}  -- 常见物品 ID
-            for _, itemId in ipairs(testItems) do
-                local has = player:HasCollectible(itemId, true)
-                local count = player:GetCollectibleNum(itemId, true)
-                if has or count > 0 then
-                    print("  Item " .. itemId .. ": has=" .. tostring(has) .. ", count=" .. count)
-                end
-            end
-            
-            print("[SocketBridge Debug] === End ===")
+    -- 检测玩家是否停止移动（用于自动记录）
+    if self.last_position then
+        local dist = pos:Distance(self.last_position)
+        if dist < 1 then
+            self.corner_timer = self.corner_timer + 1/60
         else
-            print("[SocketBridge Debug] No player found")
+            self.corner_timer = 0
         end
-        return true
     end
-end)
+    self.last_position = pos
+end
+
+function ROOM_COLLECTOR:recordCorner()
+    local player = Isaac.GetPlayer(0)
+    if not player then return end
+    
+    local pos = player.Position
+    local room = Isaac.GetPlayer(0):GetRoom()
+    
+    -- 计算玩家中心到房间边界的距离
+    local tl = room:GetTopLeftPos()
+    local br = room:GetBottomRightPos()
+    
+    local corner_idx = #self.corners + 1
+    if corner_idx > 4 and self.current_room.shape < 8 then
+        print("[RoomCollector] Already have 4 corners for normal room!")
+        return
+    end
+    
+    -- 根据玩家位置判断是哪个角落
+    local corner_type = self:identifyCorner(pos, tl, br)
+    
+    -- 计算角落坐标（玩家中心 +/- 碰撞箱半径）
+    local corner_pos = self:calculateCornerPosition(pos, corner_type, tl, br)
+    
+    local corner_data = {
+        type = corner_type,
+        player_pos = {x = pos.X, y = pos.Y},
+        corner_pos = corner_pos,
+        timestamp = Game():GetFrameCount(),
+        room_shape = self.current_room.shape,
+        grid_width = self.current_room.grid_width,
+        grid_height = self.current_room.grid_height,
+        top_left = self.current_room.top_left,
+        bottom_right = self.current_room.bottom_right
+    }
+    
+    table.insert(self.corners, corner_data)
+    
+    print("[RoomCollector] Corner " .. corner_idx .. " recorded: " .. corner_type)
+    print("  Player: (" .. string.format("%.1f", pos.X) .. ", " .. string.format("%.1f", pos.Y) .. ")")
+    print("  Corner: (" .. string.format("%.1f", corner_pos.x) .. ", " .. string.format("%.1f", corner_pos.y) .. ")")
+    
+    -- 如果收集完成，自动导出
+    local expected = (self.current_room.shape >= 8) and 5 or 4
+    if #self.corners >= expected then
+        print("[RoomCollector] All corners collected, auto-exporting...")
+        self:exportData()
+    end
+end
+
+function ROOM_COLLECTOR:identifyCorner(player_pos, tl, br)
+    -- 根据玩家位置判断角落类型
+    local mid_x = (tl.X + br.X) / 2
+    local mid_y = (tl.Y + br.Y) / 2
+    
+    local is_left = player_pos.X < mid_x
+    local is_top = player_pos.Y < mid_y
+    
+    if is_left and is_top then
+        return "top_left"
+    elseif not is_left and is_top then
+        return "top_right"
+    elseif is_left and not is_top then
+        return "bottom_left"
+    else
+        return "bottom_right"
+    end
+end
+
+function ROOM_COLLECTOR:calculateCornerPosition(player_pos, corner_type, tl, br)
+    -- 计算实际角落坐标
+    -- 玩家站在角落内角时，角落坐标 = 玩家坐标 +/- 碰撞箱半径
+    
+    local corner = {x = 0, y = 0}
+    
+    -- 基础角落坐标（从 API 获取）
+    if corner_type == "top_left" then
+        corner.x = tl.X + self.player_radius
+        corner.y = tl.Y + self.player_radius
+    elseif corner_type == "top_right" then
+        corner.x = br.X - self.player_radius
+        corner.y = tl.Y + self.player_radius
+    elseif corner_type == "bottom_left" then
+        corner.x = tl.X + self.player_radius
+        corner.y = br.Y - self.player_radius
+    else  -- bottom_right
+        corner.x = br.X - self.player_radius
+        corner.y = br.Y - self.player_radius
+    end
+    
+    return corner
+end
+
+function ROOM_COLLECTOR:exportData()
+    if #self.corners == 0 then
+        print("[RoomCollector] No corners to export!")
+        return
+    end
+    
+    local room = Isaac.GetPlayer(0):GetRoom()
+    local tl = room:GetTopLeftPos()
+    local br = room:GetBottomRightPos()
+    
+    -- 构建导出数据
+    local export = {
+        timestamp = os.date("%Y-%m-%d %H:%M:%S"),
+        frame = Game():GetFrameCount(),
+        room_info = {
+            room_index = Isaac.GetPlayer(0):GetRoom().GetRoomShape and room:GetRoomShape() or 0,
+            room_shape = self.current_room.shape,
+            grid_width = self.current_room.grid_width,
+            grid_height = self.current_room.grid_height,
+            grid_size = self.current_room.grid_size,
+            stage = Game():GetLevel():GetStage(),
+            stage_type = Game():GetLevel():GetStageType(),
+            difficulty = Game().Difficulty
+        },
+        room_bounds = {
+            top_left = {x = tl.X, y = tl.Y},
+            bottom_right = {x = br.X, y = br.Y}
+        },
+        player_radius = self.player_radius,
+        corners = self.corners,
+        calculated_bounds = self:calculateBoundsFromCorners(),
+        wall_positions = self.current_room.wall_positions
+    }
+    
+    -- 保存到本地文件
+    self:saveToFile(export)
+    
+    -- 发送到 Python 端
+    self:sendToPython(export)
+    
+    print("[RoomCollector] Data exported!")
+    print("  Room: " .. export.room_info.grid_width .. "x" .. export.room_info.grid_height)
+    print("  Shape: " .. export.room_info.room_shape)
+    print("  Corners: " .. #self.corners)
+    
+    -- 清空当前数据，准备下一次
+    self.corners = {}
+end
+
+function ROOM_COLLECTOR:calculateBoundsFromCorners()
+    -- 从记录的角落计算房间边界
+    if #self.corners < 2 then return nil end
+    
+    local min_x = math.huge
+    local max_x = -math.huge
+    local min_y = math.huge
+    local max_y = -math.huge
+    
+    for _, corner in ipairs(self.corners) do
+        local pos = corner.corner_pos
+        min_x = math.min(min_x, pos.x)
+        max_x = math.max(max_x, pos.x)
+        min_y = math.min(min_y, pos.y)
+        max_y = math.max(max_y, pos.y)
+    end
+    
+    return {
+        top_left = {x = min_x, y = min_y},
+        bottom_right = {x = max_x, y = max_y},
+        width = max_x - min_x,
+        height = max_y - min_y
+    }
+end
+
+function ROOM_COLLECTOR:saveToFile(data)
+    local filename = "room_data_" .. os.date("%Y%m%d_%H%M%S") .. ".json"
+    
+    -- 转换为 JSON
+    local json = self:tableToJSON(data)
+    
+    -- 使用 Isaac 的文件 API 保存
+    local success, err = pcall(function()
+        local file = io.open(filename, "w")
+        if file then
+            file:write(json)
+            file:close()
+            print("[RoomCollector] Saved to: " .. filename)
+        else
+            print("[RoomCollector] Failed to save file")
+        end
+    end)
+    
+    if not success then
+        print("[RoomCollector] Error saving: " .. tostring(err))
+    end
+end
+
+function ROOM_COLLECTOR:sendToPython(data)
+    -- 通过 SocketBridge 协议发送数据
+    local payload = {
+        type = "ROOM_DATA_COLLECTION",
+        data = data
+    }
+    
+    -- 使用现有的 Protocol 发送
+    if mod.Protocol then
+        mod.Protocol:broadcast(payload)
+        print("[RoomCollector] Sent to Python")
+    else
+        print("[RoomCollector] Protocol not available, data saved locally only")
+    end
+end
+
+function ROOM_COLLECTOR:tableToJSON(t)
+    -- 简单的 Lua 表转 JSON
+    local function escape(s)
+        s = string.gsub(s, '\\', '\\\\')
+        s = string.gsub(s, '"', '\\"')
+        s = string.gsub(s, '\n', '\\n')
+        s = string.gsub(s, '\r', '\\r')
+        s = string.gsub(s, '\t', '\\t')
+        return s
+    end
+    
+    local function tojson(val, indent, prefix)
+        indent = indent or ""
+        prefix = prefix or ""
+        
+        local t = type(val)
+        
+        if t == "nil" then
+            return "null"
+        elseif t == "number" then
+            return tostring(val)
+        elseif t == "string" then
+            return '"' .. escape(val) .. '"'
+        elseif t == "boolean" then
+            return tostring(val)
+        elseif t == "table" then
+            local items = {}
+            local is_array = #val > 0
+            
+            for k, v in pairs(val) do
+                local key
+                if is_array then
+                    key = ""
+                else
+                    key = '"' .. escape(tostring(k)) .. '": '
+                end
+                table.insert(items, indent .. key .. tojson(v, indent .. "  ", ""))
+            end
+            
+            if is_array then
+                return "[\n" .. table.concat(items, ",\n") .. "\n" .. indent .. "]"
+            else
+                return "{\n" .. table.concat(items, ",\n") .. "\n" .. indent .. "}"
+            end
+        else
+            return '"' .. escape(tostring(val)) .. '"'
+        end
+    end
+    
+    return tojson(t, "", "")
+end
 
 -- ============================================================================
--- 公开 API
+-- 自动扫描模式（替代手动记录）
 -- ============================================================================
-mod.CollectorRegistry = CollectorRegistry
-mod.EventSystem = EventSystem
-mod.Protocol = Protocol
-mod.Config = Config
-mod.InputExecutor = InputExecutor
-mod.CommandHandler = CommandHandler
-mod.shouldAIControl = shouldAIControl
 
-print("[SocketBridge] v2.0 loaded - Modular Data Collection Framework")
-print("[SocketBridge] Server: " .. Config.HOST .. ":" .. Config.PORT)
-print("[SocketBridge] F3: Toggle Manual/AI Mode")
-print("[SocketBridge] Console: 'sbdebug' to test inventory API")
+function ROOM_COLLECTOR:autoScanRoom()
+    -- 自动扫描房间并计算边界
+    local room = Isaac.GetRoom()
+    if not room then return end
+    
+    local tl = room:GetTopLeftPos()
+    local br = room:GetBottomRightPos()
+    
+    -- 从 API 直接获取边界（更准确）
+    local auto_data = {
+        method = "api_direct",
+        room_info = {
+            grid_width = room:GetGridWidth(),
+            grid_height = room:GetGridHeight(),
+            shape = room:GetRoomShape(),
+            top_left = {x = tl.X, y = tl.Y},
+            bottom_right = {x = br.X, y = br.Y}
+        },
+        -- 计算内部可玩区域
+        internal = {
+            left = tl.X + 40,   -- 1 tile wall
+            right = br.X - 40,
+            top = tl.Y + 40,
+            bottom = br.Y - 40,
+            width = br.X - tl.X - 80,
+            height = br.Y - tl.Y - 80
+        },
+        -- 收集墙壁位置
+        walls = {},
+        obstacles = {}
+    }
+    
+    -- 扫描所有网格实体
+    for i = 0, room:GetGridSize() - 1 do
+        local entity = room:GetGridEntity(i)
+        if entity then
+            local pos = entity.Position
+            local collision = entity.CollisionClass
+            local gtype = entity:GetType()
+            
+            local is_wall = (collision == GridCollisionClass.COLLISION_WALL or 
+                            collision == GridCollisionClass.COLLISION_WALL_EXCEPT_PLAYER)
+            
+            local entry = {
+                index = i,
+                x = pos.X,
+                y = pos.Y,
+                collision = collision,
+                type = gtype,
+                is_wall = is_wall
+            }
+            
+            if is_wall then
+                table.insert(auto_data.walls, entry)
+            else
+                table.insert(auto_data.obstacles, entry)
+            end
+        end
+    end
+    
+    print("[RoomCollector] Auto-scan complete:")
+    print("  Grid: " .. auto_data.room_info.grid_width .. "x" .. auto_data.room_info.grid_height)
+    print("  Walls: " .. #auto_data.walls)
+    print("  Obstacles: " .. #auto_data.obstacles)
+    
+    return auto_data
+end
+
+-- ============================================================================
+-- 初始化
+-- ============================================================================
+
+ROOM_COLLECTOR:init()
+
+-- 公开到全局
+mod.RoomCollector = ROOM_COLLECTOR
+
+print("[SocketBridge] Room Data Collector loaded - F7: Toggle | F8: Record Corner | F9: Export")
