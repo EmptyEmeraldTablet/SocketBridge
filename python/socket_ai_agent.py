@@ -510,7 +510,26 @@ def run_realtime_test(host: str = "127.0.0.1", port: int = 9527):
                 f"[DEBUG] on_data called - type: {type(data)}, keys: {list(data.keys()) if isinstance(data, dict) else 'N/A'}"
             )
 
-        control = agent.update(data)
+        # === 修复：重新组织数据格式 ===
+        # IsaacBridge 的 "data" 回调直接发送 payload dict
+        # DataProcessor.process_message() 需要完整的消息结构
+        raw_message = {
+            "type": "DATA",
+            "frame": bridge.state.frame,
+            "room_index": bridge.state.room_index,
+            "timestamp": 0,
+            "payload": data,
+            "channels": list(data.keys()) if isinstance(data, dict) else [],
+        }
+
+        # === DEBUG: 验证重组后的数据 ===
+        if agent.current_frame <= 3:
+            print(
+                f"[DEBUG] restructured: frame={raw_message['frame']}, room={raw_message['room_index']}"
+            )
+            print(f"[DEBUG] payload keys: {list(raw_message['payload'].keys())}")
+
+        control = agent.update(raw_message)
 
         # === DEBUG: 打印处理结果 ===
         if agent.current_frame <= 10 and agent.current_frame % 5 == 0:
