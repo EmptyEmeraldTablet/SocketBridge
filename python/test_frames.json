@@ -1,0 +1,1604 @@
+{
+  "metadata": {
+    "session": "session_20260112_005209",
+    "description": "Extracted test frames for room layout testing",
+    "total_messages": 4126,
+    "extracted_frames": 7,
+    "room_configurations": 3
+  },
+  "test_frames": [
+    {
+      "description": "Combat frame with 2 enemies",
+      "original_index": 749,
+      "frame": 1799,
+      "timestamp": 105035660,
+      "room_index": 71,
+      "player_position": {
+        "move_dir": -1,
+        "aim_dir": {
+          "y": -1.0,
+          "x": 0.0
+        },
+        "pos": {
+          "y": 395.67059326172,
+          "x": 320.0
+        }
+      },
+      "enemies": [
+        {
+          "state": 1,
+          "hp": 10.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 1,
+          "type": 10,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 280.0,
+            "x": 280.0
+          },
+          "max_hp": 10.0,
+          "variant": 1,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 395.67059326172,
+            "x": 320.0
+          },
+          "distance": 122.39153289795,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.0,
+            "x": 0.0
+          }
+        },
+        {
+          "state": 1,
+          "hp": 10.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 2,
+          "type": 10,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 280.0,
+            "x": 360.0
+          },
+          "max_hp": 10.0,
+          "variant": 1,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 395.67059326172,
+            "x": 320.0
+          },
+          "distance": 122.39153289795,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.0,
+            "x": 0.0
+          }
+        }
+      ],
+      "projectiles": {
+        "lasers": [],
+        "enemy_projectiles": [],
+        "player_tears": [
+          {
+            "height": -14.263704299927,
+            "id": 5,
+            "variant": 0,
+            "scale": 1.0152906179428,
+            "collision_radius": 7.1070342063904,
+            "pos": {
+              "y": 241.22885131836,
+              "x": 323.77578735352
+            },
+            "vel": {
+              "y": -10.491230010986,
+              "x": 0.0
+            }
+          },
+          {
+            "height": -22.01859664917,
+            "id": 6,
+            "variant": 0,
+            "scale": 1.0152906179428,
+            "collision_radius": 7.1070342063904,
+            "pos": {
+              "y": 355.64907836914,
+              "x": 315.02221679688
+            },
+            "vel": {
+              "y": -10.029758453369,
+              "x": 0.0
+            }
+          }
+        ]
+      },
+      "room_info": {
+        "bottom_right": {
+          "y": 420.0,
+          "x": 580.0
+        },
+        "room_variant": 47,
+        "room_idx": 71,
+        "is_clear": false,
+        "has_boss": false,
+        "stage": 1,
+        "top_left": {
+          "y": 140.0,
+          "x": 60.0
+        },
+        "is_first_visit": true,
+        "grid_height": 9,
+        "enemy_count": 2,
+        "grid_width": 15,
+        "difficulty": 0,
+        "room_shape": 1,
+        "room_type": 1,
+        "stage_type": 1
+      },
+      "room_layout": {
+        "grid": {
+          "7": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 120.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 4
+          },
+          "127": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 440.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 4
+          },
+          "74": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 280.0,
+            "variant_name": "UNKNOWN",
+            "x": 600.0,
+            "collision": 4
+          }
+        },
+        "doors": {
+          "3": {
+            "is_locked": false,
+            "target_room": 84,
+            "is_open": false,
+            "target_room_type": 1
+          },
+          "1": {
+            "is_locked": false,
+            "target_room": 58,
+            "is_open": false,
+            "target_room_type": 1
+          },
+          "2": {
+            "is_locked": false,
+            "target_room": 72,
+            "is_open": false,
+            "target_room_type": 4
+          }
+        },
+        "grid_size": 135,
+        "height": 9,
+        "width": 15
+      }
+    },
+    {
+      "description": "Combat frame with 1 enemies",
+      "original_index": 840,
+      "frame": 1889,
+      "timestamp": 105038712,
+      "room_index": 71,
+      "player_position": {
+        "move_dir": 2,
+        "aim_dir": {
+          "y": 0.0,
+          "x": -1.0
+        },
+        "pos": {
+          "y": 190.19906616211,
+          "x": 398.89895629883
+        }
+      },
+      "enemies": [
+        {
+          "state": 4,
+          "hp": 10.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 2,
+          "type": 10,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 378.14669799805,
+            "x": 241.61178588867
+          },
+          "max_hp": 10.0,
+          "variant": 1,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 190.19906616211,
+            "x": 398.89895629883
+          },
+          "distance": 245.0786895752,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": -2.5915086269379,
+            "x": 1.8138177394867
+          }
+        }
+      ],
+      "projectiles": {
+        "lasers": [],
+        "enemy_projectiles": [],
+        "player_tears": [
+          {
+            "height": -12.07107257843,
+            "id": 53,
+            "variant": 0,
+            "scale": 1.0152906179428,
+            "collision_radius": 7.1070342063904,
+            "pos": {
+              "y": 361.85702514648,
+              "x": 343.74365234375
+            },
+            "vel": {
+              "y": 10.0,
+              "x": 5.2242364883423
+            }
+          },
+          {
+            "height": -21.022207260132,
+            "id": 66,
+            "variant": 0,
+            "scale": 1.0152906179428,
+            "collision_radius": 7.1070342063904,
+            "pos": {
+              "y": 194.93705749512,
+              "x": 294.77606201172
+            },
+            "vel": {
+              "y": -2.0130966731813e-05,
+              "x": -10.0
+            }
+          }
+        ]
+      },
+      "room_info": {
+        "bottom_right": {
+          "y": 420.0,
+          "x": 580.0
+        },
+        "room_variant": 47,
+        "room_idx": 71,
+        "is_clear": false,
+        "has_boss": false,
+        "stage": 1,
+        "top_left": {
+          "y": 140.0,
+          "x": 60.0
+        },
+        "is_first_visit": true,
+        "grid_height": 9,
+        "enemy_count": 1,
+        "grid_width": 15,
+        "difficulty": 0,
+        "room_shape": 1,
+        "room_type": 1,
+        "stage_type": 1
+      },
+      "room_layout": {
+        "grid": {
+          "7": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 120.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 4
+          },
+          "127": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 440.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 4
+          },
+          "74": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 280.0,
+            "variant_name": "UNKNOWN",
+            "x": 600.0,
+            "collision": 4
+          }
+        },
+        "doors": {
+          "3": {
+            "is_locked": false,
+            "target_room": 84,
+            "is_open": false,
+            "target_room_type": 1
+          },
+          "1": {
+            "is_locked": false,
+            "target_room": 58,
+            "is_open": false,
+            "target_room_type": 1
+          },
+          "2": {
+            "is_locked": false,
+            "target_room": 72,
+            "is_open": false,
+            "target_room_type": 4
+          }
+        },
+        "grid_size": 135,
+        "height": 9,
+        "width": 15
+      }
+    },
+    {
+      "description": "Combat frame with 6 enemies",
+      "original_index": 1597,
+      "frame": 2639,
+      "timestamp": 105065497,
+      "room_index": 110,
+      "player_position": {
+        "move_dir": -1,
+        "aim_dir": {
+          "y": 1.0,
+          "x": 0.0
+        },
+        "pos": {
+          "y": 164.23179626465,
+          "x": 840.0
+        }
+      },
+      "enemies": [
+        {
+          "state": 1,
+          "hp": 20.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 1,
+          "type": 94,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 240.0,
+            "x": 560.0
+          },
+          "max_hp": 20.0,
+          "variant": 0,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 164.23179626465,
+            "x": 840.0
+          },
+          "distance": 290.07037353516,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.0,
+            "x": 0.0
+          }
+        },
+        {
+          "state": 1,
+          "hp": 6.5,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 2,
+          "type": 85,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 240.0,
+            "x": 640.0
+          },
+          "max_hp": 6.5,
+          "variant": 0,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 164.23179626465,
+            "x": 840.0
+          },
+          "distance": 213.87103271484,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.0,
+            "x": 0.0
+          }
+        },
+        {
+          "state": 1,
+          "hp": 7.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 3,
+          "type": 30,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 280.0,
+            "x": 560.0
+          },
+          "max_hp": 20.0,
+          "variant": 2,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 164.23179626465,
+            "x": 840.0
+          },
+          "distance": 302.98892211914,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.0,
+            "x": 0.0
+          }
+        },
+        {
+          "state": 1,
+          "hp": 7.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 4,
+          "type": 30,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 280.0,
+            "x": 600.0
+          },
+          "max_hp": 20.0,
+          "variant": 2,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 164.23179626465,
+            "x": 840.0
+          },
+          "distance": 266.46252441406,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.0,
+            "x": 0.0
+          }
+        },
+        {
+          "state": 1,
+          "hp": 6.5,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 5,
+          "type": 85,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 320.0,
+            "x": 520.0
+          },
+          "max_hp": 6.5,
+          "variant": 0,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 164.23179626465,
+            "x": 840.0
+          },
+          "distance": 355.89849853516,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.0,
+            "x": 0.0
+          }
+        },
+        {
+          "state": 1,
+          "hp": 20.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 6,
+          "type": 94,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 320.0,
+            "x": 600.0
+          },
+          "max_hp": 20.0,
+          "variant": 0,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 164.23179626465,
+            "x": 840.0
+          },
+          "distance": 286.11837768555,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.0,
+            "x": 0.0
+          }
+        }
+      ],
+      "projectiles": {
+        "lasers": [],
+        "enemy_projectiles": [],
+        "player_tears": [
+          {
+            "height": -22.56432723999,
+            "id": 13,
+            "variant": 0,
+            "scale": 1.0152906179428,
+            "collision_radius": 7.1070342063904,
+            "pos": {
+              "y": 194.25912475586,
+              "x": 835.60791015625
+            },
+            "vel": {
+              "y": 10.049545288086,
+              "x": 0.0
+            }
+          }
+        ]
+      },
+      "room_info": {
+        "bottom_right": {
+          "y": 420.0,
+          "x": 1100.0
+        },
+        "room_variant": 378,
+        "room_idx": 110,
+        "is_clear": false,
+        "has_boss": false,
+        "stage": 1,
+        "top_left": {
+          "y": 140.0,
+          "x": 60.0
+        },
+        "is_first_visit": true,
+        "grid_height": 9,
+        "enemy_count": 6,
+        "grid_width": 28,
+        "difficulty": 0,
+        "room_shape": 6,
+        "room_type": 1,
+        "stage_type": 1
+      },
+      "room_layout": {
+        "grid": {
+          "231": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 440.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 4
+          },
+          "122": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 280.0,
+            "variant_name": "WEB",
+            "x": 440.0,
+            "collision": 0
+          },
+          "95": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 240.0,
+            "variant_name": "WEB",
+            "x": 480.0,
+            "collision": 0
+          },
+          "7": {
+            "state": 1,
+            "variant": 7,
+            "type": 16,
+            "y": 120.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 4
+          },
+          "156": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 320.0,
+            "variant_name": "WEB",
+            "x": 680.0,
+            "collision": 0
+          },
+          "129": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 280.0,
+            "variant_name": "WEB",
+            "x": 720.0,
+            "collision": 0
+          },
+          "20": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 120.0,
+            "variant_name": "UNKNOWN",
+            "x": 840.0,
+            "collision": 4
+          }
+        },
+        "doors": {
+          "3": {
+            "is_locked": false,
+            "target_room": 122,
+            "is_open": false,
+            "target_room_type": 5
+          },
+          "1": {
+            "is_locked": false,
+            "target_room": 96,
+            "is_open": false,
+            "target_room_type": 7
+          },
+          "5": {
+            "is_locked": false,
+            "target_room": 97,
+            "is_open": false,
+            "target_room_type": 1
+          }
+        },
+        "grid_size": 252,
+        "height": 9,
+        "width": 28
+      }
+    },
+    {
+      "description": "Combat frame with 5 enemies",
+      "original_index": 1658,
+      "frame": 2699,
+      "timestamp": 105067548,
+      "room_index": 110,
+      "player_position": {
+        "move_dir": -1,
+        "aim_dir": {
+          "y": 0.0,
+          "x": -1.0
+        },
+        "pos": {
+          "y": 287.81741333008,
+          "x": 768.93029785156
+        }
+      },
+      "enemies": [
+        {
+          "state": 4,
+          "hp": 20.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 1,
+          "subtype": 0,
+          "id": 1,
+          "type": 94,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 264.77746582031,
+            "x": 579.13214111328
+          },
+          "max_hp": 20.0,
+          "variant": 0,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 287.81741333008,
+            "x": 768.93029785156
+          },
+          "distance": 191.19146728516,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.048792004585266,
+            "x": 0.015325427055359
+          }
+        },
+        {
+          "state": 3,
+          "hp": 9.1854753494263,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 3,
+          "type": 30,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 280.86544799805,
+            "x": 558.87677001953
+          },
+          "max_hp": 20.0,
+          "variant": 2,
+          "v1": {
+            "y": 0.0,
+            "x": 0.035555552691221
+          },
+          "target_pos": {
+            "y": 287.81741333008,
+            "x": 768.93029785156
+          },
+          "distance": 210.1685333252,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": -0.067567050457001,
+            "x": 0.058456838130951
+          }
+        },
+        {
+          "state": 3,
+          "hp": 9.1854753494263,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 4,
+          "type": 30,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 280.10012817383,
+            "x": 600.13732910156
+          },
+          "max_hp": 20.0,
+          "variant": 2,
+          "v1": {
+            "y": 0.0,
+            "x": 0.035555552691221
+          },
+          "target_pos": {
+            "y": 287.81741333008,
+            "x": 768.93029785156
+          },
+          "distance": 168.96929931641,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.024799611419439,
+            "x": 0.033755399286747
+          }
+        },
+        {
+          "state": 4,
+          "hp": 6.5,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 9,
+          "subtype": 0,
+          "id": 5,
+          "type": 85,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 316.08151245117,
+            "x": 600.04547119141
+          },
+          "max_hp": 6.5,
+          "variant": 0,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 287.81741333008,
+            "x": 768.93029785156
+          },
+          "distance": 171.23359680176,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": -8.2330732345581,
+            "x": 2.4154667854309
+          }
+        },
+        {
+          "state": 4,
+          "hp": 20.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 4,
+          "subtype": 0,
+          "id": 6,
+          "type": 94,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 281.33892822266,
+            "x": 508.75592041016
+          },
+          "max_hp": 20.0,
+          "variant": 0,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 287.81741333008,
+            "x": 768.93029785156
+          },
+          "distance": 260.25500488281,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": -1.0197993516922,
+            "x": -0.55738461017609
+          }
+        }
+      ],
+      "projectiles": {
+        "lasers": [],
+        "enemy_projectiles": [],
+        "player_tears": [
+          {
+            "height": -19.16827583313,
+            "id": 38,
+            "variant": 0,
+            "scale": 1.0152906179428,
+            "collision_radius": 7.1070342063904,
+            "pos": {
+              "y": 291.12271118164,
+              "x": 687.91021728516
+            },
+            "vel": {
+              "y": 3.8108926673885e-05,
+              "x": -10.351923942566
+            }
+          }
+        ]
+      },
+      "room_info": {
+        "bottom_right": {
+          "y": 420.0,
+          "x": 1100.0
+        },
+        "room_variant": 378,
+        "room_idx": 110,
+        "is_clear": false,
+        "has_boss": false,
+        "stage": 1,
+        "top_left": {
+          "y": 140.0,
+          "x": 60.0
+        },
+        "is_first_visit": true,
+        "grid_height": 9,
+        "enemy_count": 5,
+        "grid_width": 28,
+        "difficulty": 0,
+        "room_shape": 6,
+        "room_type": 1,
+        "stage_type": 1
+      },
+      "room_layout": {
+        "grid": {
+          "231": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 440.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 4
+          },
+          "122": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 280.0,
+            "variant_name": "WEB",
+            "x": 440.0,
+            "collision": 0
+          },
+          "95": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 240.0,
+            "variant_name": "WEB",
+            "x": 480.0,
+            "collision": 0
+          },
+          "7": {
+            "state": 1,
+            "variant": 7,
+            "type": 16,
+            "y": 120.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 4
+          },
+          "156": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 320.0,
+            "variant_name": "WEB",
+            "x": 680.0,
+            "collision": 0
+          },
+          "129": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 280.0,
+            "variant_name": "WEB",
+            "x": 720.0,
+            "collision": 0
+          },
+          "20": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 120.0,
+            "variant_name": "UNKNOWN",
+            "x": 840.0,
+            "collision": 4
+          }
+        },
+        "doors": {
+          "3": {
+            "is_locked": false,
+            "target_room": 122,
+            "is_open": false,
+            "target_room_type": 5
+          },
+          "1": {
+            "is_locked": false,
+            "target_room": 96,
+            "is_open": false,
+            "target_room_type": 7
+          },
+          "5": {
+            "is_locked": false,
+            "target_room": 97,
+            "is_open": false,
+            "target_room_type": 1
+          }
+        },
+        "grid_size": 252,
+        "height": 9,
+        "width": 28
+      }
+    },
+    {
+      "description": "Combat frame with 4 enemies",
+      "original_index": 1719,
+      "frame": 2759,
+      "timestamp": 105069596,
+      "room_index": 110,
+      "player_position": {
+        "move_dir": 0,
+        "aim_dir": {
+          "y": 0.0,
+          "x": -1.0
+        },
+        "pos": {
+          "y": 287.81741333008,
+          "x": 793.72039794922
+        }
+      },
+      "enemies": [
+        {
+          "state": 4,
+          "hp": 20.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 3,
+          "subtype": 0,
+          "id": 1,
+          "type": 94,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 203.86906433105,
+            "x": 632.27178955078
+          },
+          "max_hp": 20.0,
+          "variant": 0,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 287.81741333008,
+            "x": 793.72039794922
+          },
+          "distance": 181.96971130371,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": -1.4142233133316,
+            "x": 1.3051191568375
+          }
+        },
+        {
+          "state": 3,
+          "hp": 11.745461463928,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 3,
+          "type": 30,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 280.0,
+            "x": 560.0
+          },
+          "max_hp": 20.0,
+          "variant": 2,
+          "v1": {
+            "y": 0.0,
+            "x": 0.035555552691221
+          },
+          "target_pos": {
+            "y": 287.81741333008,
+            "x": 793.72039794922
+          },
+          "distance": 233.85110473633,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": 0.0,
+            "x": 0.0
+          }
+        },
+        {
+          "state": 3,
+          "hp": 0.89413011074066,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 0,
+          "subtype": 0,
+          "id": 4,
+          "type": 30,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 279.78454589844,
+            "x": 599.35748291016
+          },
+          "max_hp": 20.0,
+          "variant": 2,
+          "v1": {
+            "y": 0.0,
+            "x": 0.035554315894842
+          },
+          "target_pos": {
+            "y": 287.81741333008,
+            "x": 793.72039794922
+          },
+          "distance": 194.52883911133,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": -0.2355135679245,
+            "x": -0.70230352878571
+          }
+        },
+        {
+          "state": 4,
+          "hp": 20.0,
+          "v2": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "collision_radius": 13.0,
+          "state_frame": 15,
+          "subtype": 0,
+          "id": 6,
+          "type": 94,
+          "projectile_delay": -1,
+          "projectile_cooldown": 0,
+          "pos": {
+            "y": 359.33419799805,
+            "x": 554.01971435547
+          },
+          "max_hp": 20.0,
+          "variant": 0,
+          "v1": {
+            "y": 0.0,
+            "x": 0.0
+          },
+          "target_pos": {
+            "y": 287.81741333008,
+            "x": 793.72039794922
+          },
+          "distance": 250.14210510254,
+          "is_champion": false,
+          "is_boss": false,
+          "vel": {
+            "y": -0.00041590523323976,
+            "x": -0.0036595661658794
+          }
+        }
+      ],
+      "projectiles": {
+        "lasers": [],
+        "enemy_projectiles": [],
+        "player_tears": [
+          {
+            "height": -15.135887145996,
+            "id": 68,
+            "variant": 0,
+            "scale": 1.0152906179428,
+            "collision_radius": 7.1070342063904,
+            "pos": {
+              "y": 286.17742919922,
+              "x": 618.42114257813
+            },
+            "vel": {
+              "y": 2.9439194202423,
+              "x": -1.2212066650391
+            }
+          },
+          {
+            "height": -22.820165634155,
+            "id": 71,
+            "variant": 0,
+            "scale": 1.0152906179428,
+            "collision_radius": 7.1070342063904,
+            "pos": {
+              "y": 291.29669189453,
+              "x": 774.48858642578
+            },
+            "vel": {
+              "y": 2.7532652425779e-16,
+              "x": -10.0
+            }
+          }
+        ]
+      },
+      "room_info": {
+        "bottom_right": {
+          "y": 420.0,
+          "x": 1100.0
+        },
+        "room_variant": 378,
+        "room_idx": 110,
+        "is_clear": false,
+        "has_boss": false,
+        "stage": 1,
+        "top_left": {
+          "y": 140.0,
+          "x": 60.0
+        },
+        "is_first_visit": true,
+        "grid_height": 9,
+        "enemy_count": 4,
+        "grid_width": 28,
+        "difficulty": 0,
+        "room_shape": 6,
+        "room_type": 1,
+        "stage_type": 1
+      },
+      "room_layout": {
+        "grid": {
+          "231": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 440.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 4
+          },
+          "122": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 280.0,
+            "variant_name": "WEB",
+            "x": 440.0,
+            "collision": 0
+          },
+          "95": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 240.0,
+            "variant_name": "WEB",
+            "x": 480.0,
+            "collision": 0
+          },
+          "7": {
+            "state": 1,
+            "variant": 7,
+            "type": 16,
+            "y": 120.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 4
+          },
+          "156": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 320.0,
+            "variant_name": "WEB",
+            "x": 680.0,
+            "collision": 0
+          },
+          "129": {
+            "state": 0,
+            "variant": 0,
+            "type": 10,
+            "y": 280.0,
+            "variant_name": "WEB",
+            "x": 720.0,
+            "collision": 0
+          },
+          "20": {
+            "state": 1,
+            "variant": 8,
+            "type": 16,
+            "y": 120.0,
+            "variant_name": "UNKNOWN",
+            "x": 840.0,
+            "collision": 4
+          }
+        },
+        "doors": {
+          "3": {
+            "is_locked": false,
+            "target_room": 122,
+            "is_open": false,
+            "target_room_type": 5
+          },
+          "1": {
+            "is_locked": false,
+            "target_room": 96,
+            "is_open": false,
+            "target_room_type": 7
+          },
+          "5": {
+            "is_locked": false,
+            "target_room": 97,
+            "is_open": false,
+            "target_room_type": 1
+          }
+        },
+        "grid_size": 252,
+        "height": 9,
+        "width": 28
+      }
+    },
+    {
+      "description": "empty_room",
+      "original_index": 25,
+      "frame": 1079,
+      "timestamp": 105010477,
+      "room_index": 84,
+      "player_position": {
+        "move_dir": -1,
+        "aim_dir": {
+          "y": 0.0,
+          "x": 0.0
+        },
+        "pos": {
+          "y": 380.0,
+          "x": 320.0
+        }
+      },
+      "enemies": [],
+      "projectiles": {
+        "lasers": [],
+        "enemy_projectiles": [],
+        "player_tears": []
+      },
+      "room_info": {
+        "bottom_right": {
+          "y": 420.0,
+          "x": 580.0
+        },
+        "room_variant": 2,
+        "room_idx": 84,
+        "is_clear": true,
+        "has_boss": false,
+        "stage": 1,
+        "top_left": {
+          "y": 140.0,
+          "x": 60.0
+        },
+        "is_first_visit": true,
+        "grid_height": 9,
+        "enemy_count": 0,
+        "grid_width": 15,
+        "difficulty": 0,
+        "room_shape": 1,
+        "room_type": 1,
+        "stage_type": 1
+      },
+      "room_layout": {
+        "grid": {
+          "7": {
+            "state": 2,
+            "variant": 8,
+            "type": 16,
+            "y": 120.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 5
+          },
+          "127": {
+            "state": 2,
+            "variant": 8,
+            "type": 16,
+            "y": 440.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 5
+          },
+          "60": {
+            "state": 2,
+            "variant": 8,
+            "type": 16,
+            "y": 280.0,
+            "variant_name": "UNKNOWN",
+            "x": 40.0,
+            "collision": 5
+          }
+        },
+        "doors": {
+          "3": {
+            "is_locked": false,
+            "target_room": 97,
+            "is_open": true,
+            "target_room_type": 1
+          },
+          "0": {
+            "is_locked": false,
+            "target_room": 83,
+            "is_open": true,
+            "target_room_type": 13
+          },
+          "1": {
+            "is_locked": false,
+            "target_room": 71,
+            "is_open": true,
+            "target_room_type": 1
+          }
+        },
+        "grid_size": 135,
+        "height": 9,
+        "width": 15
+      }
+    },
+    {
+      "description": "projectile_active",
+      "original_index": 25,
+      "frame": 1079,
+      "timestamp": 105010477,
+      "room_index": 84,
+      "player_position": {
+        "move_dir": -1,
+        "aim_dir": {
+          "y": 0.0,
+          "x": 0.0
+        },
+        "pos": {
+          "y": 380.0,
+          "x": 320.0
+        }
+      },
+      "enemies": [],
+      "projectiles": {
+        "lasers": [],
+        "enemy_projectiles": [],
+        "player_tears": []
+      },
+      "room_info": {
+        "bottom_right": {
+          "y": 420.0,
+          "x": 580.0
+        },
+        "room_variant": 2,
+        "room_idx": 84,
+        "is_clear": true,
+        "has_boss": false,
+        "stage": 1,
+        "top_left": {
+          "y": 140.0,
+          "x": 60.0
+        },
+        "is_first_visit": true,
+        "grid_height": 9,
+        "enemy_count": 0,
+        "grid_width": 15,
+        "difficulty": 0,
+        "room_shape": 1,
+        "room_type": 1,
+        "stage_type": 1
+      },
+      "room_layout": {
+        "grid": {
+          "7": {
+            "state": 2,
+            "variant": 8,
+            "type": 16,
+            "y": 120.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 5
+          },
+          "127": {
+            "state": 2,
+            "variant": 8,
+            "type": 16,
+            "y": 440.0,
+            "variant_name": "UNKNOWN",
+            "x": 320.0,
+            "collision": 5
+          },
+          "60": {
+            "state": 2,
+            "variant": 8,
+            "type": 16,
+            "y": 280.0,
+            "variant_name": "UNKNOWN",
+            "x": 40.0,
+            "collision": 5
+          }
+        },
+        "doors": {
+          "3": {
+            "is_locked": false,
+            "target_room": 97,
+            "is_open": true,
+            "target_room_type": 1
+          },
+          "0": {
+            "is_locked": false,
+            "target_room": 83,
+            "is_open": true,
+            "target_room_type": 13
+          },
+          "1": {
+            "is_locked": false,
+            "target_room": 71,
+            "is_open": true,
+            "target_room_type": 1
+          }
+        },
+        "grid_size": 135,
+        "height": 9,
+        "width": 15
+      }
+    }
+  ]
+}
