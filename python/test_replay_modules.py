@@ -35,10 +35,17 @@ from models import (
     ObjectState,
 )
 from data_processor import DataProcessor, DataParser
+from environment import EnvironmentModel
 from threat_analysis import ThreatAnalyzer, ThreatLevel, ThreatAssessment
 from behavior_tree import BehaviorTree, NodeContext, NodeStatus, BehaviorTreeBuilder
 from smart_aiming import SmartAimingSystem, ShotType
 from orchestrator_enhanced import EnhancedCombatOrchestrator, AIConfig
+from pathfinding import (
+    AStarPathfinder,
+    DynamicPathPlanner,
+    PathExecutor,
+    PathfindingConfig,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -296,6 +303,189 @@ class ThreatAnalyzerTest(BaseModuleTest):
         for level_name, count in threat_levels.items():
             if count > 0:
                 logger.info(f"  威胁等级 {level_name}: {count} 次")
+
+        result.passed = len(result.errors) == 0
+        return result
+
+
+# ============================================================================
+# Environment 模块测试
+# ============================================================================
+
+
+class EnvironmentTest(BaseModuleTest):
+    """Environment 模块测试"""
+
+    def __init__(self, loader: ReplayDataLoader):
+        super().__init__(loader)
+        self.processor = DataProcessor()
+        self.env_model = EnvironmentModel()
+
+    def run(self, session_id: str, messages: List[RawMessage]) -> ModuleTestResult:
+        """运行 Environment 测试"""
+        result = ModuleTestResult(module_name="Environment")
+
+        data_messages = [m for m in messages if m.msg_type == "DATA"]
+
+        # 统计
+        room_updates = 0
+        obstacle_updates = 0
+        safe_spots_found = 0
+        escape_routes = 0
+        in_bounds_checks = 0
+        obstacle_checks = 0
+
+        for msg in data_messages:
+            # 处理消息
+            state = self.processor.process_message(msg.to_dict())
+
+            # 更新环境模型
+            if state.room_info:
+                self.env_model.update_room(
+                    room_info=state.room_info,
+                    enemies=state.enemies,
+                    projectiles=state.projectiles,
+                )
+                room_updates += 1
+
+            # 每20帧进行环境查询
+            if state.frame % 20 == 0 and state.get_primary_player():
+                player = state.get_primary_player()
+
+                # 检查边界
+                in_bounds = self.env_model.game_map.is_in_bounds(player.position)
+                in_bounds_checks += 1
+
+                # 检查障碍物
+                is_obstacle = self.env_model.game_map.is_obstacle(
+                    player.position, margin=15.0
+                )
+                obstacle_checks += 1
+
+                # 获取安全位置
+                safe_pos = self.env_model.get_safe_spot(
+                    player.position, min_distance=50, max_distance=150
+                )
+                if safe_pos:
+                    safe_spots_found += 1
+
+                # 寻找逃跑路线
+                if len(state.active_enemies) > 0:
+                    enemy_positions = [e.position for e in state.active_enemies]
+                    route = self.env_model.find_escape_route(
+                        player.position, enemy_positions
+                    )
+                    if route:
+                        escape_routes += 1
+
+        result.stats = {
+            "room_updates": room_updates,
+            "obstacle_updates": obstacle_updates,
+            "safe_spots_found": safe_spots_found,
+            "escape_routes": escape_routes,
+            "in_bounds_checks": in_bounds_checks,
+            "obstacle_checks": obstacle_checks,
+            "map_width": self.env_model.game_map.pixel_width,
+            "map_height": self.env_model.game_map.pixel_height,
+        }
+
+        if room_updates == 0:
+            result.warnings.append("未更新任何房间")
+
+        result.passed = len(result.errors) == 0
+        return result
+
+
+# ============================================================================
+# Pathfinding 模块测试
+# ============================================================================
+
+
+class PathfindingTest(BaseModuleTest):
+    """Pathfinding 模块测试"""
+
+    def __init__(self, loader: ReplayDataLoader):
+        super().__init__(loader)
+        self.processor = DataProcessor()
+        self.config = PathfindingConfig()
+        self.pathfinder = AStarPathfinder(self.config)
+        self.planner = DynamicPathPlanner(self.config)
+        self.executor = PathExecutor(self.config)
+
+    def run(self, session_id: str, messages: List[RawMessage]) -> ModuleTestResult:
+        """运行 Pathfinding 测试"""
+        result = ModuleTestResult(module_name="Pathfinding")
+
+        data_messages = [m for m in messages if m.msg_type == "DATA"]
+
+        # 统计
+        path_requests = 0
+        paths_found = 0
+        path_executions = 0
+        total_path_length = 0
+        replan_count = 0
+
+        # 模拟障碍物网格
+        obstacles = set()
+
+        for msg in data_messages:
+            # 处理消息
+            state = self.processor.process_message(msg.to_dict())
+
+            player = state.get_primary_player()
+            if not player:
+                continue
+
+            # 每30帧测试路径规划
+            if state.frame % 30 == 0:
+                # 动态设置障碍物
+                for enemy in state.active_enemies:
+                    self.pathfinder.add_dynamic_obstacle(enemy.position, 30.0)
+
+                # 随机选择目标位置
+                goal_x = (player.position.x + 100) % 400 + 100
+                goal_y = (player.position.y + 100) % 200 + 100
+                from models import Vector2D
+
+                goal = Vector2D(goal_x, goal_y)
+
+                # 规划路径
+                path = self.planner.plan_path(player.position, goal, obstacles)
+
+                path_requests += 1
+                if path:
+                    paths_found += 1
+                    total_path_length += len(path)
+
+                    # 执行路径
+                    move = self.executor.execute_path(player.position, path)
+                    if move != (0.0, 0.0):
+                        path_executions += 1
+
+                # 检查是否需要重规划
+                dynamic_obstacles = [e.position for e in state.active_enemies]
+                if self.planner.needs_replan(player.position, dynamic_obstacles):
+                    replan_count += 1
+
+                # 清除动态障碍物
+                self.pathfinder.clear_dynamic_obstacles()
+
+        if path_requests > 0:
+            avg_path_length = total_path_length / path_requests
+        else:
+            avg_path_length = 0
+
+        result.stats = {
+            "path_requests": path_requests,
+            "paths_found": paths_found,
+            "path_executions": path_executions,
+            "avg_path_length": avg_path_length,
+            "replan_count": replan_count,
+            "success_rate": paths_found / max(path_requests, 1),
+        }
+
+        if path_requests == 0:
+            result.warnings.append("未进行任何路径规划请求")
 
         result.passed = len(result.errors) == 0
         return result
@@ -773,6 +963,16 @@ def main():
         help="仅运行 SmartAiming 测试",
     )
     parser.add_argument(
+        "--environment",
+        action="store_true",
+        help="仅运行 Environment 测试",
+    )
+    parser.add_argument(
+        "--pathfinding",
+        action="store_true",
+        help="仅运行 Pathfinding 测试",
+    )
+    parser.add_argument(
         "--orchestrator",
         action="store_true",
         help="仅运行 Orchestrator 测试",
@@ -796,6 +996,8 @@ def main():
             args.threat,
             args.behavior,
             args.aiming,
+            args.environment,
+            args.pathfinding,
             args.orchestrator,
             args.integration,
         ]
@@ -803,6 +1005,12 @@ def main():
 
     if run_all or args.processor:
         runner.register_test(DataProcessorTest(runner.loader))
+
+    if run_all or args.environment:
+        runner.register_test(EnvironmentTest(runner.loader))
+
+    if run_all or args.pathfinding:
+        runner.register_test(PathfindingTest(runner.loader))
 
     if run_all or args.threat:
         runner.register_test(ThreatAnalyzerTest(runner.loader))
