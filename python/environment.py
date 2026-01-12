@@ -169,6 +169,9 @@ class GameMap:
         if room_info.grid_height > 0:
             self.height = room_info.grid_height
 
+        # 更新网格大小（关键修复：实际存储新值）
+        self.grid_size = grid_size
+
         # 计算像素尺寸
         self.pixel_width = self.width * grid_size
         self.pixel_height = self.height * grid_size
@@ -178,10 +181,10 @@ class GameMap:
         self.static_obstacles.clear()
         self.void_tiles.clear()
 
-        # 初始化所有格子为VOID（表示不属于房间）
+        # 初始化所有格子为EMPTY（ROOM_LAYOUT.grid只包含特殊格子，其他都是地板）
         for gx in range(self.width):
             for gy in range(self.height):
-                self.grid[(gx, gy)] = TileType.VOID
+                self.grid[(gx, gy)] = TileType.EMPTY
 
         # 解析网格数据
         grid_data = layout_data.get("grid", {})
@@ -203,21 +206,15 @@ class GameMap:
                         # 有碰撞，标记为墙壁
                         self.grid[(gx, gy)] = TileType.WALL
                         self.static_obstacles.add((gx, gy))
-                    else:
-                        # 无碰撞，标记为空地
-                        self.grid[(gx, gy)] = TileType.EMPTY
-                # 如果超出范围，忽略（可能是门的坐标）
+                    # 无碰撞的不处理（保持EMPTY）
 
-        # 标记哪些格子是虚空（L型房间的缺口）
-        # 任何不在grid_data中且不在边界上的格子都是虚空
-        for gx in range(self.width):
-            for gy in range(self.height):
-                if self.grid.get((gx, gy)) == TileType.VOID:
-                    # 检查是否在边界上（边界格子必须是EMPTY或WALL，不能是VOID）
-                    if self._is_edge_tile(gx, gy):
-                        self.grid[(gx, gy)] = TileType.EMPTY
-                    else:
-                        self.void_tiles.add((gx, gy))
+        # 对于L型房间，需要识别VOID区域
+        # 如果一个格子不在边界上且没有对应的grid数据，则可能是VOID
+        # 但由于ROOM_LAYOUT.grid只包含特殊格子，我们使用启发式方法：
+        # 1. 边界上的格子必须是EMPTY（门的位置）
+        # 2. 检查是否有格子同时满足：非边界 + 无数据
+        # 由于数据稀疏，这个检查对稀疏数据不准确，暂时禁用VOID标记
+        # 后续可以通过 room_shape 来精确判断
 
     def _is_edge_tile(self, gx: int, gy: int) -> bool:
         """检查是否是边界格子（L型房间的边缘必须是实际房间区域）"""
@@ -350,6 +347,10 @@ class GameMap:
             and margin <= position.y <= self.pixel_height - margin
         ):
             return False
+
+        # 对于简单房间（无VOID），直接返回True
+        if not self.void_tiles:
+            return True
 
         # 检查是否是虚空区域（L型房间的缺口）
         grid_x, grid_y = self._get_grid_coords(position)
@@ -716,11 +717,23 @@ class EnvironmentModel:
             projectiles: 投射物数据
             room_layout: ROOM_LAYOUT原始数据（支持L型房间）
         """
-        # 如果房间变化了，重置地图
-        if room_info and room_info.room_index != self.current_room_index:
-            self.current_room_index = room_info.room_index
+        # 如果房间变化了，或者第一次有布局数据，重置地图
+        # 注意：初始房间的room_index可能是-1，需要特殊处理
+        room_changed = room_info and room_info.room_index != self.current_room_index
+        first_layout = (
+            room_layout
+            and self.current_room_index == -1
+            and self.game_map.grid_size == 40.0
+        )
+
+        if room_changed or first_layout:
+            self.current_room_index = room_info.room_index if room_info else -1
             if room_layout:
-                self.game_map.update_from_room_layout(room_info, room_layout)
+                # Extract grid_size from layout data (135 or 252 in replay data)
+                layout_grid_size = room_layout.get("grid_size", 40.0)
+                self.game_map.update_from_room_layout(
+                    room_info, room_layout, layout_grid_size
+                )
             else:
                 self.game_map.update_from_room_info(room_info)
 
