@@ -52,14 +52,13 @@ class CollectorConfig:
     corner_detection_threshold: float = 50.0
 
     # 稳定性验证时间（秒）：位置需要稳定多久才记录
-    stability_duration: float = 15.0
+    stability_duration: float = 5.0
 
-    # 稳定性偏差阈值（像素）：15秒内位置偏差小于此值才认为稳定
-    # 提高阈值以允许玩家轻微移动
+    # 稳定性偏差阈值（像素）：5秒内位置偏差小于此值才认为稳定
     stability_threshold: float = 20.0
 
     # 位置历史记录帧数（用于稳定性计算）
-    position_history_frames: int = 900  # 60fps * 15s = 900帧
+    position_history_frames: int = 300  # 60fps * 5s = 300帧
 
     # 数据输出目录
     output_dir: str = "./room_data"
@@ -735,8 +734,8 @@ def main():
     parser.add_argument(
         "--stability",
         type=float,
-        default=15.0,
-        help="Stability verification duration in seconds (default: 15)",
+        default=5.0,
+        help="Stability verification duration in seconds (default: 5)",
     )
     parser.add_argument(
         "--output-dir",
