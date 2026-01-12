@@ -125,10 +125,17 @@ class GameMap:
             self.width = room_info.grid_width
         if room_info.grid_height > 0:
             self.height = room_info.grid_height
+
+        # 像素尺寸优先使用 RoomInfo 中的值，如果为 0 则从网格计算
         if room_info.pixel_width > 0:
             self.pixel_width = room_info.pixel_width
+        else:
+            self.pixel_width = self.width * self.grid_size
+
         if room_info.pixel_height > 0:
             self.pixel_height = room_info.pixel_height
+        else:
+            self.pixel_height = self.height * self.grid_size
 
         # 重新初始化网格
         self.grid.clear()
