@@ -55,7 +55,8 @@ class CollectorConfig:
     stability_duration: float = 15.0
 
     # 稳定性偏差阈值（像素）：15秒内位置偏差小于此值才认为稳定
-    stability_threshold: float = 5.0
+    # 提高阈值以允许玩家轻微移动
+    stability_threshold: float = 20.0
 
     # 位置历史记录帧数（用于稳定性计算）
     position_history_frames: int = 900  # 60fps * 15s = 900帧
@@ -168,12 +169,12 @@ class RoomCornerCollector:
         self.current_room: Optional[RoomData] = None
         self.current_room_idx: int = -1
         self.current_room_first_visit: bool = True
-        self.current_room_first_visit: bool = True  # 标记当前房间是否是首次访问
 
         # 角落检测状态
         self.position_history: deque = deque(maxlen=self.config.position_history_frames)
         self.current_corner: Optional[str] = None
         self.corner_stabilize_start_time: Optional[float] = None
+        self._last_countdown_second: int = -1  # 用于倒计时显示
         self.recorded_corners: Set[Tuple[int, str]] = set()  # (room_idx, corner_name)
 
         # 已记录的角落数据
@@ -431,24 +432,31 @@ class RoomCornerCollector:
 
         # 显示倒计时
         if remaining > 0:
-            # 每秒更新一次倒计时显示
-            if int(remaining) != int(remaining + 0.5):
+            # 每秒更新一次倒计时（使用取整比较）
+            if int(remaining) != self._last_countdown_second:
+                self._last_countdown_second = int(remaining)
                 print(
-                    f"\r[COUNTDOWN] '{corner_name}': {remaining:.1f}s remaining... ",
+                    f"\r[COUNTDOWN] Room {room_idx} '{corner_name}': {remaining:.1f}s remaining... ",
                     end="",
                     flush=True,
                 )
             return
 
+        # 重置倒计时显示状态
+        self._last_countdown_second = -1
+
         # 计算位置方差
         variance = self._calculate_position_variance()
 
         if variance > self.config.stability_threshold:
-            print(
-                f"\n[WAIT] Position unstable (variance={variance:.2f}), keep holding..."
-            )
-            # 重置计时器
+            # 位置不稳定，重置计时器但保留位置历史
             self.corner_stabilize_start_time = time.time()
+            if int(variance) % 5 == 0:  # 每隔一段时间输出一次警告
+                print(
+                    f"\r[WAIT] Position unstable (variance={variance:.1f}), keep holding... ",
+                    end="",
+                    flush=True,
+                )
             return
 
         # 稳定性验证通过，检查是否已经记录过
