@@ -80,28 +80,17 @@ class SocketAIAgent:
         logger.info("SocketAIAgent initialized")
 
     def _init_modules(self):
-        # Phase 1: Data processing
         self.data_processor = DataProcessor()
-
-        # Phase 2: Environment awareness
         self.environment = EnvironmentModel()
-
-        # Phase 3: Threat analysis
         self.threat_analyzer = ThreatAnalyzer()
-
-        # Phase 4: Smart aiming
         self.aiming = SmartAimingSystem()
-
-        # Phase 5: Behavior tree
         self.behavior_tree = self._build_behavior_tree()
 
-        # Phase 6: Pathfinding
         path_config = PathfindingConfig(
             grid_size=40.0, allow_diagonal=True, smoothing_enabled=True
         )
         self.pathfinder = AStarPathfinder(path_config)
 
-        # Phase 7: Performance evaluation
         self.evaluation = EvaluationSystem()
 
         self.current_threat = None
@@ -111,13 +100,11 @@ class SocketAIAgent:
         builder = BehaviorTreeBuilder()
         builder.selector("CombatRoot")
 
-        # Priority 1: Emergency dodge
         builder.sequence("EmergencyDodge")
         builder.condition("HasThreats", lambda ctx: len(ctx.projectiles) > 0)
         builder.action("Dodge", lambda ctx: NodeStatus.SUCCESS)
         builder.end()
 
-        # Priority 2: Combat
         builder.sequence("Combat")
         builder.condition("HasEnemies", lambda ctx: len(ctx.enemies) > 0)
         builder.selector("CombatActions")
@@ -125,7 +112,6 @@ class SocketAIAgent:
         builder.end()
         builder.end()
 
-        # Priority 3: Explore
         builder.sequence("Explore")
         builder.condition("NoEnemies", lambda ctx: len(ctx.enemies) == 0)
         builder.action("Explore", lambda ctx: NodeStatus.SUCCESS)
@@ -145,11 +131,31 @@ class SocketAIAgent:
         control = ControlOutput()
 
         try:
+            # DEBUG: Print message structure
+            if self.config.verbose_output and self.current_frame <= 3:
+                print(
+                    f"[DEBUG] update() received message keys: {list(raw_message.keys())}"
+                )
+                if "payload" in raw_message:
+                    payload = raw_message["payload"]
+                    print(
+                        f"[DEBUG] payload keys: {list(payload.keys()) if payload else 'None'}"
+                    )
+
             # 1. Process game data
             game_state = self.data_processor.process_message(raw_message)
-            player = game_state.get_primary_player()
 
+            # DEBUG: Check if game_state is valid
+            if self.config.verbose_output and self.current_frame <= 3:
+                player = game_state.get_primary_player()
+                print(
+                    f"[DEBUG] After process_message: frame={game_state.frame}, player={'found' if player else 'None'}, enemies={len(game_state.active_enemies)}"
+                )
+
+            player = game_state.get_primary_player()
             if not player:
+                if self.config.verbose_output and self.current_frame <= 10:
+                    print(f"[DEBUG] No player found in frame {game_state.frame}")
                 return control
 
             # 2. Update environment
@@ -222,7 +228,6 @@ class SocketAIAgent:
                     state=raw_message,
                 )
 
-            # Statistics
             decision_time = (time.time() - start_time) * 1000
             self.performance["total_frames"] += 1
             self.performance["total_decisions"] += 1
@@ -232,6 +237,9 @@ class SocketAIAgent:
 
         except Exception as e:
             logger.error(f"Error in AI update: {e}")
+            import traceback
+
+            traceback.print_exc()
 
         return control
 
@@ -258,12 +266,10 @@ class SocketAIAgent:
     ) -> Tuple[float, float]:
         move_x, move_y = 0.0, 0.0
 
-        # 1. Emergency evasion
         if threat.immediate_threats:
             evasion = self._compute_evasion(player, threat.immediate_threats)
             return self._normalize_direction(evasion)
 
-        # 2. Combat distance control
         if target:
             direction = target.position - player.position
             distance = direction.magnitude()
@@ -277,7 +283,6 @@ class SocketAIAgent:
                 perpendicular = Vector2D(-direction.y, direction.x)
                 move_x, move_y = self._normalize_direction(perpendicular)
 
-        # 3. Explore mode
         if not target and game_state.room_info:
             center = Vector2D(
                 game_state.room_info.grid_width * 40 / 2,
@@ -376,7 +381,7 @@ class SocketAIAgent:
 
 
 def run_replay_test(session_id: Optional[str] = None, verbose: bool = False):
-    from data_replay_system import LuaSimulator
+    from data_replay_system import RawMessage
     import gzip
     import json
     from pathlib import Path
@@ -388,7 +393,6 @@ def run_replay_test(session_id: Optional[str] = None, verbose: bool = False):
     agent = SocketAIAgent(AIConfig(verbose_output=verbose))
     agent.initialize()
 
-    # Find and load session
     recordings_dir = Path("recordings")
     if not recordings_dir.exists():
         print("No recordings directory found")
@@ -405,14 +409,11 @@ def run_replay_test(session_id: Optional[str] = None, verbose: bool = False):
 
     print(f"Using session: {session_id}")
 
-    # Load messages directly
     messages = []
     for chunk_file in sorted(recordings_dir.glob(f"{session_id}_chunk_*.json.gz")):
         with gzip.open(chunk_file, "rt", encoding="utf-8") as fp:
             data = json.load(fp)
             for msg_dict in data.get("messages", []):
-                from data_replay_system import RawMessage
-
                 messages.append(RawMessage.from_dict(msg_dict))
 
     data_messages = [m for m in messages if m.msg_type == "DATA"]
@@ -422,7 +423,9 @@ def run_replay_test(session_id: Optional[str] = None, verbose: bool = False):
     shoot_count = 0
 
     for msg in data_messages:
-        control = agent.update(msg.to_dict())
+        # Convert RawMessage to dict format for process_message
+        raw_message = msg.to_dict()
+        control = agent.update(raw_message)
         if control.shoot:
             shoot_count += 1
         frame_count += 1
@@ -452,7 +455,7 @@ def run_replay_test(session_id: Optional[str] = None, verbose: bool = False):
 
 
 def run_realtime_test(host: str = "127.0.0.1", port: int = 9527):
-    from isaac_bridge import IsaacBridge
+    from isaac_bridge import IsaacBridge, DataMessage, MessageType
 
     print("\n" + "=" * 60)
     print("SocketAIAgent Real-time Game Test")
@@ -474,9 +477,37 @@ def run_realtime_test(host: str = "127.0.0.1", port: int = 9527):
         print("Disconnected")
         agent.disable()
 
-    @bridge.on("data")
-    def on_data(data):
-        control = agent.update(data)
+    @bridge.on("message")
+    def on_message(msg):
+        # Use "message" callback to get full DataMessage object
+        if not isinstance(msg, DataMessage):
+            return
+
+        if msg.msg_type != MessageType.DATA:
+            return
+
+        # DEBUG: Print message structure for first few frames
+        if agent.config.verbose_output and agent.current_frame <= 3:
+            print(
+                f"[DEBUG] Received DataMessage: frame={msg.frame}, room={msg.room_index}"
+            )
+            print(f"[DEBUG] msg_type={msg.msg_type}")
+            print(f"[DEBUG] payload type: {type(msg.payload)}")
+            if msg.payload:
+                print(f"[DEBUG] payload keys: {list(msg.payload.keys())}")
+
+        # Build compatible message format for process_message
+        raw_message = {
+            "type": "DATA",
+            "frame": msg.frame,
+            "room_index": msg.room_index,
+            "timestamp": msg.timestamp,
+            "payload": msg.payload,
+            "channels": msg.channels,
+        }
+
+        control = agent.update(raw_message)
+
         if agent.enabled and (
             control.move_x != 0 or control.move_y != 0 or control.shoot
         ):
@@ -491,9 +522,17 @@ def run_realtime_test(host: str = "127.0.0.1", port: int = 9527):
         if agent.current_frame % 30 == 0:
             threat = agent.current_threat
             threat_level = threat.overall_threat_level.name if threat else "N/A"
+            player = agent.data_processor.current_state.get_primary_player()
+            player_pos = (
+                f"Player: ({player.position.x:.0f},{player.position.y:.0f})"
+                if player
+                else "Player: None"
+            )
+            enemy_count = len(agent.data_processor.current_state.active_enemies)
             print(
-                f"Frame {agent.current_frame} | Threat: {threat_level} | "
-                f"Move: ({control.move_x},{control.move_y}) | Shoot: {control.shoot}"
+                f"Frame {agent.current_frame:5d} | Threat: {threat_level:8} | "
+                f"Move: ({control.move_x},{control.move_y}) | Shoot: {control.shoot} | "
+                f"{player_pos} | Enemies: {enemy_count}"
             )
 
     @bridge.on("event:PLAYER_DAMAGE")
