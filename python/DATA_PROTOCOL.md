@@ -1360,6 +1360,136 @@ interactables = data.get_interactables()
 
 ## 附录
 
+### 常见错误与陷阱
+
+本节记录开发过程中遇到的常见问题和解决方案，供未来开发者参考。
+
+#### 1. PLAYER_POSITION 数据格式问题
+
+**问题描述**：
+Lua 端使用 `{[1] = {...}, [2] = {...}}` 格式存储多玩家数据，经过 JSON 序列化后，在 Python 端可能呈现为两种不同的格式：
+- **列表格式 (list)**：`[{...}, {...}]`
+- **字典格式 (dict)**：`{"1": {...}, "2": {...}}`
+
+**错误示例**：
+```python
+# 错误：假设数据是字典，直接调用 .get()
+player_pos = payload["PLAYER_POSITION"]
+player_data = player_pos.get("1")  # 如果 player_pos 是 list，会报错：'list' object has no attribute 'get'
+```
+
+**正确做法**：
+```python
+# 正确：先检查数据类型，再选择访问方式
+player_pos = payload.get("PLAYER_POSITION")
+if not player_pos:
+    return
+
+player_data = None
+if isinstance(player_pos, list):
+    if len(player_pos) > 0:
+        player_data = player_pos[0]  # Lua 1-based 索引对应 Python 0-based
+elif isinstance(player_pos, dict):
+    player_data = player_pos.get("1") or player_pos.get(1)
+
+if player_data:
+    pos_x = player_data.get("pos", {}).get("x", 0)
+    pos_y = player_data.get("pos", {}).get("y", 0)
+```
+
+**使用 `GameDataAccessor` 辅助方法**（推荐）：
+```python
+# 推荐：使用桥接器提供的辅助方法，自动处理格式差异
+player_data = data.get_player_position(player_idx=1)  # 自动处理 list/dict 格式
+if player_data:
+    pos_x = player_data.get("pos", {}).get("x", 0)
+    pos_y = player_data.get("pos", {}).get("y", 0)
+```
+
+**根本原因**：
+- Lua 的 `{[1] = ...}` 数组在 Lua 中是 1-based 索引
+- 不同 JSON 序列化库对此格式的处理方式不同
+- `cjson` 可能序列化为数组，`lua-cjson` 可能保持对象格式
+
+---
+
+#### 2. ROOM_INFO 采集频率与缓存问题
+
+**问题描述**：
+- `ROOM_INFO` 的采集频率是 `LOW`（每 30 帧）
+- `PLAYER_POSITION` 是 `HIGH`（每帧）
+- 如果在每帧回调中直接使用 `get_room_info()`，可能读取到 29 帧之前的缓存数据
+
+**场景**：
+1. 玩家进入新房间
+2. 触发 `ROOM_ENTER` 事件，Lua 强制采集 ROOM_INFO
+3. 但后续帧（ROOM_INFO 未更新期间）调用的 `get_room_info()` 返回的是缓存
+
+**正确做法**：
+```python
+# 方法1：在处理消息时优先使用消息负载中的数据
+def on_message(msg):
+    payload = msg.payload
+    channels = msg.channels
+
+    if "ROOM_INFO" in channels:
+        # 当前帧有最新的 ROOM_INFO
+        room_info = payload.get("ROOM_INFO")
+    else:
+        # 使用缓存
+        room_info = data.get_room_info()
+
+    if "PLAYER_POSITION" in payload:
+        player_pos = payload["PLAYER_POSITION"]
+        # 处理 player_pos...
+```
+
+---
+
+#### 3. 房间变化检测的边缘情况
+
+**问题描述**：
+使用 `room_info.get("room_idx")` 与本地缓存比较来判断房间变化时，可能因为数据来源不一致（缓存 vs 实时）导致误判。
+
+**正确做法**：
+```python
+# 结合事件系统和数据检查
+@bridge.on("event:ROOM_ENTER")
+def on_room_enter(event):
+    room_idx = event.data["room_index"]
+    # 事件触发的房间变化是最可靠的
+
+# 或者在数据处理时使用消息中的 room_index
+def on_message(msg):
+    room_idx = msg.room_index  # 使用消息自带的 room_index
+    if room_idx != self.current_room_idx:
+        self._on_room_change(room_idx, ...)
+```
+
+---
+
+#### 4. 多玩家数据访问
+
+**问题描述**：
+Lua 端使用 1-based 索引（`[1]` 表示第一个玩家），但 Python 列表是 0-based 索引。
+
+**正确做法**：
+```python
+# 使用 get_player_data 辅助方法（推荐）
+player_1 = data.get_player_position(player_idx=1)
+player_2 = data.get_player_position(player_idx=2)
+
+# 手动处理时注意索引转换
+if isinstance(player_pos, list):
+    player_1 = player_pos[0]  # Lua[1] -> Python[0]
+    player_2 = player_pos[1]  # Lua[2] -> Python[1]
+elif isinstance(player_pos, dict):
+    player_1 = player_pos.get("1")
+    player_2 = player_pos.get("2")
+```
+
+---
+
 ### 常用物品 ID
 
 | ID | 名称 |
