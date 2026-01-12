@@ -125,6 +125,7 @@ class PerformanceEvaluator:
         self.total_dodges = 0
         self.total_dodge_attempts = 1
         self.enemies_killed = 0
+        self.rooms_cleared = 0
 
         # 时间追踪
         self.start_time = time.time()
