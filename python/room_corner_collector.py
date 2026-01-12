@@ -210,48 +210,26 @@ class RoomCornerCollector:
             # 获取 payload（可能是 DataMessage 对象或字典）
             payload = msg.payload if hasattr(msg, "payload") else msg.get("payload")
             if not payload:
-                logger.debug("No payload in message")
                 return
-
-            # 检查消息是否包含 ROOM_INFO（ROOM_INFO 每30帧才更新）
-            channels = (
-                msg.channels if hasattr(msg, "channels") else msg.get("channels", [])
-            )
-            has_room_info = "ROOM_INFO" in channels
-            logger.debug(
-                f"Message received - has ROOM_INFO: {has_room_info}, channels: {channels}"
-            )
 
             # 检查是否有 PLAYER_POSITION
             if "PLAYER_POSITION" not in payload:
-                logger.debug("No PLAYER_POSITION in payload")
                 return
 
             player_pos = payload["PLAYER_POSITION"]
             if not player_pos:
-                logger.debug("PLAYER_POSITION is empty")
                 return
 
-            logger.debug(f"PLAYER_POSITION data: {player_pos}")
-
             # 获取第一个玩家的位置（处理 list 和 dict 两种格式）
-            # Lua 数组 {[1]=...} 序列化后可能是 list 或 dict
             player_data = None
             if isinstance(player_pos, list):
-                logger.debug(f"PLAYER_POSITION is list, length: {len(player_pos)}")
                 if len(player_pos) > 0:
                     player_data = player_pos[0]
             elif isinstance(player_pos, dict):
-                logger.debug(
-                    f"PLAYER_POSITION is dict, keys: {list(player_pos.keys())}"
-                )
                 player_data = player_pos.get("1") or player_pos.get(1)
 
             if not player_data:
-                logger.warning("Could not extract player data from PLAYER_POSITION")
                 return
-
-            logger.debug(f"Player data extracted: {player_data}")
 
             pos_x = (
                 player_data.get("pos", {}).get("x", 0) if player_data.get("pos") else 0
@@ -259,21 +237,17 @@ class RoomCornerCollector:
             pos_y = (
                 player_data.get("pos", {}).get("y", 0) if player_data.get("pos") else 0
             )
-            logger.debug(f"Player position: ({pos_x}, {pos_y})")
 
-            # 获取房间信息（如果当前帧有更新）
+            channels = (
+                msg.channels if hasattr(msg, "channels") else msg.get("channels", [])
+            )
             room_info = None
-            if has_room_info and "ROOM_INFO" in payload:
+            if "ROOM_INFO" in channels and "ROOM_INFO" in payload:
                 room_info = payload["ROOM_INFO"]
-                logger.debug("Using fresh ROOM_INFO from message")
             else:
-                # 使用缓存，但检查是否需要触发房间变化检测
-                cached_room_info = self.data.get_room_info()
-                room_info = cached_room_info
-                logger.debug("Using cached ROOM_INFO")
+                room_info = self.data.get_room_info()
 
             if not room_info:
-                logger.debug("No ROOM_INFO available")
                 return
 
             room_idx = room_info.get("room_idx", -1)
@@ -286,18 +260,16 @@ class RoomCornerCollector:
                 room_info.get("bottom_right", {}).get("x", 0),
                 room_info.get("bottom_right", {}).get("y", 0),
             )
-            logger.debug(
-                f"Room {room_idx}: first_visit={is_first_visit}, bounds: {top_left} - {bottom_right}"
-            )
 
             # 检测房间变化
             if room_idx != self.current_room_idx:
-                logger.info(f"Room changed: {self.current_room_idx} -> {room_idx}")
+                logger.info(
+                    f"[ROOM] Entered room {room_idx} (first_visit={is_first_visit})"
+                )
                 self._on_room_change(room_idx, room_info)
 
             # 如果不是首次访问的房间，不进行采样
             if not self.current_room_first_visit:
-                logger.debug(f"Room {room_idx} is not first visit, skipping sampling")
                 return
 
             # 处理角落检测
@@ -313,8 +285,6 @@ class RoomCornerCollector:
         # 检查是否是首次访问，非首次访问不需要采样
         is_first_visit = room_info.get("is_first_visit", True)
         self.current_room_first_visit = is_first_visit
-
-        logger.info(f"Entered room {room_idx} (first_visit={is_first_visit})")
 
         # 重置角落检测状态
         self.current_corner = None
@@ -373,7 +343,6 @@ class RoomCornerCollector:
     ):
         """处理玩家位置"""
         self.stats["frames_processed"] += 1
-        logger.debug(f"Processing position: ({pos_x:.1f}, {pos_y:.1f})")
 
         # 获取房间边界
         top_left = (
@@ -384,7 +353,6 @@ class RoomCornerCollector:
             room_info.get("bottom_right", {}).get("x", 0),
             room_info.get("bottom_right", {}).get("y", 0),
         )
-        logger.debug(f"Room bounds: top_left={top_left}, bottom_right={bottom_right}")
 
         # 计算4个理论角落
         corners = {
@@ -393,27 +361,18 @@ class RoomCornerCollector:
             "bottom_left": (top_left[0], bottom_right[1]),
             "bottom_right": bottom_right,
         }
-        logger.debug(f"Room corners: {corners}")
 
         # 获取玩家碰撞箱大小
         player_size = player_stats.get("size", 15.0)
-        logger.debug(f"Player size: {player_size}")
 
         # 检测玩家靠近哪个角落
         nearest_corner, distance = self._find_nearest_corner(pos_x, pos_y, corners)
-        logger.debug(
-            f"Nearest corner: {nearest_corner}, distance: {distance:.1f}, threshold: {self.config.corner_detection_threshold}"
-        )
 
         # 更新位置历史
         self.position_history.append((pos_x, pos_y))
-        logger.debug(f"Position history length: {len(self.position_history)}")
 
         # 如果靠近角落，开始稳定性验证
         if nearest_corner and distance <= self.config.corner_detection_threshold:
-            logger.info(
-                f"Near corner '{nearest_corner}' at distance {distance:.1f}, checking stability..."
-            )
             self._check_corner_stability(
                 corner_name=nearest_corner,
                 corner_pos=corners[nearest_corner],
@@ -427,32 +386,20 @@ class RoomCornerCollector:
             # 重置角落检测状态
             self.current_corner = None
             self.corner_stabilize_start_time = None
-            logger.debug(
-                f"Too far from corners (nearest: {nearest_corner}, distance: {distance:.1f}), resetting tracking"
-            )
 
     def _find_nearest_corner(
         self, pos_x: float, pos_y: float, corners: Dict[str, Tuple[float, float]]
     ) -> Tuple[Optional[str], float]:
-        """
-        找到最近的角落
-
-        Returns:
-            (角落名称, 距离) 或 (None, 无穷大)
-        """
+        """找到最近的角落"""
         min_distance = float("inf")
         nearest = None
 
         for name, (cx, cy) in corners.items():
             distance = math.sqrt((pos_x - cx) ** 2 + (pos_y - cy) ** 2)
-            logger.debug(
-                f"  Corner '{name}': ({cx}, {cy}), distance to player: {distance:.1f}"
-            )
             if distance < min_distance:
                 min_distance = distance
                 nearest = name
 
-        logger.debug(f"  Nearest corner: '{nearest}' with distance {min_distance:.1f}")
         return nearest, min_distance
 
     def _check_corner_stability(
@@ -466,55 +413,52 @@ class RoomCornerCollector:
         room_idx: int,
     ):
         """检查角落位置稳定性"""
-        logger.debug(
-            f"Stability check for corner '{corner_name}': player={player_pos}, corner={corner_pos}"
-        )
 
-        # 如果是新的角落，重置计时器
+        # 如果是新的角落，重置计时器并开始追踪
         if self.current_corner != corner_name:
             self.current_corner = corner_name
             self.corner_stabilize_start_time = time.time()
-            logger.info(f"Started tracking corner '{corner_name}' at {player_pos}")
+            logger.info(
+                f"[CORNER] Started tracking '{corner_name}' at ({player_pos[0]:.0f}, {player_pos[1]:.0f})"
+            )
             return
 
         # 检查是否已经稳定足够时间
         if self.corner_stabilize_start_time is None:
-            logger.warning(
-                f"corner_stabilize_start_time is None for corner '{corner_name}'"
-            )
             return
 
         elapsed = time.time() - self.corner_stabilize_start_time
-        logger.debug(
-            f"Stability timer for '{corner_name}': {elapsed:.1f}s / {self.config.stability_duration}s required"
-        )
+        remaining = self.config.stability_duration - elapsed
 
-        if elapsed < self.config.stability_duration:
-            return  # 还需要更多时间
+        # 显示倒计时
+        if remaining > 0:
+            # 每秒更新一次倒计时显示
+            if int(remaining) != int(remaining + 0.5):
+                print(
+                    f"\r[COUNTDOWN] '{corner_name}': {remaining:.1f}s remaining... ",
+                    end="",
+                    flush=True,
+                )
+            return
 
         # 计算位置方差
         variance = self._calculate_position_variance()
-        logger.debug(
-            f"Position variance for '{corner_name}': {variance:.2f} (threshold: {self.config.stability_threshold})"
-        )
 
         if variance > self.config.stability_threshold:
-            logger.info(
-                f"Corner '{corner_name}': Position not stable (variance={variance:.2f} > {self.config.stability_threshold}), waiting..."
+            print(
+                f"\n[WAIT] Position unstable (variance={variance:.2f}), keep holding..."
             )
+            # 重置计时器
+            self.corner_stabilize_start_time = time.time()
             return
 
         # 稳定性验证通过，检查是否已经记录过
         record_key = (room_idx, corner_name)
         if record_key in self.recorded_corners:
-            logger.debug(
-                f"Corner '{corner_name}' in room {room_idx} already recorded, skipping"
-            )
+            print(f"\n[SKIP] '{corner_name}' already recorded")
             return
 
-        logger.info(
-            f"Corner '{corner_name}' in room {room_idx} passed stability check! Recording..."
-        )
+        print(f"\n[RECORD] Corner '{corner_name}' recorded!")
         # 记录角落
         self._record_corner(
             corner_name=corner_name,
@@ -531,9 +475,6 @@ class RoomCornerCollector:
     def _calculate_position_variance(self) -> float:
         """计算位置方差"""
         history_len = len(self.position_history)
-        logger.debug(
-            f"Calculating variance with {history_len} position samples (need 10+)"
-        )
         if history_len < 10:
             return float("inf")
 
@@ -550,9 +491,7 @@ class RoomCornerCollector:
             / history_len
         )
 
-        result = math.sqrt(variance)
-        logger.debug(f"Position variance calculated: {result:.4f}")
-        return result
+        return math.sqrt(variance)
 
     def _record_corner(
         self,
@@ -572,13 +511,10 @@ class RoomCornerCollector:
             (player_pos[0] - corner_pos[0]) ** 2 + (player_pos[1] - corner_pos[1]) ** 2
         )
 
-        logger.info(f"[RECORDING] Room {room_idx}, corner '{corner_name}':")
-        logger.info(f"  Player position: ({player_pos[0]:.1f}, {player_pos[1]:.1f})")
-        logger.info(f"  Theoretical corner: ({corner_pos[0]:.1f}, {corner_pos[1]:.1f})")
-        logger.info(f"  Distance to corner: {distance_to_corner:.1f}")
-        logger.info(f"  Player size: {player_size}")
-        logger.info(f"  Stability duration: {stability_duration:.2f}s")
-        logger.info(f"  Position variance: {position_variance:.4f}")
+        logger.info(
+            f"[RECORD] Room {room_idx}, '{corner_name}': player=({player_pos[0]:.0f},{player_pos[1]:.0f}), "
+            f"corner=({corner_pos[0]:.0f},{corner_pos[1]:.0f}), distance={distance_to_corner:.1f}"
+        )
 
         # 创建角落位置数据
         corner_data = CornerPosition(
@@ -627,11 +563,6 @@ class RoomCornerCollector:
 
         if self.session:
             self.session.total_corners_recorded += 1
-
-        logger.info(
-            f"[RECORDED] Successfully recorded {corner_name} corner in room {room_idx}"
-        )
-        logger.info(f"  Total corners recorded: {len(self.recorded_corners_data)}")
 
         # 重置状态，避免重复记录
         self.current_corner = None
