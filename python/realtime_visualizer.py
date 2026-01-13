@@ -1,37 +1,55 @@
 """
 SocketBridge 实时房间可视化工具
 
-直接从游戏数据实时读取并显示房间布局。
-从各通道读取：ROOM_LAYOUT, FIRE_HAZARDS, BUTTONS, DESTRUCTIBLES, INTERACTABLES等
-使用刷新方式在控制台显示，便于观察。
+功能:
+1. 从录制数据回放并实时显示房间布局
+2. 支持两种模式:
+   - 回放模式: 从录制的数据回放
+   - 实时模式: 连接游戏实时显示
 
-符号说明:
-- .  空地（可行走）
-- #  墙壁
-- X  VOID区域（L型房间缺口）
-- D  门
-- E  实体（障碍物/可破坏物/可交互物/火堆等）
-- P  玩家
+数据来源:
+- ROOM_LAYOUT: 房间几何信息
+- ROOM_INFO: 房间元数据
+- FIRE_HAZARDS: 火堆
+- BUTTONS: 按钮
+- DESTRUCTIBLES: 可破坏物
+- INTERACTABLES: 可交互实体
+- PICKUPS: 拾取物
+- PLAYER_POSITION: 玩家位置
 
 使用方法:
-    python realtime_visualizer.py
+    # 回放模式
+    python realtime_visualizer.py replay <session_id>
+    python realtime_visualizer.py replay --speed 2.0
+    python realtime_visualizer.py replay --latest  # 最新录制
+
+    # 实时模式 (连接游戏)
+    python realtime_visualizer.py live
+
+    # 列出所有录制会话
+    python realtime_visualizer.py list
 """
 
 import os
 import sys
 import time
+import argparse
 from typing import Dict, List, Optional, Tuple
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from models import Vector2D, RoomInfo, GameStateData
 from environment import GameMap, TileType
 from data_processor import create_data_processor
+from isaac_bridge import IsaacBridge, GameDataAccessor
+from data_replay_system import SessionReplayer, create_replayer
 
 
-class RealtimeVisualizer:
-    """实时房间可视化器"""
+class RoomVisualizer:
+    """房间实时可视化器"""
 
+    # 符号定义
     WALL = "#"
     VOID = "X"
     FLOOR = "."
@@ -43,6 +61,7 @@ class RealtimeVisualizer:
         self.use_colors = use_colors
         self.grid_size = 40.0
 
+        # 颜色配置
         if use_colors and os.name != "nt":
             self.COLOR_WALL = "\033[90m"
             self.COLOR_VOID = "\033[95m"
@@ -57,6 +76,7 @@ class RealtimeVisualizer:
             self.COLOR_RESET = ""
 
     def world_to_grid(self, pos: Vector2D) -> Tuple[int, int]:
+        """世界坐标转网格坐标"""
         return (int(pos.x / self.grid_size), int(pos.y / self.grid_size))
 
     def get_color(self, symbol: str) -> str:
@@ -73,42 +93,12 @@ class RealtimeVisualizer:
     def clear_screen(self):
         os.system("cls" if os.name == "nt" else "clear")
 
-    def build_map_from_state(
-        self, game_state: GameStateData
-    ) -> Tuple[GameMap, Vector2D]:
-        """从游戏状态构建地图"""
-
-        room_info = game_state.room_info
-        layout = game_state.raw_room_layout
-
-        if room_info:
-            grid_size = layout.get("grid_size", 40.0) if layout else 40.0
-            self.grid_size = grid_size
-
-            game_map = GameMap(
-                grid_size=grid_size,
-                width=room_info.grid_width,
-                height=room_info.grid_height,
-            )
-
-            if layout:
-                game_map.update_from_room_layout(room_info, layout, grid_size)
-            else:
-                game_map.update_from_room_info(room_info)
-        else:
-            game_map = GameMap(grid_size=40.0, width=13, height=7)
-
-        player = game_state.get_primary_player()
-        player_pos = player.position if player else Vector2D(0, 0)
-
-        return game_map, player_pos
-
-    def render(self, game_state: GameStateData) -> str:
+    def render(self, game_state: GameStateData, game_map: GameMap) -> str:
         """渲染房间为ASCII字符串"""
-
-        game_map, player_pos = self.build_map_from_state(game_state)
+        self.grid_size = game_map.grid_size
         width, height = game_map.width, game_map.height
 
+        # 初始化显示网格
         display: List[List[str]] = [
             [self.FLOOR for _ in range(width)] for _ in range(height)
         ]
@@ -123,7 +113,7 @@ class RealtimeVisualizer:
         # 门
         if game_state.raw_room_layout:
             doors = game_state.raw_room_layout.get("doors", {})
-            for door_idx, door_info in doors.items():
+            for door_idx in doors:
                 try:
                     direction = int(door_idx) if door_idx.isdigit() else 0
                     if direction == 0:
@@ -141,51 +131,47 @@ class RealtimeVisualizer:
                 except (ValueError, TypeError):
                     pass
 
-        # 实体 - 从game_state各通道读取
+        # 实体 (不区分类型)
         self._mark_entities(display, game_state)
 
         # 玩家
-        gx, gy = self.world_to_grid(player_pos)
-        if 0 <= gx < width and 0 <= gy < height:
-            display[gy][gx] = self.PLAYER
+        player = game_state.get_primary_player()
+        if player:
+            gx, gy = self.world_to_grid(player.position)
+            if 0 <= gx < width and 0 <= gy < height:
+                display[gy][gx] = self.PLAYER
 
-        return self._build_string(display, game_state, player_pos)
+        return self._build_output(display, game_state, player)
 
     def _mark_entities(self, display: List[List[str]], game_state: GameStateData):
-        """标记所有实体（不区分类型）"""
-
-        # 火堆
+        """标记所有实体"""
         for fh in game_state.fire_hazards.values():
             gx, gy = self.world_to_grid(fh.position)
             if 0 <= gx < len(display[0]) and 0 <= gy < len(display):
                 display[gy][gx] = self.ENTITY
 
-        # 按钮
         for btn in game_state.buttons.values():
             gx, gy = self.world_to_grid(btn.position)
             if 0 <= gx < len(display[0]) and 0 <= gy < len(display):
                 display[gy][gx] = self.ENTITY
 
-        # 可破坏物
         for dest in game_state.obstacles.values():
             gx, gy = self.world_to_grid(dest.position)
             if 0 <= gx < len(display[0]) and 0 <= gy < len(display):
                 display[gy][gx] = self.ENTITY
 
-        # 可交互实体
         for ent in game_state.interactables.values():
             gx, gy = self.world_to_grid(ent.position)
             if 0 <= gx < len(display[0]) and 0 <= gy < len(display):
                 display[gy][gx] = self.ENTITY
 
-        # 拾取物
         for p in game_state.pickups.values():
             gx, gy = self.world_to_grid(p.position)
             if 0 <= gx < len(display[0]) and 0 <= gy < len(display):
                 display[gy][gx] = self.ENTITY
 
-    def _build_string(
-        self, display: List[List[str]], game_state: GameStateData, player_pos: Vector2D
+    def _build_output(
+        self, display: List[List[str]], game_state: GameStateData, player
     ) -> str:
         """构建输出字符串"""
         lines = []
@@ -218,163 +204,322 @@ class RealtimeVisualizer:
             + len(game_state.interactables)
             + len(game_state.pickups)
         )
+
+        player_pos = player.position if player else None
+        if player_pos:
+            lines.append(
+                f"Entities: {entity_count} | Player: ({player_pos.x:.0f},{player_pos.y:.0f})"
+            )
+        else:
+            lines.append(f"Entities: {entity_count}")
+
         lines.append(
-            f"Entities: {entity_count} | Player: ({player_pos.x:.0f},{player_pos.y:.0f})"
-        )
-        lines.append(
-            f"Fire:{len(game_state.fire_hazards)} Buttons:{len(game_state.buttons)} Destruct:{len(game_state.obstacles)}"
+            f"Fire:{len(game_state.fire_hazards)} Buttons:{len(game_state.buttons)} "
+            f"Destruct:{len(game_state.obstacles)} Inter:{len(game_state.interactables)} Pickup:{len(game_state.pickups)}"
         )
         lines.append("")
         lines.append("Legend: .path  #wall  Xvoid  Ddoor  Eentity  Pplayer")
 
         return "\n".join(lines)
 
-    def show(self, game_state: GameStateData, clear: bool = True):
-        """显示（清屏刷新）"""
+    def display(self, game_state: GameStateData, game_map: GameMap, clear: bool = True):
+        """清屏刷新显示"""
         if clear:
             self.clear_screen()
-        print(self.render(game_state))
+        print(self.render(game_state, game_map))
 
-    def refresh(self, game_state: GameStateData):
-        """刷新显示（覆盖上一帧）"""
-        frame_str = self.render(game_state)
+    def refresh(self, game_state: GameStateData, game_map: GameMap):
+        """滚动刷新显示"""
+        frame_str = self.render(game_state, game_map)
         lines = frame_str.split("\n")
         for line in lines:
             print(f"\r{' ' * 100}\r{line}", end="", flush=True)
         print()
 
 
-def run_with_bridge(bridge, interval: float = 0.1):
-    """配合isaac_bridge运行"""
-    visualizer = RealtimeVisualizer()
-    processor = create_data_processor()
+def build_game_map(game_state: GameStateData) -> Tuple[GameMap, GameStateData]:
+    """从游戏状态构建地图"""
+    room_info = game_state.room_info
+    layout = game_state.raw_room_layout
 
-    print("Starting real-time visualization...")
-    print("Press Ctrl+C to stop")
-    print("-" * 50)
+    if room_info:
+        grid_size = layout.get("grid_size", 40.0) if layout else 40.0
+        game_map = GameMap(
+            grid_size=grid_size,
+            width=room_info.grid_width,
+            height=room_info.grid_height,
+        )
+        if layout:
+            game_map.update_from_room_layout(room_info, layout, grid_size)
+        else:
+            game_map.update_from_room_info(room_info)
+    else:
+        game_map = GameMap(grid_size=40.0, width=13, height=7)
+
+    return game_map, game_state
+
+
+def run_replay_mode(
+    session_id: Optional[str] = None,
+    speed: float = 1.0,
+    recordings_dir: str = "./recordings",
+):
+    """回放模式: 从录制数据回放并显示"""
+    print("=" * 60)
+    print("Room Visualizer - Replay Mode")
+    print("=" * 60)
+
+    # 创建组件 (使用正确的录制目录)
+    recordings_path = Path(recordings_dir)
+
+    # 检查是否有meta文件（直接在该目录下或子目录中）
+    def has_meta_files(path):
+        if not path.exists():
+            return False
+        direct = list(path.glob("*_meta.json"))
+        subdir = list(path.glob("*/*_meta.json"))
+        return len(direct) > 0 or len(subdir) > 0
+
+    if not has_meta_files(recordings_path):
+        # 尝试python子目录
+        recordings_path = Path(__file__).parent / "recordings"
+        if not has_meta_files(recordings_path):
+            # 最终检查：如果还是找不到，尝试python/recordings
+            recordings_path = Path(__file__).parent / "python" / "recordings"
+
+    print(f"Recordings directory: {recordings_path}")
+
+    replayer = create_replayer(str(recordings_path))
+    processor = create_data_processor()
+    visualizer = RoomVisualizer()
+
+    # 列出会话
+    sessions = replayer.list_sessions()
+    if not sessions:
+        print("No recorded sessions found!")
+        print(f"Looking in: {recordings_path}")
+        print("Record a session first with: python data_replay_examples.py record")
+        return
+
+    # 选择会话
+    if session_id is None or session_id == "--latest" or session_id == "latest":
+        session_id = sessions[0]["id"]
+        print(f"Using latest session: {session_id}")
+    else:
+        print(f"Using session: {session_id}")
+
+    # 显示会话信息
+    for s in sessions:
+        if s["id"] == session_id:
+            print(f"  Duration: {s['duration']:.1f}s")
+            print(f"  Frames: {s['frames']}")
+            print(f"  Messages: {s['messages']}")
+            break
+
+    # 创建IsaacBridge连接到模拟器
+    bridge = IsaacBridge(host="127.0.0.1", port=9527)
+
+    current_game_state = None
+    current_game_map = None
+
+    @bridge.on("connected")
+    def on_connected(info):
+        print(f"Connected to simulator: {info['address']}")
+
+    @bridge.on("disconnected")
+    def on_disconnected(_):
+        print("Disconnected from simulator")
+
+    @bridge.on("message")
+    def on_message(msg):
+        nonlocal current_game_state, current_game_map
+        # 处理消息
+        try:
+            raw_message = {
+                "type": msg.msg_type,
+                "frame": msg.frame,
+                "room_index": msg.room_index,
+                "payload": msg.payload,
+                "channels": msg.channels,
+                "timestamp": msg.timestamp,
+            }
+            current_game_state = processor.process_message(raw_message)
+            if current_game_state:
+                current_game_map, _ = build_game_map(current_game_state)
+        except Exception as e:
+            pass
+
+    # 启动回放
+    replayer.start_replay(session_id, speed)
+
+    print("\nVisualizing... Press Ctrl+C to stop")
+    print("-" * 60)
+
+    try:
+        visualizer.clear_screen()
+        while replayer.replaying:
+            if current_game_state and current_game_map:
+                visualizer.refresh(current_game_state, current_game_map)
+            time.sleep(0.05)
+
+            # 定期显示进度
+            stats = replayer.get_stats()
+            sim_stats = stats["simulator"]
+            progress = sim_stats.get("progress", 0) * 100
+            if int(sim_stats["messages_sent"]) % 60 == 0:
+                print(
+                    f"\rProgress: {progress:.1f}% | Messages: {sim_stats['messages_sent']}",
+                    end="",
+                    flush=True,
+                )
+
+    except KeyboardInterrupt:
+        print("\nStopping...")
+        replayer.stop_replay()
+        bridge.stop()
+
+    print("\nReplay visualization complete!")
+
+
+def run_live_mode():
+    """实时模式: 连接游戏实时显示"""
+    print("=" * 60)
+    print("Room Visualizer - Live Mode")
+    print("=" * 60)
+    print("Waiting for game connection...")
+    print("Make sure SocketBridge mod is running in-game")
+    print("-" * 60)
+
+    # 创建组件
+    processor = create_data_processor()
+    visualizer = RoomVisualizer()
+
+    # IsaacBridge作为服务器等待游戏连接
+    bridge = IsaacBridge()
+
+    current_game_state = None
+    current_game_map = None
+
+    @bridge.on("connected")
+    def on_connected(info):
+        print(f"Game connected: {info['address']}")
+
+    @bridge.on("disconnected")
+    def on_disconnected(_):
+        print("\nGame disconnected")
+        nonlocal current_game_state
+        current_game_state = None
+
+    @bridge.on("message")
+    def on_message(msg):
+        nonlocal current_game_state, current_game_map
+        try:
+            raw_message = {
+                "type": msg.msg_type,
+                "frame": msg.frame,
+                "room_index": msg.room_index,
+                "payload": msg.payload,
+                "channels": msg.channels,
+                "timestamp": msg.timestamp,
+            }
+            current_game_state = processor.process_message(raw_message)
+            if current_game_state:
+                current_game_map, _ = build_game_map(current_game_state)
+        except Exception as e:
+            pass
+
+    # 启动桥接器
+    bridge.start()
 
     try:
         while True:
-            raw_message = bridge.state
-            if raw_message:
-                try:
-                    game_state = processor.process_message(raw_message)
-                    visualizer.refresh(game_state)
-                except Exception as e:
-                    pass
-            time.sleep(interval)
+            if current_game_state and current_game_map:
+                visualizer.refresh(current_game_state, current_game_map)
+            time.sleep(0.1)
     except KeyboardInterrupt:
-        print("\nStopped.")
+        print("\nStopping...")
+        bridge.stop()
+
+    print("Live visualization stopped.")
 
 
-def demo():
-    """演示"""
-    visualizer = RealtimeVisualizer()
+def list_sessions():
+    """列出所有录制会话"""
+    replayer = create_replayer()
+    sessions = replayer.list_sessions()
 
-    game_state = GameStateData()
-    game_state.frame = 1234
-    game_state.room_index = 42
+    print(f"Found {len(sessions)} sessions:")
+    for s in sessions:
+        print(f"  {s['id']}:")
+        print(f"    Duration: {s['duration']:.1f}s")
+        print(f"    Frames: {s['frames']}")
+        print(f"    Messages: {s['messages']}")
 
-    from models import (
-        PlayerData,
-        FireHazardData,
-        ButtonData,
-        DestructibleData,
-        InteractableData,
-        PickupData,
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="SocketBridge Room Visualizer - Real-time ASCII room display",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # List all recorded sessions
+  python realtime_visualizer.py list
+  
+  # Replay latest session
+  python realtime_visualizer.py replay --latest
+  
+  # Replay specific session at 2x speed
+  python realtime_visualizer.py replay session_xxx --speed 2.0
+  
+  # Live mode (wait for game connection)
+  python realtime_visualizer.py live
+        """,
     )
 
-    room_info = RoomInfo()
-    room_info.grid_width = 13
-    room_info.grid_height = 7
-    game_state.room_info = room_info
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
 
-    player = PlayerData(player_idx=1)
-    player.position = Vector2D(260, 300)
-    game_state.players[1] = player
+    # List command
+    list_parser = subparsers.add_parser("list", help="List recorded sessions")
 
-    # 添加实体
-    game_state.fire_hazards[1] = FireHazardData(fire_id=1, position=Vector2D(100, 100))
-    game_state.fire_hazards[1].fire_type = "FIREPLACE"
-
-    game_state.buttons[1] = ButtonData(button_id=1, position=Vector2D(400, 100))
-    game_state.buttons[1].variant_name = "BOMB"
-
-    game_state.obstacles[1] = DestructibleData(obj_id=1, position=Vector2D(100, 400))
-    game_state.obstacles[1].obj_type = 9
-
-    game_state.interactables[1] = InteractableData(
-        entity_id=1, position=Vector2D(400, 400)
+    # Replay command
+    replay_parser = subparsers.add_parser("replay", help="Replay recorded session")
+    replay_parser.add_argument(
+        "session_id", nargs="?", default=None, help="Session ID (default: latest)"
     )
-    game_state.interactables[1].variant_name = "SLOT"
+    replay_parser.add_argument(
+        "--speed", "-v", type=float, default=1.0, help="Playback speed (default: 1.0)"
+    )
+    replay_parser.add_argument(
+        "--latest", action="store_true", help="Use latest session"
+    )
+    replay_parser.add_argument(
+        "--dir",
+        "-d",
+        type=str,
+        default=None,
+        help="Recordings directory (default: python/recordings)",
+    )
 
-    game_state.pickups[1] = PickupData(pickup_id=1, position=Vector2D(260, 100))
-    game_state.pickups[1].variant = 10
+    # Live command
+    live_parser = subparsers.add_parser(
+        "live", help="Connect to game and visualize live"
+    )
 
-    print("Realtime Visualizer Demo - Normal Room")
-    print("=" * 50)
-    print()
+    args = parser.parse_args()
 
-    visualizer.show(game_state, clear=True)
-
-    print("\n" + "-" * 50)
-    print("Demo complete!")
-
-
-def demo_l_shape():
-    """演示L-shape房间（带VOID区域）"""
-    visualizer = RealtimeVisualizer()
-
-    from models import PlayerData
-    from environment import GameMap, TileType
-
-    # 创建L-shape房间状态
-    game_state = GameStateData()
-    game_state.frame = 5678
-    game_state.room_index = 100
-
-    room_info = RoomInfo()
-    room_info.grid_width = 26  # L-shape大房间
-    room_info.grid_height = 14
-    room_info.room_shape = 9  # L1 (左上缺失)
-    game_state.room_info = room_info
-
-    # 手动创建layout数据
-    layout = {
-        "grid_size": 40.0,
-        "doors": {
-            "0": {"target_room": 99, "is_open": False},
-            "2": {"target_room": 101, "is_open": False},
-            "4": {"target_room": 102, "is_open": False},
-        },
-    }
-    game_state.raw_room_layout = layout
-
-    # 手动创建GameMap并应用L-shape处理
-    game_map = GameMap(grid_size=40.0, width=26, height=14)
-    game_map.update_from_room_layout(room_info, layout, 40.0)
-
-    player = PlayerData(player_idx=1)
-    player.position = Vector2D(540, 260)  # L1房间的可用区域
-    game_state.players[1] = player
-
-    print("L-Shape Room Demo (Shape 9 - Top-Left Missing)")
-    print("=" * 50)
-    print()
-
-    # 渲染
-    frame_str = visualizer.render(game_state)
-    print(frame_str)
-
-    print("\n" + "-" * 50)
-    print("Note: X = VOID (L-shape missing corner area)")
-    print("Demo complete!")
+    if args.command == "list":
+        list_sessions()
+    elif args.command == "replay":
+        session_id = args.session_id
+        if args.latest:
+            session_id = "--latest"
+        recordings_dir = args.dir or "./recordings"
+        run_replay_mode(session_id, args.speed, recordings_dir)
+    elif args.command == "live":
+        run_live_mode()
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) > 1 and sys.argv[1] == "--lshape":
-        demo_l_shape()
-    else:
-        demo()
+    main()
