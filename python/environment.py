@@ -120,15 +120,27 @@ class GameMap:
                 self.grid[(gx, gy)] = TileType.EMPTY
 
     def update_from_room_info(self, room_info: RoomInfo):
-        """从房间信息更新地图（简化版，无布局数据时使用）"""
+        """从房间信息更新地图（简化版，无布局数据时使用）
+
+        DEBUG: Added room_shape and grid_size handling based on analyzed_rooms.
+        """
         if room_info is None:
             return
+
+        logger.debug(
+            f"[GameMap] update_from_room_info: room={room_info.room_index}, "
+            f"grid={room_info.grid_width}x{room_info.grid_height}, shape={room_info.room_shape}"
+        )
 
         # 更新地图尺寸
         if room_info.grid_width > 0:
             self.width = room_info.grid_width
         if room_info.grid_height > 0:
             self.height = room_info.grid_height
+
+        # grid_size 保持不变（常量 40）
+        # DEBUG: Log grid_size verification
+        logger.debug(f"[GameMap] grid_size unchanged: {self.grid_size}")
 
         # 像素尺寸优先使用 RoomInfo 中的值，如果为 0 则从网格计算
         if room_info.pixel_width > 0:
@@ -140,6 +152,10 @@ class GameMap:
             self.pixel_height = room_info.pixel_height
         else:
             self.pixel_height = self.height * self.grid_size
+
+        logger.debug(
+            f"[GameMap] Pixel dimensions: {self.pixel_width}x{self.pixel_height}"
+        )
 
         # 重新初始化网格
         self.grid.clear()
@@ -156,14 +172,14 @@ class GameMap:
 
         DEBUG: Added comprehensive logging for room_shape and grid_size tracking.
         Key findings from analyzed_rooms:
-          - grid_size varies by room_shape: normal=40, closet=135, wide_tight=252
+          - grid_size = 40 (constant for all room types)
           - room_shape 2 = L-shape (top fold), height=120px (not 280px)
           - API grid dimensions include walls (internal = api - 2)
 
         Args:
             room_info: 房间信息
             layout_data: ROOM_LAYOUT原始数据，包含grid和doors
-            grid_size: 网格大小（像素）
+            grid_size: 网格大小（像素），常量 40
         """
         if layout_data is None:
             logger.debug(
@@ -185,13 +201,12 @@ class GameMap:
             self.height = room_info.grid_height
 
         # DEBUG: Log dimension changes
-        logger.debug(f"[GameMap] Dimensions: {self.width}x{self.height} grids")
+        logger.debug(
+            f"[GameMap] Dimensions: {self.width}x{self.height} grids, grid_size={grid_size}"
+        )
 
-        # 更新网格大小（关键修复：实际存储新值）
+        # 更新网格大小（常量 40，根据 analyzed_rooms 分析确认）
         self.grid_size = grid_size
-
-        # DEBUG: Verify grid_size was stored
-        logger.debug(f"[GameMap] Stored grid_size={self.grid_size}")
 
         # 计算像素尺寸
         self.pixel_width = self.width * grid_size
@@ -247,20 +262,72 @@ class GameMap:
         # Room shape 2 (L-shape top fold) should have VOID tiles for missing area
         if room_info and room_info.room_shape == 2:
             logger.debug(
-                f"[GameMap] Room shape=2 (L-shape) - VOID marking needs room_shape-based logic"
+                f"[GameMap] Room shape=2 (L-shape) - Calculating VOID tiles based on room dimensions"
             )
+            # L-shaped room (top fold) - mark upper rows as VOID
+            # Room 73 analysis: height=120px (3 grids) instead of standard 280px (7 grids)
+            # The top portion of the API grid is not accessible
+            self._mark_l_shape_void_tiles(room_info)
         else:
             logger.debug(
-                f"[GameMap] Room shape={room_info.room_shape if room_info else 'None'} - VOID disabled (sparse data)"
+                f"[GameMap] Room shape={room_info.room_shape if room_info else 'None'} - No VOID marking needed"
             )
 
-        # 对于L型房间，需要识别VOID区域
-        # 如果一个格子不在边界上且没有对应的grid数据，则可能是VOID
-        # 但由于ROOM_LAYOUT.grid只包含特殊格子，我们使用启发式方法：
-        # 1. 边界上的格子必须是EMPTY（门的位置）
-        # 2. 检查是否有格子同时满足：非边界 + 无数据
-        # 由于数据稀疏，这个检查对稀疏数据不准确，暂时禁用VOID标记
-        # 后续可以通过 room_shape 来精确判断
+    def _mark_l_shape_void_tiles(self, room_info: RoomInfo):
+        """为L形房间标记VOID区域
+
+        基于 analyzed_rooms 分析结论:
+        - Shape 2 = L形房间，折角在顶部
+        - Room 73 边界: (60, 220) - (580, 340) = 520x120px
+        - API grid_height = 9, 但实际可访问区域只有约 3-4 格高
+
+        计算逻辑:
+        - 标准房间: pixel_height = 280 (7格 × 40px)
+        - L形房间: pixel_height = 120 (3格 × 40px) - 只访问下半部分
+        - 因此需要将上方区域标记为 VOID
+        """
+        if not room_info:
+            return
+
+        # 计算实际像素高度与API报告高度的差异
+        api_pixel_height = room_info.grid_height * self.grid_size
+        actual_pixel_height = (
+            room_info.pixel_height if room_info.pixel_height > 0 else api_pixel_height
+        )
+
+        # 估算可访问区域的高度（网格数）
+        # 标准房间: 7格 = 280px
+        # L形房间: 约 3-4 格 = 120-160px
+        accessible_grids = (
+            int(actual_pixel_height / self.grid_size)
+            if actual_pixel_height > 0
+            else self.height
+        )
+
+        logger.debug(
+            f"[GameMap] L-shape VOID calculation: api_height={api_pixel_height}px ({room_info.grid_height} grids), "
+            f"actual={actual_pixel_height}px, accessible={accessible_grids} grids"
+        )
+
+        # 标记上方不可访问的区域为 VOID
+        void_count = 0
+        for gy in range(accessible_grids, self.height):
+            for gx in range(self.width):
+                # 边界行不标记为 VOID（门的位置）
+                if gy == 0 or gy == self.height - 1:
+                    continue
+                # 边界列不标记为 VOID（门的位置）
+                if gx == 0 or gx == self.width - 1:
+                    continue
+                # 已经是墙壁的不处理
+                if self.grid.get((gx, gy)) == TileType.WALL:
+                    continue
+
+                self.grid[(gx, gy)] = TileType.VOID
+                self.void_tiles.add((gx, gy))
+                void_count += 1
+
+        logger.debug(f"[GameMap] Marked {void_count} VOID tiles for L-shape room")
 
     def _is_edge_tile(self, gx: int, gy: int) -> bool:
         """检查是否是边界格子（L型房间的边缘必须是实际房间区域）"""
@@ -379,19 +446,33 @@ class GameMap:
 
         return False
 
-    def is_in_bounds(self, position: Vector2D) -> bool:
+    def is_in_bounds(self, position: Vector2D, margin: float = 15.0) -> bool:
         """检查位置是否在地图边界内且属于房间区域
 
         对于L型房间，还需要检查位置是否在房间的实际区域内（不是虚空）
+
+        DEBUG: margin 默认为 15px，基于 analyzed_rooms 分析:
+        - 玩家位置 x 范围: ~70-570 (左墙 60，间距 ~10-15px)
+        - 玩家位置 y 范围: ~150-410 (上墙 140，间距 ~10-15px)
+        - 使用 15px 边距更准确（20px 可能过于保守）
+
+        Args:
+            position: 像素坐标
+            margin: 边距（默认 15px）
         """
-        # 考虑碰撞半径，留一些边距
-        margin = 20.0
+        # DEBUG: Use configurable margin based on analysis findings
+        effective_margin = getattr(self, "_bounds_margin", margin)
 
         # 首先检查像素边界
         if not (
-            margin <= position.x <= self.pixel_width - margin
-            and margin <= position.y <= self.pixel_height - margin
+            effective_margin <= position.x <= self.pixel_width - effective_margin
+            and effective_margin <= position.y <= self.pixel_height - effective_margin
         ):
+            logger.debug(
+                f"[GameMap] is_in_bounds=False: pos={position}, margin={effective_margin}, "
+                f"bounds=({effective_margin}, {self.pixel_width - effective_margin}) x "
+                f"({effective_margin}, {self.pixel_height - effective_margin})"
+            )
             return False
 
         # 对于简单房间（无VOID），直接返回True
@@ -401,6 +482,9 @@ class GameMap:
         # 检查是否是虚空区域（L型房间的缺口）
         grid_x, grid_y = self._get_grid_coords(position)
         if (grid_x, grid_y) in self.void_tiles:
+            logger.debug(
+                f"[GameMap] is_in_bounds=False: VOID tile at ({grid_x}, {grid_y})"
+            )
             return False
 
         return True
