@@ -228,13 +228,13 @@ class RoomVisualizer:
             self.clear_screen()
         print(self.render(game_state, game_map))
 
-    def refresh(self, game_state: GameStateData, game_map: GameMap):
-        """滚动刷新显示"""
-        frame_str = self.render(game_state, game_map)
-        lines = frame_str.split("\n")
-        for line in lines:
-            print(f"\r{' ' * 100}\r{line}", end="", flush=True)
-        print()
+    def refresh(self, game_state: GameStateData, game_map: GameMap) -> str:
+        """滚动刷新显示 - 返回完整的帧字符串供外部打印
+
+        Returns:
+            完整的帧字符串（包含所有行）
+        """
+        return self.render(game_state, game_map)
 
 
 def build_game_map(game_state: GameStateData) -> Tuple[GameMap, GameStateData]:
@@ -316,24 +316,19 @@ def run_replay_mode(
             print(f"  Messages: {s['messages']}")
             break
 
-    # 创建IsaacBridge连接到模拟器
-    bridge = IsaacBridge(host="127.0.0.1", port=9527)
+    # 加载会话
+    if not replayer.load_session(session_id or ""):
+        print(f"Failed to load session: {session_id}")
+        return
 
+    print(f"\nLoaded {len(replayer.simulator.messages)} messages for playback")
+
+    # 处理消息的回调
     current_game_state = None
     current_game_map = None
 
-    @bridge.on("connected")
-    def on_connected(info):
-        print(f"Connected to simulator: {info['address']}")
-
-    @bridge.on("disconnected")
-    def on_disconnected(_):
-        print("Disconnected from simulator")
-
-    @bridge.on("message")
-    def on_message(msg):
+    def process_message(msg):
         nonlocal current_game_state, current_game_map
-        # 处理消息
         try:
             raw_message = {
                 "type": msg.msg_type,
@@ -349,34 +344,42 @@ def run_replay_mode(
         except Exception as e:
             pass
 
-    # 启动回放
-    replayer.start_replay(session_id, speed)
-
     print("\nVisualizing... Press Ctrl+C to stop")
     print("-" * 60)
 
+    # 直接遍历消息并处理（不通过网络）
+    messages = replayer.simulator.messages
+    total_messages = len(messages)
+    last_timestamp = 0
+    start_time = time.time()
+
     try:
         visualizer.clear_screen()
-        while replayer.replaying:
-            if current_game_state and current_game_map:
-                visualizer.refresh(current_game_state, current_game_map)
-            time.sleep(0.05)
 
-            # 定期显示进度
-            stats = replayer.get_stats()
-            sim_stats = stats["simulator"]
-            progress = sim_stats.get("progress", 0) * 100
-            if int(sim_stats["messages_sent"]) % 60 == 0:
-                print(
-                    f"\rProgress: {progress:.1f}% | Messages: {sim_stats['messages_sent']}",
-                    end="",
-                    flush=True,
+        for i, msg in enumerate(messages):
+            # 处理消息
+            if msg.msg_type == "DATA":
+                process_message(msg)
+
+            # 构建并显示输出
+            if current_game_state and current_game_map:
+                frame_output = visualizer.refresh(current_game_state, current_game_map)
+                progress = (i + 1) / total_messages * 100
+                progress_line = (
+                    f"\nProgress: {progress:.1f}% | Messages: {i + 1}/{total_messages}"
                 )
+                print(f"\033[H\033[J{frame_output}{progress_line}", end="", flush=True)
+
+            # 计算延迟（基于时间戳）
+            if last_timestamp > 0 and speed > 0:
+                timestamp_diff = (msg.timestamp - last_timestamp) / 1000.0
+                delay = timestamp_diff / speed
+                if delay > 0 and delay < 1.0:
+                    time.sleep(delay)
+            last_timestamp = msg.timestamp
 
     except KeyboardInterrupt:
         print("\nStopping...")
-        replayer.stop_replay()
-        bridge.stop()
 
     print("\nReplay visualization complete!")
 
@@ -434,7 +437,9 @@ def run_live_mode():
     try:
         while True:
             if current_game_state and current_game_map:
-                visualizer.refresh(current_game_state, current_game_map)
+                frame_output = visualizer.refresh(current_game_state, current_game_map)
+                output = f"\033[H\033[J{frame_output}\n"
+                print(output, end="", flush=True)
             time.sleep(0.1)
     except KeyboardInterrupt:
         print("\nStopping...")
