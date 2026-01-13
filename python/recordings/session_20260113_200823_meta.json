@@ -1,0 +1,17 @@
+{
+  "session_id": "session_20260113_200823",
+  "start_time": 1768306103.1804569,
+  "start_timestamp": "20260113_200823",
+  "lua_host": "127.0.0.1",
+  "lua_port": 9527,
+  "total_frames": 4602,
+  "total_events": 0,
+  "total_messages": 4677,
+  "duration": 175.7931628227234,
+  "metadata": {
+    "description": "SocketAIAgent real-time session",
+    "game_version": "repentance",
+    "host": "127.0.0.1",
+    "port": 9527
+  }
+}

@@ -1,0 +1,949 @@
+{
+  "session_id": "session_20260113_200823",
+  "duration": 175.7931628227234,
+  "total_frames": 4602,
+  "total_messages": 4677,
+  "total_events": 0,
+  "frame_summary": [
+    {
+      "frame": 9867,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9868,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9869,
+      "channels": [
+        "FIRE_HAZARDS",
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "ROOM_LAYOUT",
+        "PLAYER_HEALTH",
+        "PROJECTILES",
+        "PLAYER_STATS",
+        "PICKUPS",
+        "BUTTONS",
+        "DESTRUCTIBLES",
+        "INTERACTABLES",
+        "BOMBS",
+        "ROOM_INFO"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9870,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9871,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9872,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9873,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9874,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9875,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9876,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9877,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9878,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9879,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9880,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9881,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9882,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9883,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9884,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9885,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9886,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9887,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9888,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9889,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9890,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9891,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9892,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9893,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9894,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9895,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9896,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9897,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9898,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9899,
+      "channels": [
+        "FIRE_HAZARDS",
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "ROOM_LAYOUT",
+        "PLAYER_HEALTH",
+        "PROJECTILES",
+        "PLAYER_STATS",
+        "PICKUPS",
+        "BUTTONS",
+        "DESTRUCTIBLES",
+        "INTERACTABLES",
+        "BOMBS",
+        "ROOM_INFO"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9900,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9901,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9902,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9903,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9904,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9905,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9906,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9907,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9908,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9909,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9910,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9911,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9912,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9913,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9914,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9915,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9916,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9917,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9918,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9919,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9920,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9921,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9922,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9923,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9924,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9925,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9926,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9927,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9928,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9929,
+      "channels": [
+        "FIRE_HAZARDS",
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "ROOM_LAYOUT",
+        "PLAYER_HEALTH",
+        "PROJECTILES",
+        "PLAYER_STATS",
+        "PICKUPS",
+        "BUTTONS",
+        "DESTRUCTIBLES",
+        "INTERACTABLES",
+        "BOMBS",
+        "ROOM_INFO"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9930,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9931,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9932,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9933,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9934,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9935,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9936,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9937,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9938,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9939,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9940,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9941,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9942,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9943,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9944,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9945,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9946,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9947,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9948,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9949,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9950,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9951,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9952,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9953,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9954,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9955,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9956,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9957,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9958,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9959,
+      "channels": [
+        "FIRE_HAZARDS",
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "ROOM_LAYOUT",
+        "PLAYER_HEALTH",
+        "PROJECTILES",
+        "PLAYER_STATS",
+        "PICKUPS",
+        "BUTTONS",
+        "DESTRUCTIBLES",
+        "INTERACTABLES",
+        "BOMBS",
+        "ROOM_INFO"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9960,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9961,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9962,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9963,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9964,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9965,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    },
+    {
+      "frame": 9966,
+      "channels": [
+        "ENEMIES",
+        "PLAYER_POSITION",
+        "PROJECTILES"
+      ],
+      "message_count": 1
+    }
+  ]
+}
