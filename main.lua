@@ -794,10 +794,101 @@ CollectorRegistry:register("ROOM_INFO", {
 
 -- 房间布局/障碍物 (变化时)
 -- ============================================================================
--- 调试: 记录所有 GridType (临时诊断用)
+-- 调试: 记录所有 GridType 到文件 (临时诊断用)
 -- ============================================================================
+
+-- 调试文件路径 (游戏 mods 目录)
+local DEBUG_FILE_PATH = nil
+
+local function getDebugFilePath()
+    if DEBUG_FILE_PATH then
+        return DEBUG_FILE_PATH
+    end
+    
+    -- 尝试获取 mods 目录
+    local success, modsPath = pcall(function()
+        return Isaac.GetModsPath()
+    end)
+    
+    if success and modsPath then
+        DEBUG_FILE_PATH = modsPath .. "/SocketBridge_grid_types.log"
+    else
+        -- 回退到当前目录
+        DEBUG_FILE_PATH = "socketbridge_grid_types.log"
+    end
+    
+    return DEBUG_FILE_PATH
+end
+
+local function logGridTypesToFile(room, roomIdx, roomType, gridWidth, gridHeight)
+    local filePath = getDebugFilePath()
+    
+    -- 收集所有 grid 信息
+    local types = {}
+    local gridDetails = {}
+    
+    for i = 0, room:GetGridSize() - 1 do
+        local gridEntity = room:GetGridEntity(i)
+        if gridEntity then
+            local gridType = gridEntity:GetType()
+            local variant = gridEntity:GetVariant()
+            local state = gridEntity.State
+            local collision = gridEntity.CollisionClass
+            local pos = room:GetGridPosition(i)
+            
+            -- 统计类型
+            types[gridType] = (types[gridType] or 0) + 1
+            
+            -- 记录详细信息
+            table.insert(gridDetails, {
+                index = i,
+                type = gridType,
+                variant = variant,
+                state = state,
+                collision = collision,
+                x = pos.X,
+                y = pos.Y
+            })
+        end
+    end
+    
+    -- 写入文件
+    local success, err = pcall(function()
+        local file = io.open(filePath, "a")
+        if not file then
+            return
+        end
+        
+        -- 写入房间信息头
+        file:write(string.format("=== Room #%d | Type:%d | Size:%dx%d | Time:%d ===\n", 
+            roomIdx, roomType, gridWidth, gridHeight, Isaac.GetTime()))
+        
+        -- 写入类型统计
+        file:write("Types: ")
+        local typeStr = ""
+        for t, count in pairs(types) do
+            typeStr = typeStr .. string.format("%d:%d ", t, count)
+        end
+        file:write(typeStr .. "\n")
+        
+        -- 写入详细网格信息
+        for _, g in ipairs(gridDetails) do
+            file:write(string.format("  [%d] Type:%d Var:%d State:%d Col:%d (%.0f, %.0f)\n",
+                g.index, g.type, g.variant, g.state, g.collision, g.x, g.y))
+        end
+        
+        file:write("\n")
+        file:close()
+    end)
+    
+    if not success then
+        print(string.format("[SocketBridge] File write error: %s", tostring(err)))
+    end
+end
+
+-- 旧的控制台诊断函数（保留兼容）
 local function diagnoseGridTypes(room, forcePrint)
-    if not forcePrint and math.random(1, 600) ~= 1 then  -- 每10秒左右输出一次
+    if not forcePrint and math.random(1, 600) ~= 1 then
         return
     end
     
@@ -1486,6 +1577,17 @@ mod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
     local currentRoom = Game():GetLevel():GetCurrentRoomIndex()
     if currentRoom ~= State.currentRoomIndex then
         State.currentRoomIndex = currentRoom
+        
+        -- 调试: 记录 GridType 到文件
+        local room = Helpers.getRoom()
+        local roomInfo = CollectorRegistry:getCached("ROOM_INFO")
+        logGridTypesToFile(
+            room, 
+            currentRoom, 
+            roomInfo and roomInfo.room_type or 0,
+            roomInfo and roomInfo.grid_width or 0,
+            roomInfo and roomInfo.grid_height or 0
+        )
         
         -- 强制更新房间相关数据
         CollectorRegistry:collect("ROOM_INFO", true)
