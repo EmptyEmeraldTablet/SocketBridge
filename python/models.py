@@ -484,7 +484,13 @@ class RoomLayout:
 
 @dataclass
 class GameStateData:
-    """游戏状态数据 (增量更新)"""
+    """游戏状态数据 (增量更新)
+
+    支持状态保持：
+    - 未更新的通道会保留上次的数据
+    - 跟踪每个通道的最后更新帧
+    - 自动清理过期的敌人和投射物
+    """
 
     # 时间信息
     frame: int = 0
@@ -516,21 +522,66 @@ class GameStateData:
     # 障碍物 (key: obstacle_id)
     obstacles: Dict[int, "DestructibleData"] = field(default_factory=dict)
 
+    # 按钮 (key: button_idx)
+    buttons: Dict[int, "ButtonData"] = field(default_factory=dict)
+
+    # 火焰危险物 (key: fire_id)
+    fire_hazards: Dict[int, "FireHazardData"] = field(default_factory=dict)
+
+    # 可互动实体 (key: entity_id)
+    interactables: Dict[int, "InteractableData"] = field(default_factory=dict)
+
+    # 炸弹 (key: bomb_id)
+    bombs: Dict[int, "BombData"] = field(default_factory=dict)
+
+    # 玩家生命值 (key: player_idx)
+    player_health: Dict[int, "PlayerHealthData"] = field(default_factory=dict)
+
+    # 玩家属性 (key: player_idx) - 独立于位置数据
+    player_stats: Dict[int, "PlayerStatsData"] = field(default_factory=dict)
+
+    # 玩家物品栏 (key: player_idx)
+    player_inventory: Dict[int, "PlayerInventoryData"] = field(default_factory=dict)
+
+    # 通道最后更新帧跟踪 (用于状态保持)
+    channel_last_update: Dict[str, int] = field(default_factory=dict)
+
+    # 实体过期帧数（超过此帧数未更新的实体视为已消失）
+    ENTITY_EXPIRY_FRAMES: int = 60  # 约1秒（60fps）
+
     # 按类型分组（便于访问）
     @property
     def active_enemies(self) -> List[EnemyData]:
-        """获取活跃敌人列表"""
-        return [e for e in self.enemies.values() if e.state == ObjectState.ACTIVE]
+        """获取活跃敌人列表（只包含未过期的）"""
+        current_frame = self.frame
+        return [
+            e
+            for e in self.enemies.values()
+            if e.state == ObjectState.ACTIVE
+            and current_frame - e.last_seen_frame < self.ENTITY_EXPIRY_FRAMES
+        ]
 
     @property
     def enemy_projectiles(self) -> List[ProjectileData]:
-        """获取敌人投射物列表"""
-        return [p for p in self.projectiles.values() if p.is_enemy]
+        """获取敌人投射物列表（只包含未过期的）"""
+        current_frame = self.frame
+        return [
+            p
+            for p in self.projectiles.values()
+            if p.is_enemy
+            and current_frame - p.last_seen_frame < self.ENTITY_EXPIRY_FRAMES
+        ]
 
     @property
     def player_projectiles(self) -> List[ProjectileData]:
-        """获取玩家投射物列表"""
-        return [p for p in self.projectiles.values() if not p.is_enemy]
+        """获取玩家投射物列表（只包含未过期的）"""
+        current_frame = self.frame
+        return [
+            p
+            for p in self.projectiles.values()
+            if not p.is_enemy
+            and current_frame - p.last_seen_frame < self.ENTITY_EXPIRY_FRAMES
+        ]
 
     # 便捷方法
     def get_primary_player(self) -> Optional[PlayerData]:
@@ -563,6 +614,87 @@ class GameStateData:
     def get_threat_count(self) -> int:
         """获取威胁数量（活跃敌人 + 敌人投射物）"""
         return len(self.active_enemies) + len(self.enemy_projectiles)
+
+    # ========== 状态保持方法 ==========
+
+    def mark_channel_updated(self, channel: str, frame: int):
+        """标记通道已更新
+
+        Args:
+            channel: 通道名称（如 "PLAYER_STATS", "ENEMIES"）
+            frame: 当前帧号
+        """
+        self.channel_last_update[channel] = frame
+
+    def get_channel_last_frame(self, channel: str) -> Optional[int]:
+        """获取通道最后更新的帧号
+
+        Args:
+            channel: 通道名称
+
+        Returns:
+            最后更新的帧号，如果从未更新过则返回 None
+        """
+        return self.channel_last_update.get(channel)
+
+    def is_channel_stale(self, channel: str, max_staleness: int = None) -> bool:
+        """检查通道数据是否过期
+
+        Args:
+            channel: 通道名称
+            max_staleness: 最大允许的过期帧数，默认使用 ENTITY_EXPIRY_FRAMES
+
+        Returns:
+            True 表示数据已过期（太久没更新）
+        """
+        if max_staleness is None:
+            max_staleness = self.ENTITY_EXPIRY_FRAMES
+
+        last_frame = self.get_channel_last_frame(channel)
+        if last_frame is None:
+            return True  # 从未更新过，视为过期
+
+        return self.frame - last_frame > max_staleness
+
+    def cleanup_stale_entities(self, frame: int = None):
+        """清理过期的实体（敌人和投射物）
+
+        超过 ENTITY_EXPIRY_FRAMES 未更新的实体被视为已消失，
+        从状态中移除以避免使用过期数据。
+
+        Args:
+            frame: 当前帧号，如果为 None 则使用 self.frame
+        """
+        if frame is None:
+            frame = self.frame
+
+        expiry_threshold = frame - self.ENTITY_EXPIRY_FRAMES
+
+        # 清理敌人
+        stale_enemies = [
+            enemy_id
+            for enemy_id, enemy in self.enemies.items()
+            if enemy.last_seen_frame < expiry_threshold
+        ]
+        for enemy_id in stale_enemies:
+            del self.enemies[enemy_id]
+            logger.debug(f"[GameStateData] Removed stale enemy {enemy_id}")
+
+        # 清理投射物
+        stale_projectiles = [
+            proj_id
+            for proj_id, proj in self.projectiles.items()
+            if proj.last_seen_frame < expiry_threshold
+        ]
+        for proj_id in stale_projectiles:
+            del self.projectiles[proj_id]
+            logger.debug(f"[GameStateData] Removed stale projectile {proj_id}")
+
+        if stale_enemies or stale_projectiles:
+            logger.debug(
+                f"[GameStateData] Cleanup: {len(stale_enemies)} enemies, "
+                f"{len(stale_projectiles)} projectiles"
+            )
 
 
 @dataclass
@@ -680,3 +812,149 @@ class BombData(EntityData):
         self.radius: float = 100.0
         self.timer: int = 90  # 帧数
         self.is_player_bomb: bool = True
+
+
+@dataclass
+class ButtonData(EntityData):
+    """按钮数据"""
+
+    def __init__(
+        self,
+        button_id: int,
+        position: Vector2D = None,
+        velocity: Vector2D = None,
+    ):
+        super().__init__(
+            id=button_id,
+            entity_type=EntityType.BUTTON,
+            position=position or Vector2D(0, 0),
+            velocity=velocity or Vector2D(0, 0),
+        )
+        self.button_type: int = 0
+        self.variant: int = 0
+        self.variant_name: str = "NORMAL"
+        self.state: int = 0
+        self.is_pressed: bool = False
+        self.distance: float = 0.0
+
+
+@dataclass
+class FireHazardData(EntityData):
+    """火焰危险物数据"""
+
+    def __init__(
+        self,
+        fire_id: int,
+        position: Vector2D = None,
+        velocity: Vector2D = None,
+    ):
+        super().__init__(
+            id=fire_id,
+            entity_type=EntityType.FIRE_HAZARD,
+            position=position or Vector2D(0, 0),
+            velocity=velocity or Vector2D(0, 0),
+        )
+        self.fire_type: str = "NORMAL"
+        self.variant: int = 0
+        self.hp: float = 10.0
+        self.max_hp: float = 10.0
+        self.is_extinguished: bool = False
+        self.is_shooting: bool = False
+        self.collision_radius: float = 25.0
+
+
+@dataclass
+class InteractableData(EntityData):
+    """可互动实体数据（机器、乞丐等）"""
+
+    def __init__(
+        self,
+        entity_id: int,
+        position: Vector2D = None,
+        velocity: Vector2D = None,
+    ):
+        super().__init__(
+            id=entity_id,
+            entity_type=EntityType.INTERACTABLE,
+            position=position or Vector2D(0, 0),
+            velocity=velocity or Vector2D(0, 0),
+        )
+        self.entity_type: int = 0  # 实体类型
+        self.variant: int = 0
+        self.variant_name: str = "UNKNOWN"
+        self.sub_type: int = 0
+        self.state: int = 0
+        self.state_frame: int = 0
+
+
+@dataclass
+class PlayerHealthData:
+    """玩家生命值数据"""
+
+    player_idx: int = 1
+    red_hearts: int = 0
+    max_red_hearts: int = 0
+    soul_hearts: int = 0
+    black_hearts: int = 0
+    bone_hearts: int = 0
+    golden_hearts: int = 0
+    eternal_hearts: int = 0
+    rotten_hearts: int = 0
+    broken_hearts: int = 0
+    extra_lives: int = 0
+
+    @property
+    def total_hearts(self) -> float:
+        """计算总心数（红心 + 灵魂心/2 + 黑心/2）"""
+        return self.red_hearts + self.soul_hearts * 0.5 + self.black_hearts * 0.5
+
+    @property
+    def max_hearts(self) -> int:
+        """最大红心容量"""
+        return self.max_red_hearts
+
+
+@dataclass
+class PlayerStatsData:
+    """玩家属性数据（独立于PlayerData）
+
+    存储玩家的战斗属性：伤害、速度、射速等
+    与位置数据（PlayerData）分离，便于不同频率更新
+    """
+
+    player_idx: int = 1
+
+    # 基础属性
+    player_type: int = 0
+    damage: float = 3.0
+    speed: float = 1.0
+    tears: float = 10.0
+    tear_range: float = 300.0
+    shot_speed: float = 1.0
+    luck: int = 0
+
+    # 角色特性
+    can_fly: bool = False
+    size: float = 10.0
+
+    # 主动道具
+    active_item: Optional[int] = None
+    active_charge: int = 0
+    max_charge: int = 0
+
+
+@dataclass
+class PlayerInventoryData:
+    """玩家物品栏数据"""
+
+    player_idx: int = 1
+    coins: int = 0
+    bombs: int = 0
+    keys: int = 0
+    trinket_0: int = 0
+    trinket_1: int = 0
+    card_0: int = 0
+    pill_0: int = 0
+    collectible_count: int = 0
+    collectibles: Dict[str, int] = field(default_factory=dict)
+    active_items: Dict[str, Dict[str, int]] = field(default_factory=dict)

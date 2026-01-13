@@ -25,6 +25,15 @@ from models import (
     DoorData,
     EntityType,
     ObjectState,
+    ButtonData,
+    FireHazardData,
+    InteractableData,
+    PickupData,
+    DestructibleData,
+    BombData,
+    PlayerHealthData,
+    PlayerStatsData,
+    PlayerInventoryData,
 )
 
 logger = logging.getLogger("DataProcessor")
@@ -375,7 +384,13 @@ class DataProcessor:
             return self.current_state
 
     def _process_data_message(self, message: Dict[str, Any]) -> GameStateData:
-        """处理DATA消息"""
+        """处理DATA消息
+
+        状态保持机制：
+        - 只更新 payload 中存在的通道
+        - 未更新的通道保留上次的数据
+        - 自动清理超过 ENTITY_EXPIRY_FRAMES 未更新的实体
+        """
         # 更新基本信息
         self.current_state.frame = message.get("frame", 0)
         self.current_state.timestamp = message.get("timestamp", 0)
@@ -385,98 +400,202 @@ class DataProcessor:
 
         # ============================================================
         # 解析玩家 (支持 "players" 和 "PLAYER_POSITION")
-        # 录制数据格式: PLAYER_POSITION = [{move_dir, aim_dir, fire_dir, head_dir, pos, vel}, ...]
+        # 录制数据格式: PLAYER_POSITION = [{...}, ...] 或 {"1": {...}, ...}
         # ============================================================
         player_data = payload.get("players") or payload.get("PLAYER_POSITION")
-        if player_data is not None and isinstance(player_data, list):
-            for idx, pdata in enumerate(player_data):
-                if not isinstance(pdata, dict):
-                    continue
+        if player_data is not None:
+            self.current_state.mark_channel_updated(
+                "PLAYER_POSITION", self.current_state.frame
+            )
 
-                pos = self.parser.parse_vector2d(pdata.get("pos"))
-                vel = self.parser.parse_vector2d(pdata.get("vel"))
+            # 支持列表格式 [{...}, ...]
+            if isinstance(player_data, list):
+                for idx, pdata in enumerate(player_data):
+                    if not isinstance(pdata, dict):
+                        continue
 
-                # 创建或更新玩家
-                player_idx = idx + 1
-                if player_idx not in self.current_state.players:
-                    player_obj = PlayerData(
-                        player_idx=player_idx, position=pos, velocity=vel
+                    pos = self.parser.parse_vector2d(pdata.get("pos"))
+                    vel = self.parser.parse_vector2d(pdata.get("vel"))
+
+                    # 创建或更新玩家
+                    player_idx = idx + 1
+                    if player_idx not in self.current_state.players:
+                        player_obj = PlayerData(
+                            player_idx=player_idx, position=pos, velocity=vel
+                        )
+                        player_obj.first_seen_frame = self.current_state.frame
+                    else:
+                        player_obj = self.current_state.players[player_idx]
+                        player_obj.position = pos
+                        player_obj.velocity = vel
+
+                    player_obj.last_seen_frame = self.current_state.frame
+
+                    # 解析方向
+                    player_obj.facing_direction = pdata.get("head_dir", 0)
+
+                    self.current_state.players[player_idx] = player_obj
+
+            # 支持字典格式 {"1": {...}, "2": {...}}
+            elif isinstance(player_data, dict):
+                for player_idx_str, pdata in player_data.items():
+                    if not isinstance(pdata, dict):
+                        continue
+
+                    try:
+                        player_idx = int(player_idx_str)
+                    except ValueError:
+                        continue
+
+                    pos = self.parser.parse_vector2d(pdata.get("pos"))
+                    vel = self.parser.parse_vector2d(pdata.get("vel"))
+
+                    if player_idx not in self.current_state.players:
+                        player_obj = PlayerData(
+                            player_idx=player_idx, position=pos, velocity=vel
+                        )
+                        player_obj.first_seen_frame = self.current_state.frame
+                    else:
+                        player_obj = self.current_state.players[player_idx]
+                        player_obj.position = pos
+                        player_obj.velocity = vel
+
+                    player_obj.last_seen_frame = self.current_state.frame
+
+                    # 解析方向（支持 head_dir 或 direction）
+                    player_obj.facing_direction = pdata.get(
+                        "head_dir", pdata.get("direction", 0)
                     )
-                    player_obj.first_seen_frame = self.current_state.frame
-                else:
-                    player_obj = self.current_state.players[player_idx]
-                    player_obj.position = pos
-                    player_obj.velocity = vel
 
-                player_obj.last_seen_frame = self.current_state.frame
-
-                # 解析方向
-                player_obj.facing_direction = pdata.get("head_dir", 0)
-
-                self.current_state.players[player_idx] = player_obj
+                    self.current_state.players[player_idx] = player_obj
 
         # ============================================================
         # 解析敌人 (支持 "enemies" 和 "ENEMIES")
-        # 录制数据格式: ENEMIES = [{id, type, pos, vel, hp, max_hp, is_boss, ...}, ...]
+        # 录制数据格式: ENEMIES = [{...}, ...] 或 {"id": {...}, ...}
         # ============================================================
         enemy_data = payload.get("enemies") or payload.get("ENEMIES")
-        if enemy_data is not None and isinstance(enemy_data, list):
-            for enemy_dict in enemy_data:
-                if not isinstance(enemy_dict, dict):
-                    continue
+        if enemy_data is not None:
+            self.current_state.mark_channel_updated("ENEMIES", self.current_state.frame)
 
-                try:
-                    enemy_id = enemy_dict.get("id")
-                    if enemy_id is None:
+            # 支持列表格式 [{...}, ...]
+            if isinstance(enemy_data, list):
+                for enemy_dict in enemy_data:
+                    if not isinstance(enemy_dict, dict):
                         continue
 
-                    enemy = EnemyData(enemy_id=enemy_id)
-                    enemy.position = self.parser.parse_vector2d(enemy_dict.get("pos"))
-                    enemy.velocity = self.parser.parse_vector2d(enemy_dict.get("vel"))
-                    enemy.enemy_type = enemy_dict.get("type", 0)
-                    enemy.hp = enemy_dict.get("hp", 10.0)
-                    enemy.max_hp = enemy_dict.get("max_hp", 10.0)
-                    enemy.damage = enemy_dict.get("damage", 1.0)
-                    enemy.is_boss = enemy_dict.get("is_boss", False)
-                    enemy.is_champion = enemy_dict.get("is_champion", False)
-                    enemy.is_flying = enemy_dict.get("is_flying", False)
+                    try:
+                        enemy_id = enemy_dict.get("id")
+                        if enemy_id is None:
+                            continue
 
-                    # 根据状态判断是否在攻击
-                    state = enemy_dict.get("state", 1)
-                    enemy.is_attacking = state in [2, 3]  # 假设状态2-3是攻击状态
+                        enemy = EnemyData(enemy_id=enemy_id)
+                        enemy.position = self.parser.parse_vector2d(
+                            enemy_dict.get("pos")
+                        )
+                        enemy.velocity = self.parser.parse_vector2d(
+                            enemy_dict.get("vel")
+                        )
+                        enemy.enemy_type = enemy_dict.get("type", 0)
+                        enemy.hp = enemy_dict.get("hp", 10.0)
+                        enemy.max_hp = enemy_dict.get("max_hp", 10.0)
+                        enemy.damage = enemy_dict.get("damage", 1.0)
+                        enemy.is_boss = enemy_dict.get("is_boss", False)
+                        enemy.is_champion = enemy_dict.get("is_champion", False)
+                        enemy.is_flying = enemy_dict.get("is_flying", False)
 
-                    if enemy_id not in self.current_state.enemies:
-                        enemy.first_seen_frame = self.current_state.frame
-                    enemy.last_seen_frame = self.current_state.frame
-                    self.current_state.enemies[enemy_id] = enemy
-                except (ValueError, TypeError, KeyError):
-                    pass
+                        # 根据状态判断是否在攻击
+                        state = enemy_dict.get("state", 1)
+                        enemy.is_attacking = state in [2, 3]
+
+                        if enemy_id not in self.current_state.enemies:
+                            enemy.first_seen_frame = self.current_state.frame
+                        enemy.last_seen_frame = self.current_state.frame
+                        self.current_state.enemies[enemy_id] = enemy
+                    except (ValueError, TypeError, KeyError):
+                        pass
+
+            # 支持字典格式 {"id": {...}, ...}
+            elif isinstance(enemy_data, dict):
+                for enemy_id_str, enemy_dict in enemy_data.items():
+                    if not isinstance(enemy_dict, dict):
+                        continue
+
+                    try:
+                        enemy_id = int(enemy_id_str)
+                    except ValueError:
+                        enemy_id = enemy_dict.get("id")
+                        if enemy_id is None:
+                            continue
+
+                    try:
+                        enemy = EnemyData(enemy_id=enemy_id)
+                        enemy.position = self.parser.parse_vector2d(
+                            enemy_dict.get("pos")
+                        )
+                        enemy.velocity = self.parser.parse_vector2d(
+                            enemy_dict.get("vel")
+                        )
+                        enemy.enemy_type = enemy_dict.get("type", 0)
+                        enemy.hp = enemy_dict.get("hp", 10.0)
+                        enemy.max_hp = enemy_dict.get("max_hp", 10.0)
+                        enemy.damage = enemy_dict.get("damage", 1.0)
+                        enemy.is_boss = enemy_dict.get("is_boss", False)
+                        enemy.is_champion = enemy_dict.get("is_champion", False)
+                        enemy.is_flying = enemy_dict.get("is_flying", False)
+
+                        # 根据状态判断是否在攻击
+                        state = enemy_dict.get("state", 1)
+                        enemy.is_attacking = state in [2, 3]
+
+                        if enemy_id not in self.current_state.enemies:
+                            enemy.first_seen_frame = self.current_state.frame
+                        enemy.last_seen_frame = self.current_state.frame
+                        self.current_state.enemies[enemy_id] = enemy
+                    except (ValueError, TypeError, KeyError):
+                        pass
 
         # ============================================================
         # 解析投射物 (支持 "projectiles" 和 "PROJECTILES")
-        # 录制数据格式: PROJECTILES = {lasers, enemy_projectiles, player_tears}
+        # 录制数据格式: PROJECTILES = {enemy_projectiles: [...], player_tears: [...]}
+        # 或直接格式 {"id": {...}, ...} (测试数据格式)
         # ============================================================
         proj_data = payload.get("projectiles") or payload.get("PROJECTILES")
         if proj_data is not None and isinstance(proj_data, dict):
-            # 解析敌人投射物
-            enemy_projs = proj_data.get("enemy_projectiles", [])
-            if isinstance(enemy_projs, list):
-                for proj_dict in enemy_projs:
+            self.current_state.mark_channel_updated(
+                "PROJECTILES", self.current_state.frame
+            )
+
+            # 检测是否是直接格式 {"id": {...}, ...}
+            first_key = next(iter(proj_data.keys())) if proj_data else None
+            if (
+                first_key is not None
+                and not isinstance(proj_data[first_key], dict)
+                or first_key not in ("enemy_projectiles", "player_tears", "lasers")
+            ):
+                # 直接格式：{"100": {...}, "101": {...}}
+                for proj_id_str, proj_dict in proj_data.items():
                     if not isinstance(proj_dict, dict):
                         continue
 
                     try:
+                        proj_id = int(proj_id_str)
+                    except ValueError:
                         proj_id = proj_dict.get("id")
                         if proj_id is None:
                             continue
 
+                    try:
                         proj = ProjectileData(projectile_id=proj_id)
                         proj.position = self.parser.parse_vector2d(proj_dict.get("pos"))
                         proj.velocity = self.parser.parse_vector2d(proj_dict.get("vel"))
-                        proj.projectile_type = proj_dict.get("variant", 0)
+                        proj.projectile_type = proj_dict.get(
+                            "variant", proj_dict.get("type", 0)
+                        )
                         proj.damage = proj_dict.get("damage", 1.0)
-                        proj.size = proj_dict.get("collision_radius", 5.0)
-                        proj.is_enemy = True
+                        proj.size = proj_dict.get(
+                            "collision_radius", proj_dict.get("size", 5.0)
+                        )
+                        proj.is_enemy = proj_dict.get("is_enemy", True)
 
                         if proj_id not in self.current_state.projectiles:
                             proj.first_seen_frame = self.current_state.frame
@@ -484,34 +603,72 @@ class DataProcessor:
                         self.current_state.projectiles[proj_id] = proj
                     except (ValueError, TypeError, KeyError):
                         pass
-
-            # 解析玩家眼泪
-            player_tears = proj_data.get("player_tears", [])
-            if isinstance(player_tears, list):
-                for proj_dict in player_tears:
-                    if not isinstance(proj_dict, dict):
-                        continue
-
-                    try:
-                        proj_id = proj_dict.get("id")
-                        if proj_id is None:
+            else:
+                # 标准格式：{enemy_projectiles: [...], player_tears: [...]}
+                # 解析敌人投射物
+                enemy_projs = proj_data.get("enemy_projectiles", [])
+                if isinstance(enemy_projs, list):
+                    for proj_dict in enemy_projs:
+                        if not isinstance(proj_dict, dict):
                             continue
 
-                        proj = ProjectileData(projectile_id=proj_id)
-                        proj.position = self.parser.parse_vector2d(proj_dict.get("pos"))
-                        proj.velocity = self.parser.parse_vector2d(proj_dict.get("vel"))
-                        proj.projectile_type = proj_dict.get("variant", 0)
-                        proj.damage = proj_dict.get("damage", 1.0)
-                        proj.size = proj_dict.get("collision_radius", 5.0)
-                        proj.is_enemy = False
+                        try:
+                            proj_id = proj_dict.get("id")
+                            if proj_id is None:
+                                continue
 
-                        if proj_id not in self.current_state.projectiles:
-                            proj.first_seen_frame = self.current_state.frame
-                        proj.last_seen_frame = self.current_state.frame
-                        self.current_state.projectiles[proj_id] = proj
-                    except (ValueError, TypeError, KeyError):
-                        pass
+                            proj = ProjectileData(projectile_id=proj_id)
+                            proj.position = self.parser.parse_vector2d(
+                                proj_dict.get("pos")
+                            )
+                            proj.velocity = self.parser.parse_vector2d(
+                                proj_dict.get("vel")
+                            )
+                            proj.projectile_type = proj_dict.get("variant", 0)
+                            proj.damage = proj_dict.get("damage", 1.0)
+                            proj.size = proj_dict.get("collision_radius", 5.0)
+                            proj.is_enemy = True
 
+                            if proj_id not in self.current_state.projectiles:
+                                proj.first_seen_frame = self.current_state.frame
+                            proj.last_seen_frame = self.current_state.frame
+                            self.current_state.projectiles[proj_id] = proj
+                        except (ValueError, TypeError, KeyError):
+                            pass
+
+                # 解析玩家眼泪
+                player_tears = proj_data.get("player_tears", [])
+                if isinstance(player_tears, list):
+                    for proj_dict in player_tears:
+                        if not isinstance(proj_dict, dict):
+                            continue
+
+                        try:
+                            proj_id = proj_dict.get("id")
+                            if proj_id is None:
+                                continue
+
+                            proj = ProjectileData(projectile_id=proj_id)
+                            proj.position = self.parser.parse_vector2d(
+                                proj_dict.get("pos")
+                            )
+                            proj.velocity = self.parser.parse_vector2d(
+                                proj_dict.get("vel")
+                            )
+                            proj.projectile_type = proj_dict.get("variant", 0)
+                            proj.damage = proj_dict.get("damage", 1.0)
+                            proj.size = proj_dict.get("collision_radius", 5.0)
+                            proj.is_enemy = False
+
+                            if proj_id not in self.current_state.projectiles:
+                                proj.first_seen_frame = self.current_state.frame
+                            proj.last_seen_frame = self.current_state.frame
+                            self.current_state.projectiles[proj_id] = proj
+                        except (ValueError, TypeError, KeyError):
+                            pass
+
+        # ============================================================
+        # 解析房间信息 (支持 "room", "ROOM" 和 "ROOM_INFO")
         # ============================================================
         # 解析房间信息 (支持 "room", "ROOM" 和 "ROOM_INFO")
         # 录制数据格式: ROOM_INFO = {room_index, stage, room_type, is_clear, enemy_count, ...}
@@ -520,6 +677,10 @@ class DataProcessor:
             payload.get("room") or payload.get("ROOM") or payload.get("ROOM_INFO")
         )
         if room_data is not None and isinstance(room_data, dict):
+            self.current_state.mark_channel_updated(
+                "ROOM_INFO", self.current_state.frame
+            )
+
             room_info = RoomInfo()
             room_info.room_index = room_data.get("room_index", -1)
             room_info.stage = room_data.get("stage", 1)
@@ -540,7 +701,247 @@ class DataProcessor:
         # ============================================================
         layout_data = payload.get("ROOM_LAYOUT") or payload.get("room_layout")
         if layout_data is not None and isinstance(layout_data, dict):
+            self.current_state.mark_channel_updated(
+                "ROOM_LAYOUT", self.current_state.frame
+            )
             self.current_state.raw_room_layout = layout_data
+
+        # ============================================================
+        # 解析PLAYER_HEALTH（玩家生命值）
+        # 格式: {"1": {"red_hearts": 3, "max_hearts": 6, ...}, ...}
+        # ============================================================
+        health_data = payload.get("PLAYER_HEALTH") or payload.get("player_health")
+        if health_data is not None and isinstance(health_data, dict):
+            self.current_state.mark_channel_updated(
+                "PLAYER_HEALTH", self.current_state.frame
+            )
+            for player_idx_str, hdata in health_data.items():
+                if not isinstance(hdata, dict):
+                    continue
+                try:
+                    player_idx = int(player_idx_str)
+                except ValueError:
+                    continue
+
+                health = PlayerHealthData(player_idx=player_idx)
+                health.red_hearts = hdata.get("red_hearts", 0)
+                health.max_red_hearts = hdata.get("max_hearts", 0)
+                health.soul_hearts = hdata.get("soul_hearts", 0)
+                health.black_hearts = hdata.get("black_hearts", 0)
+                health.bone_hearts = hdata.get("bone_hearts", 0)
+                health.golden_hearts = hdata.get("golden_hearts", 0)
+                health.eternal_hearts = hdata.get("eternal_hearts", 0)
+                health.rotten_hearts = hdata.get("rotten_hearts", 0)
+                health.broken_hearts = hdata.get("broken_hearts", 0)
+                health.extra_lives = hdata.get("extra_lives", 0)
+                self.current_state.player_health[player_idx] = health
+
+        # ============================================================
+        # 解析PLAYER_STATS（玩家属性）
+        # 格式: {"1": {"player_type": 0, "damage": 3.5, "speed": 1.0, ...}, ...}
+        # ============================================================
+        stats_data = payload.get("PLAYER_STATS") or payload.get("player_stats")
+        if stats_data is not None and isinstance(stats_data, dict):
+            self.current_state.mark_channel_updated(
+                "PLAYER_STATS", self.current_state.frame
+            )
+            for player_idx_str, sdata in stats_data.items():
+                if not isinstance(sdata, dict):
+                    continue
+                try:
+                    player_idx = int(player_idx_str)
+                except ValueError:
+                    continue
+
+                stats = PlayerStatsData(player_idx=player_idx)
+                stats.player_type = sdata.get("player_type", 0)
+                stats.damage = sdata.get("damage", 3.0)
+                stats.speed = sdata.get("speed", 1.0)
+                stats.tears = sdata.get("tears", sdata.get("tears_delay", 10.0))
+                stats.tear_range = sdata.get("tear_range", sdata.get("range", 300.0))
+                stats.shot_speed = sdata.get("shot_speed", 1.0)
+                stats.luck = sdata.get("luck", 0)
+                stats.can_fly = sdata.get("can_fly", False)
+                stats.size = sdata.get("size", 10.0)
+                stats.active_item = sdata.get("active_item")
+                stats.active_charge = sdata.get("active_charge", 0)
+                stats.max_charge = sdata.get("max_charge", 0)
+                self.current_state.player_stats[player_idx] = stats
+
+        # ============================================================
+        # 解析BUTTONS（按钮）
+        # 格式: {"0": {"type": 18, "variant_name": "NORMAL", ...}, ...}
+        # ============================================================
+        buttons_data = payload.get("BUTTONS") or payload.get("buttons")
+        if buttons_data is not None and isinstance(buttons_data, dict):
+            self.current_state.mark_channel_updated("BUTTONS", self.current_state.frame)
+            for btn_idx_str, bdata in buttons_data.items():
+                if not isinstance(bdata, dict):
+                    continue
+                try:
+                    btn_idx = int(btn_idx_str)
+                except ValueError:
+                    continue
+
+                pos = self.parser.parse_vector2d(bdata.get("pos"))
+                btn = ButtonData(
+                    button_id=btn_idx,
+                    position=pos,
+                )
+                btn.button_type = bdata.get("type", 0)
+                btn.variant = bdata.get("variant", 0)
+                btn.variant_name = bdata.get("variant_name", "NORMAL")
+                btn.state = bdata.get("state", 0)
+                btn.is_pressed = bdata.get("is_pressed", False)
+                btn.distance = bdata.get("distance", 0.0)
+                self.current_state.buttons[btn_idx] = btn
+
+        # ============================================================
+        # 解析FIRE_HAZARDS（火焰危险物）
+        # 格式: [{"id": 60, "type": "FIREPLACE", ...}, ...]
+        # ============================================================
+        fire_data = payload.get("FIRE_HAZARDS") or payload.get("fire_hazards")
+        if fire_data is not None and isinstance(fire_data, list):
+            self.current_state.mark_channel_updated(
+                "FIRE_HAZARDS", self.current_state.frame
+            )
+            for fdata in fire_data:
+                if not isinstance(fdata, dict):
+                    continue
+                fire_id = fdata.get("id")
+                if fire_id is None:
+                    continue
+
+                pos = self.parser.parse_vector2d(fdata.get("pos"))
+                fire = FireHazardData(
+                    fire_id=fire_id,
+                    position=pos,
+                )
+                fire.fire_type = fdata.get(
+                    "fireplace_type", fdata.get("type", "NORMAL")
+                )
+                fire.variant = fdata.get("variant", 0)
+                fire.hp = fdata.get("hp", 10.0)
+                fire.max_hp = fdata.get("max_hp", 10.0)
+                fire.is_extinguished = fdata.get("is_extinguished", False)
+                fire.is_shooting = fdata.get("is_shooting", False)
+                fire.collision_radius = fdata.get("collision_radius", 25.0)
+                self.current_state.fire_hazards[fire_id] = fire
+
+        # ============================================================
+        # 解析INTERACTABLES（可互动实体）
+        # 格式: [{"id": 40, "variant_name": "SLOT_MACHINE", ...}, ...]
+        # ============================================================
+        interact_data = payload.get("INTERACTABLES") or payload.get("interactables")
+        if interact_data is not None and isinstance(interact_data, list):
+            self.current_state.mark_channel_updated(
+                "INTERACTABLES", self.current_state.frame
+            )
+            for idata in interact_data:
+                if not isinstance(idata, dict):
+                    continue
+                entity_id = idata.get("id")
+                if entity_id is None:
+                    continue
+
+                pos = self.parser.parse_vector2d(idata.get("pos"))
+                entity = InteractableData(
+                    entity_id=entity_id,
+                    position=pos,
+                )
+                entity.entity_type = idata.get("type", 0)
+                entity.variant = idata.get("variant", 0)
+                entity.variant_name = idata.get("variant_name", "UNKNOWN")
+                entity.sub_type = idata.get("sub_type", 0)
+                entity.state = idata.get("state", 0)
+                entity.state_frame = idata.get("state_frame", 0)
+                self.current_state.interactables[entity_id] = entity
+
+        # ============================================================
+        # 解析PICKUPS（可拾取物）
+        # 格式: [{"id": 50, "variant": 20, ...}, ...]
+        # ============================================================
+        pickups_data = payload.get("PICKUPS") or payload.get("pickups")
+        if pickups_data is not None and isinstance(pickups_data, list):
+            self.current_state.mark_channel_updated("PICKUPS", self.current_state.frame)
+            for pdata in pickups_data:
+                if not isinstance(pdata, dict):
+                    continue
+                pickup_id = pdata.get("id")
+                if pickup_id is None:
+                    continue
+
+                pos = self.parser.parse_vector2d(pdata.get("pos"))
+                pickup = PickupData(
+                    pickup_id=pickup_id,
+                    position=pos,
+                )
+                pickup.variant = pdata.get("variant", 0)
+                pickup.sub_type = pdata.get("sub_type", 0)
+                pickup.pickup_type = pdata.get("variant", 0)
+                pickup.is_shop_item = pdata.get("shop_item_id", -1) >= 0
+                pickup.price = pdata.get("price", 0)
+                self.current_state.pickups[pickup_id] = pickup
+
+        # ============================================================
+        # 解析BOMBS（炸弹）
+        # 格式: [{"id": 30, "variant_name": "NORMAL", ...}, ...]
+        # ============================================================
+        bombs_data = payload.get("BOMBS") or payload.get("bombs")
+        if bombs_data is not None and isinstance(bombs_data, list):
+            self.current_state.mark_channel_updated("BOMBS", self.current_state.frame)
+            for bdata in bombs_data:
+                if not isinstance(bdata, dict):
+                    continue
+                bomb_id = bdata.get("id")
+                if bomb_id is None:
+                    continue
+
+                pos = self.parser.parse_vector2d(bdata.get("pos"))
+                vel = self.parser.parse_vector2d(bdata.get("vel"))
+                bomb = BombData(
+                    bomb_id=bomb_id,
+                    position=pos,
+                    velocity=vel,
+                )
+                bomb.timer = bdata.get("timer", 90)
+                bomb.radius = bdata.get("explosion_radius", 100.0)
+                bomb.damage = bdata.get("damage", 100.0)
+                bomb.is_player_bomb = True
+                self.current_state.bombs[bomb_id] = bomb
+
+        # ============================================================
+        # 解析DESTRUCTIBLES（可破坏物）
+        # 格式: [{"id": 70, "type": 9, "variant": 0, ...}, ...]
+        # ============================================================
+        destructibles_data = payload.get("DESTRUCTIBLES") or payload.get(
+            "destructibles"
+        )
+        if destructibles_data is not None and isinstance(destructibles_data, list):
+            self.current_state.mark_channel_updated(
+                "DESTRUCTIBLES", self.current_state.frame
+            )
+            for ddata in destructibles_data:
+                if not isinstance(ddata, dict):
+                    continue
+                obj_id = ddata.get("id")
+                if obj_id is None:
+                    continue
+
+                pos = self.parser.parse_vector2d(ddata.get("pos"))
+                destructible = DestructibleData(
+                    obj_id=obj_id,
+                    position=pos,
+                )
+                destructible.obj_type = ddata.get("type", 0)
+                destructible.variant = ddata.get("variant", 0)
+                destructible.hp = ddata.get("hp", ddata.get("health", 1))
+                self.current_state.obstacles[obj_id] = destructible
+
+        # ============================================================
+        # 清理过期实体（状态保持的一部分）
+        # ============================================================
+        self.current_state.cleanup_stale_entities(self.current_state.frame)
 
         return self.current_state
 
