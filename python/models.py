@@ -211,7 +211,19 @@ class EntityData:
 
 @dataclass
 class PlayerData(EntityData):
-    """玩家数据"""
+    """玩家数据
+
+    注意：此类的属性字段有两种数据来源：
+    1. 位置数据 (position, velocity, facing_direction) - 来自 PLAYER_POSITION 通道，高频更新
+    2. 属性数据 (damage, speed, tears 等) - 来自 PLAYER_STATS 通道，低频更新
+
+    推荐使用 GameStateData 的快捷方法获取完整数据：
+    - get_primary_player() - 获取位置数据
+    - get_primary_player_stats() - 获取属性数据
+    - player_stats[1] - 直接访问属性字典
+
+    如果同时存在，player_stats 字典中的数据优先（因为更新频率更低，数据更准确）。
+    """
 
     def __init__(
         self,
@@ -227,7 +239,8 @@ class PlayerData(EntityData):
         )
         self.player_idx = player_idx
 
-        # 玩家属性
+        # 玩家属性（来自 PLAYER_POSITION 或录制数据）
+        # 推荐使用 game_state.player_stats 获取最新属性数据
         self.player_type: int = 0
         self.health: float = 3.0
         self.max_health: float = 3.0
@@ -251,6 +264,37 @@ class PlayerData(EntityData):
         self.is_invincible: bool = False
         self.is_shooting: bool = False
         self.is_charging: bool = False
+
+    def get_stats(
+        self, player_stats: Optional["PlayerStatsData"] = None
+    ) -> "PlayerStatsData":
+        """获取玩家属性，优先使用传入的 player_stats
+
+        Args:
+            player_stats: 来自 game_state.player_stats 的数据（可选）
+
+        Returns:
+            PlayerStatsData 对象。如果 player_stats 为 None，创建一个默认值
+        """
+        if player_stats is not None:
+            return player_stats
+
+        # 创建一个从 PlayerData 属性派生的 PlayerStatsData
+        stats = PlayerStatsData(
+            player_idx=self.player_idx,
+            player_type=self.player_type,
+            damage=self.damage,
+            speed=self.speed,
+            tears=self.tears,
+            tear_range=self.tear_range,
+            shot_speed=self.shot_speed,
+            luck=self.luck,
+            can_fly=self.can_fly,
+            size=self.size,
+            active_item=self.active_item,
+            active_charge=self.active_charge,
+        )
+        return stats
 
 
 @dataclass

@@ -2,7 +2,7 @@
 
 > **分支**: `test/status-persistence`  
 > **创建时间**: 2026-01-13  
-> **最后更新**: 2026-01-13
+> **最后更新**: 2026-01-14
 
 ---
 
@@ -24,16 +24,16 @@
 
 | ID | 任务 | 状态 | 负责人 | 优先级 | 预估工时 | 备注 |
 |----|------|------|--------|--------|----------|------|
-| P0-001 | 在 strategy_system.py 中使用 player_stats 数据 | ⏳ 待处理 | - | P0 | 2h | 当前 player_stats 解析后未被使用 |
-| P0-002 | 统一 player 数据访问入口 (PlayerData + player_stats) | ⏳ 待处理 | - | P0 | 4h | 决定数据流向，避免数据不一致 |
+| P0-001 | 在 strategy_system.py 中使用 player_stats 数据 | ✅ 已完成 | - | P0 | 2h | GameContext 新增 player_stats 字段 |
+| P0-002 | 统一 player 数据访问入口 (PlayerData + player_stats) | ✅ 已完成 | - | P0 | 4h | 添加 get_primary_player_stats() 方法 |
 
 ### P1 - 高优先级 (建议本分支完成)
 
 | ID | 任务 | 状态 | 负责人 | 优先级 | 预估工时 | 备注 |
 |----|------|------|--------|--------|----------|------|
-| P1-001 | 保留 PLAYER_HEALTH 详细心类型数据 | ⏳ 待处理 | - | P1 | 2h | 当前 health/max_health 会丢失红心、灵魂心等详细类型 |
-| P1-002 | 在 GameStateData 中添加 player 数据快捷访问方法 | ⏳ 待处理 | - | P1 | 1h | 合并 players[1] 和 player_stats[1] 的访问 |
-| P1-003 | 清理 PlayerData 中冗余的属性字段 | ⏳ 待处理 | - | P1 | 2h | 与 player_stats 重复的字段需要统一 |
+| P1-001 | 保留 PLAYER_HEALTH 详细心类型数据 | ✅ 已完成 | - | P1 | 2h | 添加 get_primary_player_health_info() 方法 |
+| P1-002 | 在 GameStateData 中添加 player 数据快捷访问方法 | ✅ 已完成 | - | P1 | 1h | 添加 get_primary_player_health_ratio() 回退支持 |
+| P1-003 | 清理 PlayerData 中冗余的属性字段 | ✅ 已完成 | - | P1 | 2h | 添加文档注释和 get_stats() 方法 |
 
 ### P2 - 中优先级 (后续迭代)
 
@@ -77,19 +77,20 @@
 
 ## 开发进度
 
-### 2026-01-13
+### 2026-01-14
 
-- [x] 创建分支 `test/status-persistence`
-- [x] 实现状态保持核心机制
-- [x] 实现新数据通道解析
-- [x] 提交代码变更
-- [x] 识别待解决问题
+- [x] P0-001: 在 strategy_system.py 中使用 player_stats 数据
+- [x] P0-002: 统一 player 数据访问入口
+- [x] P1-001: 保留 PLAYER_HEALTH 详细心类型数据
+- [x] P1-002: 添加 player 数据快捷访问方法
+- [x] P1-003: 添加 PlayerData 文档注释和 get_stats() 方法
+- [x] 提交: `cffdce6 feat: Integrate player_stats data access with fallback support`
+- [x] 提交: `c1b54a1 docs: Add status persistence development todo list`
 
 ### 待完成
 
-- [ ] 解决 P0 级别问题
-- [ ] 解决 P1 级别问题
-- [ ] 解决 P2/P3 级别问题（如需要）
+- [ ] 解决 P2 级别问题（room 实体集成）
+- [ ] 解决 P3 级别问题（测试、文档）
 - [ ] 运行完整测试套件
 - [ ] 合并到主分支
 
