@@ -157,6 +157,7 @@ class GameMap:
 
         # 动态障碍物
         self.dynamic_obstacles: List[Obstacle] = []
+        self.dynamic_obstacles_dict: Dict[int, Obstacle] = {}
 
         # 危险区域
         self.danger_zones: List[DangerZone] = []
@@ -657,9 +658,20 @@ class GameMap:
                     self.static_obstacles.add((gx, gy))
 
     def add_dynamic_obstacle(
-        self, position: Vector2D, radius: float, obstacle_type: str = "generic"
+        self,
+        position: Vector2D,
+        radius: float,
+        obstacle_type: str = "generic",
+        entity_id: Optional[int] = None,
     ):
-        """添加动态障碍物（敌人、投射物等）"""
+        """添加动态障碍物（敌人、投射物等）
+
+        Args:
+            position: 位置
+            radius: 碰撞半径
+            obstacle_type: 障碍物类型
+            entity_id: 实体ID，如果提供则存储到字典中用于增量更新
+        """
         obstacle = Obstacle(
             position=position,
             radius=radius,
@@ -667,6 +679,8 @@ class GameMap:
             obstacle_type=obstacle_type,
         )
         self.dynamic_obstacles.append(obstacle)
+        if entity_id is not None:
+            self.dynamic_obstacles_dict[entity_id] = obstacle
 
     def remove_dynamic_obstacle(self, position: Vector2D, radius: float):
         """移除动态障碍物"""
@@ -682,30 +696,62 @@ class GameMap:
     def clear_dynamic_obstacles(self):
         """清除所有动态障碍物"""
         self.dynamic_obstacles.clear()
+        self.dynamic_obstacles_dict.clear()
 
     def update_dynamic_obstacles(
         self, enemies: Dict[int, EnemyData], projectiles: Dict[int, ProjectileData]
     ):
-        """更新动态障碍物"""
-        self.clear_dynamic_obstacles()
+        """更新动态障碍物（增量更新）
 
-        # 添加敌人
+        避免每次全量清除和重建，提高性能。
+        """
+        current_ids: Set[int] = set()
+
+        # 更新敌人
         for enemy_id, enemy in enemies.items():
             if enemy.hp > 0:
-                self.add_dynamic_obstacle(
-                    position=enemy.position,
-                    radius=15.0,  # 默认碰撞半径
-                    obstacle_type="enemy",
-                )
+                current_ids.add(enemy_id)
+                if enemy_id in self.dynamic_obstacles_dict:
+                    # 更新现有障碍物位置
+                    obs = self.dynamic_obstacles_dict[enemy_id]
+                    obs.position = enemy.position
+                    obs.radius = 15.0
+                else:
+                    # 创建新障碍物
+                    self.add_dynamic_obstacle(
+                        position=enemy.position,
+                        radius=15.0,
+                        obstacle_type="enemy",
+                        entity_id=enemy_id,
+                    )
 
-        # 添加敌方投射物
+        # 更新敌方投射物
         for proj_id, proj in projectiles.items():
             if proj.is_enemy:
-                self.add_dynamic_obstacle(
-                    position=proj.position,
-                    radius=proj.size,
-                    obstacle_type="projectile",
-                )
+                current_ids.add(proj_id)
+                if proj_id in self.dynamic_obstacles_dict:
+                    obs = self.dynamic_obstacles_dict[proj_id]
+                    obs.position = proj.position
+                    obs.radius = proj.size
+                else:
+                    self.add_dynamic_obstacle(
+                        position=proj.position,
+                        radius=proj.size,
+                        obstacle_type="projectile",
+                        entity_id=proj_id,
+                    )
+
+        # 移除已消失的实体
+        to_remove = []
+        for entity_id in self.dynamic_obstacles_dict:
+            if entity_id not in current_ids:
+                to_remove.append(entity_id)
+        for entity_id in to_remove:
+            del self.dynamic_obstacles_dict[entity_id]
+
+        # 同步列表
+        self.dynamic_obstacles.clear()
+        self.dynamic_obstacles.extend(self.dynamic_obstacles_dict.values())
 
     def add_danger_zone(
         self,
