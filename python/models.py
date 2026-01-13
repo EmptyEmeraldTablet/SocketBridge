@@ -615,6 +615,46 @@ class GameStateData:
         """获取威胁数量（活跃敌人 + 敌人投射物）"""
         return len(self.active_enemies) + len(self.enemy_projectiles)
 
+    # ========== 玩家数据快捷方法 ==========
+
+    def get_primary_player_stats(self) -> Optional["PlayerStatsData"]:
+        """获取主玩家的属性数据（来自 PLAYER_STATS 通道）
+
+        Returns:
+            PlayerStatsData 对象，如果不存在则返回 None
+        """
+        return self.player_stats.get(1)
+
+    def get_primary_player_health_info(self) -> Optional["PlayerHealthData"]:
+        """获取主玩家的详细血量数据（来自 PLAYER_HEALTH 通道）
+
+        Returns:
+            PlayerHealthData 对象，如果不存在则返回 None
+        """
+        return self.player_health.get(1)
+
+    def get_primary_player_health_ratio(self) -> float:
+        """获取主玩家的血量比例（兼容方法）
+
+        优先使用 PLAYER_HEALTH 通道的详细数据，
+        如果不存在则回退到 PlayerData.health
+
+        Returns:
+            血量比例 (0-1)
+        """
+        health_info = self.get_primary_player_health_info()
+        if health_info:
+            max_hearts = health_info.max_hearts
+            if max_hearts > 0:
+                return health_info.total_hearts / max_hearts
+            return 1.0
+
+        # 回退到 PlayerData
+        player = self.get_primary_player()
+        if player:
+            return player.health / max(player.max_health, 1)
+        return 1.0
+
     # ========== 状态保持方法 ==========
 
     def mark_channel_updated(self, channel: str, frame: int):

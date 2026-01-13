@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import logging
 
-from models import Vector2D, GameStateData, PlayerData, EnemyData
+from models import Vector2D, GameStateData, PlayerData, EnemyData, PlayerStatsData
 
 logger = logging.getLogger("StrategySystem")
 
@@ -48,6 +48,9 @@ class GameContext:
     can_heal: bool = False
     has_active_projectiles: bool = False
     room_clear_percent: float = 0.0
+
+    # 玩家属性数据（来自 PLAYER_STATS 通道，独立更新）
+    player_stats: Optional[PlayerStatsData] = None
 
 
 class StrategyManager:
@@ -295,7 +298,7 @@ class StrategyManager:
         context.highest_threat_level = threat_level
 
         if player:
-            context.player_health = player.health / max(player.max_health, 1)
+            context.player_health = game_state.get_primary_player_health_ratio()
             context.nearest_enemy_distance = (
                 game_state.get_nearest_enemy(player.position).position.distance_to(
                     player.position
@@ -303,6 +306,10 @@ class StrategyManager:
                 if game_state.get_nearest_enemy(player.position)
                 else 9999.0
             )
+
+        # 从 PLAYER_STATS 通道获取玩家属性数据
+        if player:
+            context.player_stats = game_state.player_stats.get(player.player_idx)
 
         context.in_combat = context.enemy_count > 0
 

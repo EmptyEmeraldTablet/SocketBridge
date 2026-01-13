@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from collections import deque, defaultdict
 import logging
 
-from models import PlayerData, EnemyData, Vector2D, GameStateData
+from models import PlayerData, EnemyData, Vector2D, GameStateData, PlayerStatsData
 
 logger = logging.getLogger("DynamicStrategy")
 
@@ -223,23 +223,32 @@ class PlayerCapabilityAnalyzer:
         self.dps_tracker = DPSTracker()
         self.capability_profile = PlayerCapabilityProfile()
 
-    def update_player_stats(self, player: PlayerData):
+    def update_player_stats(
+        self, player: PlayerData, player_stats: Optional[PlayerStatsData] = None
+    ):
         """更新玩家属性评分
 
+        优先使用 PlayerStatsData（来自 PLAYER_STATS 通道）的属性，
+        如果不存在则回退到 PlayerData 中的属性。
+
         Args:
-            player: 玩家数据
+            player: 玩家位置数据
+            player_stats: 玩家属性数据（可选）
         """
+        # 确定使用哪个数据源
+        stats = player_stats or player
+
         # 计算属性评分 (0-1)
-        damage_norm = min(player.damage / self.MAX_DAMAGE, 1.0)
-        range_norm = min(player.tear_range / self.MAX_TEAR_RANGE, 1.0)
+        damage_norm = min(stats.damage / self.MAX_DAMAGE, 1.0)
+        range_norm = min(stats.tear_range / self.MAX_TEAR_RANGE, 1.0)
 
         # 射速评分（泪弹延迟越低，射速越高）
-        fire_rate = self.BASE_TEARS / max(player.tears, self.MIN_TEARS)
+        fire_rate = self.BASE_TEARS / max(stats.tears, self.MIN_TEARS)
         fire_rate_norm = min(fire_rate / (self.BASE_TEARS / self.MIN_TEARS), 1.0)
 
         # 机动性评分
-        speed_norm = min(player.speed / self.MAX_SPEED, 1.0)
-        if player.can_fly:
+        speed_norm = min(stats.speed / self.MAX_SPEED, 1.0)
+        if stats.can_fly:
             speed_norm = min(speed_norm * 1.5, 1.0)
 
         # 更新能力剖面
@@ -427,7 +436,7 @@ class DynamicStrategyAdapter:
 
         Args:
             player: 玩家数据
-            game_state: 游戏状态
+            game_state: 游戏状态（包含 player_stats）
 
         Returns:
             策略调整参数
@@ -440,7 +449,9 @@ class DynamicStrategyAdapter:
 
         # 定期更新玩家能力分析
         if current_time - self.last_adjustment_time >= self.adjustment_interval:
-            self.capability_analyzer.update_player_stats(player)
+            # 从 game_state 获取 player_stats（来自 PLAYER_STATS 通道）
+            player_stats = game_state.get_primary_player_stats()
+            self.capability_analyzer.update_player_stats(player, player_stats)
             self.last_adjustment_time = current_time
 
         return self.capability_analyzer.get_strategy_adjustments()
