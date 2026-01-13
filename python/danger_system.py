@@ -76,14 +76,63 @@ class DangerSystem:
         # 危险区域
         self.danger_zones: List[Tuple[Vector2D, float]] = []  # (中心, 半径)
 
-        # 配置
-        self.prediction_frames = 30  # 预测帧数
-        self.safe_distance = 50.0  # 安全距离
-        self.high_threshold = 0.7  # 高威胁阈值
+        # 基础配置（默认值）
+        self.base_prediction_frames = 30  # 预测帧数
+        self.base_safe_distance = 50.0  # 安全距离
+        self.base_high_threshold = 0.7  # 高威胁阈值
+
+        # 动态调整后的配置
+        self.prediction_frames = self.base_prediction_frames
+        self.safe_distance = self.base_safe_distance
+        self.high_threshold = self.base_high_threshold
 
         # 帧追踪
         self.current_frame = 0
         self.last_update_frame = 0
+
+    def update_config(self, config_updates: Dict[str, float]):
+        """更新危险系统配置
+
+        Args:
+            config_updates: 配置更新字典，支持以下键：
+                - safe_distance_multiplier: 安全距离乘数（默认1.0）
+                - high_threshold_adjustment: 高威胁阈值调整（默认0.0）
+                - prediction_frames_adjustment: 预测帧数调整（默认0）
+                也可以直接设置 safe_distance, high_threshold, prediction_frames
+        """
+        # 应用乘数调整
+        safe_distance_multiplier = config_updates.get("safe_distance_multiplier", 1.0)
+        high_threshold_adjustment = config_updates.get("high_threshold_adjustment", 0.0)
+        prediction_frames_adjustment = config_updates.get(
+            "prediction_frames_adjustment", 0
+        )
+
+        # 计算调整后的值
+        self.safe_distance = self.base_safe_distance * safe_distance_multiplier
+        self.high_threshold = self.base_high_threshold + high_threshold_adjustment
+        self.prediction_frames = int(
+            self.base_prediction_frames + prediction_frames_adjustment
+        )
+
+        # 确保调整后的值在合理范围内
+        self.safe_distance = max(20.0, min(100.0, self.safe_distance))
+        self.high_threshold = max(0.3, min(1.0, self.high_threshold))
+        self.prediction_frames = max(10, min(60, self.prediction_frames))
+
+        # 如果提供了直接值，覆盖调整后的值（优先级更高）
+        if "safe_distance" in config_updates:
+            self.safe_distance = max(20.0, min(100.0, config_updates["safe_distance"]))
+        if "high_threshold" in config_updates:
+            self.high_threshold = max(0.3, min(1.0, config_updates["high_threshold"]))
+        if "prediction_frames" in config_updates:
+            raw = config_updates["prediction_frames"]
+            self.prediction_frames = max(10, min(60, int(raw)))
+
+        # 记录配置变更（用于调试）
+        logger.debug(
+            f"[DangerSystem] Config updated: safe_distance={self.safe_distance:.1f}, "
+            f"high_threshold={self.high_threshold:.2f}, prediction_frames={self.prediction_frames}"
+        )
 
     def update(
         self,
@@ -196,7 +245,7 @@ class DangerSystem:
             return predictions
 
         # 简单线性预测
-        for i in range(1, self.prediction_frames + 1):
+        for i in range(1, int(self.prediction_frames) + 1):
             pos = start_pos + velocity * i
 
             # 检查房间边界

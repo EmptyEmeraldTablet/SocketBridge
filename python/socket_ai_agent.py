@@ -664,6 +664,22 @@ class SocketAIAgent:
         # Store adjustments in config for external access
         self.config.strategy_adjustments = adjustments
 
+        # Update danger system with dynamic strategy adjustments
+        if hasattr(self, "danger_system") and self.danger_system:
+            config_updates = {}
+            # Safe distance multiplier based on safety_multiplier (already computed)
+            if "safety_multiplier" in adjustments:
+                config_updates["safe_distance_multiplier"] = adjustments[
+                    "safety_multiplier"
+                ]
+            # High threshold adjustment based on aggression bias
+            if "aggression_bias" in adjustments:
+                aggression = adjustments["aggression_bias"]
+                # aggression 0-1, adjust threshold -0.1 to +0.1
+                config_updates["high_threshold_adjustment"] = (aggression - 0.5) * 0.2
+            if config_updates:
+                self.danger_system.update_config(config_updates)
+
         # Apply AI config adjustments from dynamic strategy
         if hasattr(self, "dynamic_strategy") and self.dynamic_strategy:
             config_updates = self.dynamic_strategy.get_ai_config_adjustments(
