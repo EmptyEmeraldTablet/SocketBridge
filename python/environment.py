@@ -154,14 +154,29 @@ class GameMap:
     ):
         """从ROOM_LAYOUT数据更新地图（支持L型房间等复杂形状）
 
+        DEBUG: Added comprehensive logging for room_shape and grid_size tracking.
+        Key findings from analyzed_rooms:
+          - grid_size varies by room_shape: normal=40, closet=135, wide_tight=252
+          - room_shape 2 = L-shape (top fold), height=120px (not 280px)
+          - API grid dimensions include walls (internal = api - 2)
+
         Args:
             room_info: 房间信息
             layout_data: ROOM_LAYOUT原始数据，包含grid和doors
             grid_size: 网格大小（像素）
         """
         if layout_data is None:
+            logger.debug(
+                f"[GameMap] No layout_data for room {room_info.room_index if room_info else 'None'}"
+            )
             self.update_from_room_info(room_info)
             return
+
+        # DEBUG: Log input parameters
+        logger.debug(
+            f"[GameMap] update_from_room_layout: room={room_info.room_index if room_info else 'None'}, "
+            f"grid_size={grid_size}, shape={room_info.room_shape if room_info else 'None'}"
+        )
 
         # 更新地图尺寸
         if room_info.grid_width > 0:
@@ -169,12 +184,22 @@ class GameMap:
         if room_info.grid_height > 0:
             self.height = room_info.grid_height
 
+        # DEBUG: Log dimension changes
+        logger.debug(f"[GameMap] Dimensions: {self.width}x{self.height} grids")
+
         # 更新网格大小（关键修复：实际存储新值）
         self.grid_size = grid_size
+
+        # DEBUG: Verify grid_size was stored
+        logger.debug(f"[GameMap] Stored grid_size={self.grid_size}")
 
         # 计算像素尺寸
         self.pixel_width = self.width * grid_size
         self.pixel_height = self.height * grid_size
+
+        logger.debug(
+            f"[GameMap] Pixel dimensions: {self.pixel_width}x{self.pixel_height}"
+        )
 
         # 清空现有数据
         self.grid.clear()
@@ -182,14 +207,19 @@ class GameMap:
         self.void_tiles.clear()
 
         # 初始化所有格子为EMPTY（ROOM_LAYOUT.grid只包含特殊格子，其他都是地板）
+        # DEBUG: This matches analyzed_rooms finding - ROOM_LAYOUT.grid only contains obstacles
         for gx in range(self.width):
             for gy in range(self.height):
                 self.grid[(gx, gy)] = TileType.EMPTY
 
-        # 解析网格数据
+        # DEBUG: Log grid parsing
         grid_data = layout_data.get("grid", {})
+        tile_count = len(grid_data) if isinstance(grid_data, dict) else 0
+        logger.debug(f"[GameMap] Parsing {tile_count} grid tiles from ROOM_LAYOUT")
+
         if isinstance(grid_data, dict):
             # grid是字典格式: {"0": {"x": 64, "y": 64, "type": 1000, "collision": 1}, ...}
+            wall_count = 0
             for idx_str, tile_data in grid_data.items():
                 tile_x = tile_data.get("x", 0)
                 tile_y = tile_data.get("y", 0)
@@ -206,7 +236,23 @@ class GameMap:
                         # 有碰撞，标记为墙壁
                         self.grid[(gx, gy)] = TileType.WALL
                         self.static_obstacles.add((gx, gy))
+                        wall_count += 1
                     # 无碰撞的不处理（保持EMPTY）
+
+            logger.debug(
+                f"[GameMap] Marked {wall_count} walls, {len(self.static_obstacles)} static obstacles"
+            )
+
+        # DEBUG: Log VOID handling status
+        # Room shape 2 (L-shape top fold) should have VOID tiles for missing area
+        if room_info and room_info.room_shape == 2:
+            logger.debug(
+                f"[GameMap] Room shape=2 (L-shape) - VOID marking needs room_shape-based logic"
+            )
+        else:
+            logger.debug(
+                f"[GameMap] Room shape={room_info.room_shape if room_info else 'None'} - VOID disabled (sparse data)"
+            )
 
         # 对于L型房间，需要识别VOID区域
         # 如果一个格子不在边界上且没有对应的grid数据，则可能是VOID

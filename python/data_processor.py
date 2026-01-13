@@ -248,7 +248,19 @@ class DataParser:
 
     @staticmethod
     def parse_room_info(data: Dict[str, Any]) -> Optional[RoomInfo]:
-        """解析房间信息"""
+        """解析房间信息
+
+        DEBUG: Added room_shape parsing based on analyzed_rooms findings.
+        Room shape codes:
+          0 = normal (rectangle)
+          1 = rectangle
+          2 = L-shape (top fold)
+          3 = shop (small rectangle)
+          4 = tall rectangle
+          5 = wide rectangle
+          6 = wide_tight (grid_size=252)
+          7-11 = L-shaped variants
+        """
         if data is None:
             return None
 
@@ -267,8 +279,22 @@ class DataParser:
 
         info.room_type = data.get("room_type", "normal")
 
+        # DEBUG: Parse room_shape (MISSING before fix)
+        # Key finding: room_shape determines grid_size and L-shape handling
+        # - Shape 2 = L-shape with top fold (confirmed from analyzed_rooms)
+        # - Shape 6 = wide_tight with grid_size=252 (special case)
+        info.room_shape = data.get("room_shape", 0)
+        logger.debug(
+            f"[DataParser] Parsed room_shape={info.room_shape} for room {info.room_index}"
+        )
+
         info.is_clear = data.get("is_clear", False)
         info.enemy_count = data.get("enemy_count", 0)
+
+        logger.debug(
+            f"[DataParser] Parsed room_info: idx={info.room_index}, "
+            f"grid={info.grid_width}x{info.grid_height}, shape={info.room_shape}"
+        )
 
         return info
 
