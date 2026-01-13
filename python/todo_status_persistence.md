@@ -1,7 +1,7 @@
 # 状态保持功能开发任务清单
 
-> **分支**: `test/status-persistence`  
-> **创建时间**: 2026-01-13  
+> **分支**: `test/status-persistence`
+> **创建时间**: 2026-01-13
 > **最后更新**: 2026-01-14
 
 ---
@@ -39,7 +39,7 @@
 
 | ID | 任务 | 状态 | 负责人 | 优先级 | 预估工时 | 备注 |
 |----|------|------|--------|--------|----------|------|
-| P2-001 | 将 room 实体集成到环境建模 (buttons, fire_hazards, etc.) | ⏳ 待处理 | - | P2 | 6h | environment.py 的 entities 注册表需要填充 |
+| P2-001 | 将 room 实体集成到环境建模 (buttons, fire_hazards, etc.) | ✅ 已完成 | - | P2 | 6h | environment.py entities 注册表已填充 |
 | P2-002 | 在路径规划中避开 room 实体障碍物 | ⏳ 待处理 | - | P2 | 4h | 完善 dynamic_obstacles 逻辑 |
 | P2-003 | 为 room 实体添加可交互行为树节点 | ⏳ 待处理 | - | P2 | 8h | AI 能够与机器、按钮等交互 |
 
@@ -47,7 +47,7 @@
 
 | ID | 任务 | 状态 | 负责人 | 优先级 | 预估工时 | 备注 |
 |----|------|------|--------|--------|----------|------|
-| P3-001 | 添加新通道的单元测试 | ⏳ 待处理 | - | P3 | 2h | 测试 state persistence 行为 |
+| P3-001 | 添加新通道的单元测试 | ✅ 已完成 | - | P3 | 2h | 测试 state persistence 行为 |
 | P3-002 | 添加新通道的集成测试 | ⏳ 待处理 | - | P3 | 4h | 测试完整数据流 |
 | P3-003 | 编写新通道的使用文档 | ⏳ 待处理 | - | P3 | 2h | 更新 DATA_PROTOCOL.md |
 | P3-004 | 性能优化: 减少状态跟踪开销 | ⏳ 待处理 | - | P3 | 4h | 评估 channel_last_update 的性能影响 |
@@ -60,10 +60,13 @@
 
 | ID | 问题描述 | 严重程度 | 状态 | 解决方案 |
 |----|----------|----------|------|----------|
-| Q-001 | PLAYER_STATS 解析后未被任何模块使用 | 严重 | 待修复 | 在 strategy_system.py 中使用 |
-| Q-002 | PLAYER_HEALTH 详细数据可能丢失 | 中等 | 待修复 | 保留 player_health 字典的完整数据 |
-| Q-003 | PlayerData 与 player_stats 数据重复 | 低 | 待评估 | 决定数据统一访问方式 |
-| Q-004 | room 实体数据未被环境建模使用 | 低 | 待评估 | 根据需求决定是否实现 |
+| Q-001 | PLAYER_STATS 解析后未被任何模块使用 | 严重 | 已修复 | 在 strategy_system.py 中使用 |
+| Q-002 | PLAYER_HEALTH 详细心类型数据可能丢失 | 中等 | 已修复 | 保留 player_health 字典的完整数据 |
+| Q-003 | PlayerData 与 player_stats 数据重复 | 低 | 已修复 | 添加文档注释和 get_stats() 方法 |
+| Q-004 | room 实体数据未被环境建模使用 | 低 | 已修复 | 根据需求决定是否实现 |
+| Q-005 | PLAYER_INVENTORY 通道未在 data_processor.py 中解析 | 中 | 搁置 | 游戏API限制，非战斗必须 |
+| Q-006 | BOMBS 通道未集成到 AI 系统 | 低 | **已修复** | 添加 DangerSystem 炸弹威胁检测 |
+| Q-007 | Room 实体（fire_hazards, buttons 等）缺少过期清理 | 低 | 待评估 | 当前通过 entity_data 重建缓解 |
 
 ### 风险评估
 
@@ -72,6 +75,8 @@
 | 数据不一致 | player_stats 与 PlayerData 属性不同步 | 中 | 添加数据同步逻辑 |
 | 性能下降 | channel_last_update 增加内存和计算开销 | 低 | 评估后优化 |
 | 兼容性问题 | 新数据格式可能影响现有模块 | 低 | 添加向后兼容逻辑 |
+| 炸弹误伤 | 玩家自己的炸弹可能炸到自己 | 低 | DangerSystem 降低玩家炸弹优先级 |
+| 静态危险遗漏 | Room 实体过期未清理 | 低 | entity_data 每次重建缓解 |
 
 ---
 
@@ -84,12 +89,16 @@
 - [x] P1-001: 保留 PLAYER_HEALTH 详细心类型数据
 - [x] P1-002: 添加 player 数据快捷访问方法
 - [x] P1-003: 添加 PlayerData 文档注释和 get_stats() 方法
+- [x] **新增**: BOMBS 通道集成到 AI 系统
+  - [x] environment.py: 添加 update_bombs() 方法
+  - [x] socket_ai_agent.py: 添加 entity_data["BOMBS"] 构建
+  - [x] danger_system.py: 添加炸弹威胁检测
 - [x] 提交: `cffdce6 feat: Integrate player_stats data access with fallback support`
 - [x] 提交: `c1b54a1 docs: Add status persistence development todo list`
 
 ### 待完成
 
-- [ ] 解决 P2 级别问题（room 实体集成）
+- [ ] 解决 P2 级别问题（room 实体交互）
 - [ ] 解决 P3 级别问题（测试、文档）
 - [ ] 运行完整测试套件
 - [ ] 合并到主分支

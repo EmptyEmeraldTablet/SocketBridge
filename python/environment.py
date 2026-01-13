@@ -627,6 +627,67 @@ class GameMap:
         }
         return pickup_names.get(variant, f"UNKNOWN_{variant}")
 
+    def update_bombs(self, bomb_data: List[Dict[str, Any]]):
+        """更新炸弹数据
+
+        Args:
+            bomb_data: BOMBS 通道数据
+                [{"id": 30, "variant_name": "NORMAL", "timer": 60, "radius": 80, "pos": {...}}, ...]
+
+        炸弹危险判定逻辑:
+        - TROLL/MEGA_TROLL (即时爆炸): 威胁等级 CRITICAL
+        - 计时器 < 30 帧: 威胁等级 HIGH
+        - 计时器 < 60 帧: 威胁等级 MEDIUM
+        - 爆炸半径内危险
+        """
+        self.entities[EntityType.BOMB].clear()
+        count = 0
+        for bomb in bomb_data:
+            try:
+                # 计算危险等级
+                timer = bomb.get("timer", 90)
+                variant_name = bomb.get("variant_name", "")
+                explosion_radius = bomb.get("explosion_radius", bomb.get("radius", 80))
+
+                # 特殊炸弹类型（立即爆炸）
+                is_instant = variant_name in ["TROLL", "MEGA_TROLL", "HOT"]
+
+                # 危险等级基于计时器
+                if is_instant:
+                    danger_level = 1.0  # 立即爆炸，最高级别
+                elif timer < 30:
+                    danger_level = 0.8  # 即将爆炸
+                elif timer < 60:
+                    danger_level = 0.5  # 中等危险
+                else:
+                    danger_level = 0.2  # 低危险
+
+                entity = RoomEntity(
+                    entity_type=EntityType.BOMB,
+                    entity_id=bomb.get("id", 0),
+                    position=Vector2D(
+                        bomb.get("pos", {}).get("x", 0), bomb.get("pos", {}).get("y", 0)
+                    ),
+                    variant_name=variant_name,
+                    state=timer,  # 使用 timer 作为 state
+                    distance=bomb.get("distance", 0.0),
+                    radius=explosion_radius,
+                    is_active=True,
+                    extra_data={
+                        "timer": timer,
+                        "explosion_radius": explosion_radius,
+                        "is_player_bomb": bomb.get("is_player_bomb", False),
+                        "danger_level": danger_level,
+                        "is_instant": is_instant,
+                    },
+                )
+                self.entities[EntityType.BOMB].append(entity)
+                count += 1
+            except (ValueError, TypeError) as e:
+                logger.warning(f"[GameMap] Failed to parse bomb: {e}")
+
+        logger.debug(f"[GameMap] Updated {count} bombs")
+
     def get_entities_by_type(self, entity_type: EntityType) -> List[RoomEntity]:
         """按类型获取实体列表"""
         return self.entities.get(entity_type, [])

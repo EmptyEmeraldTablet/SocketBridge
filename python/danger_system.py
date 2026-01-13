@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import logging
 
-from models import Vector2D, EnemyData, ProjectileData, PlayerData
+from models import Vector2D, EnemyData, ProjectileData, PlayerData, BombData
 from threat_analysis import ThreatLevel, ThreatInfo, ThreatAssessment
 
 logger = logging.getLogger("DangerSystem")
@@ -141,6 +141,7 @@ class DangerSystem:
         enemies: Dict[int, EnemyData],
         projectiles: Dict[int, ProjectileData],
         room_bounds: Optional[Tuple[float, float, float, float]] = None,
+        bombs: Optional[Dict[int, BombData]] = None,
     ) -> ThreatAssessment:
         """更新危险系统
 
@@ -150,6 +151,7 @@ class DangerSystem:
             enemies: 敌人数据
             projectiles: 投射物数据
             room_bounds: 房间边界 (min_x, min_y, max_x, max_y)
+            bombs: 炸弹数据（可选）
 
         Returns:
             威胁评估结果
@@ -162,9 +164,9 @@ class DangerSystem:
         # 更新投射物轨迹预测
         self._update_projectile_trajectories(projectiles, player_position, room_bounds)
 
-        # 评估即时危险
+        # 评估即时危险（包含炸弹威胁）
         immediate_threats = self._assess_immediate_dangers(
-            player_position, enemies, projectiles
+            player_position, enemies, projectiles, bombs
         )
 
         # 构建威胁评估
@@ -278,9 +280,62 @@ class DangerSystem:
         player_position: Vector2D,
         enemies: Dict[int, EnemyData],
         projectiles: Dict[int, ProjectileData],
+        bombs: Optional[Dict[int, BombData]] = None,
     ) -> List[ThreatInfo]:
-        """评估即时危险"""
+        """评估即时危险
+
+        Args:
+            player_position: 玩家位置
+            enemies: 敌人数据
+            projectiles: 投射物数据
+            bombs: 炸弹数据（可选）
+
+        Returns:
+            威胁信息列表
+        """
         threats = []
+
+        # 评估炸弹威胁
+        if bombs:
+            for bomb_id, bomb in bombs.items():
+                distance = player_position.distance_to(bomb.position)
+                explosion_radius = bomb.radius
+
+                # 检查玩家是否在爆炸范围内
+                if distance > explosion_radius + 15.0:  # 15.0是玩家半径
+                    continue  # 玩家不在危险范围内
+
+                # 计算威胁等级
+                threat_level = ThreatLevel.LOW
+                estimated_impact = bomb.timer  # 爆炸剩余帧数
+
+                # 炸弹类型判断
+                # 玩家自己的炸弹不是威胁
+                if bomb.is_player_bomb:
+                    # 玩家炸弹有一定危险（可能误伤），但降低优先级
+                    threat_level = ThreatLevel.LOW
+                    estimated_impact = bomb.timer
+                else:
+                    # 敌人炸弹或 Troll 炸弹
+                    if bomb.timer < 15:
+                        threat_level = ThreatLevel.CRITICAL
+                    elif bomb.timer < 30:
+                        threat_level = ThreatLevel.HIGH
+                    elif bomb.timer < 60:
+                        threat_level = ThreatLevel.MEDIUM
+
+                threat = ThreatInfo(
+                    source_id=bomb_id,
+                    source_type="bomb",
+                    position=bomb.position,
+                    distance=distance,
+                    threat_level=threat_level,
+                    estimated_impact_time=estimated_impact,
+                    direction=Vector2D(0, 0),  # 炸弹是静态的
+                    priority=100.0 / max(distance, 1),  # 距离越近优先级越高
+                    damage_estimate=bomb.damage,
+                )
+                threats.append(threat)
 
         # 评估投射物威胁
         for proj_id, proj in projectiles.items():

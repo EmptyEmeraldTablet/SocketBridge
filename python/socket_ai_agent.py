@@ -368,6 +368,25 @@ class SocketAIAgent:
                         for pid, p in game_state.pickups.items()
                     ]
 
+                if game_state.bombs:
+                    entity_data["BOMBS"] = [
+                        {
+                            "id": bid,
+                            "type": b.damage,
+                            "sub_type": b.subtype,
+                            "pos": {"x": b.position.x, "y": b.position.y},
+                            "timer": b.timer,
+                            "radius": b.radius,
+                            "explosion_radius": b.radius,
+                            "is_player_bomb": b.is_player_bomb,
+                            "variant_name": "NORMAL",  # 炸弹类型需要在Lua端添加
+                            "distance": b.position.distance_to(player.position)
+                            if player
+                            else 0.0,
+                        }
+                        for bid, b in game_state.bombs.items()
+                    ]
+
                 self.environment.update_room(
                     room_info=game_state.room_info,
                     enemies=game_state.enemies,
@@ -425,6 +444,7 @@ class SocketAIAgent:
                 enemies=game_state.enemies,
                 projectiles=game_state.projectiles,
                 room_bounds=room_bounds,
+                bombs=game_state.bombs,
             )
             self.current_threat = threat
 
