@@ -21,7 +21,7 @@ import argparse
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -29,11 +29,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 from models import Vector2D, GameStateData, ControlOutput, PlayerData, EnemyData
 from data_processor import DataProcessor
 from environment import EnvironmentModel
-from threat_analysis import ThreatAnalyzer, ThreatLevel, ThreatAssessment, ThreatInfo
+from threat_analysis import ThreatLevel, ThreatAssessment, ThreatInfo
+from danger_system import DangerSystem
 from smart_aiming import SmartAimingSystem, ShotType, AimResult
 from behavior_tree import BehaviorTree, NodeContext, NodeStatus, BehaviorTreeBuilder
 from pathfinding import AStarPathfinder, PathfindingConfig
 from evaluation_system import EvaluationSystem
+from dynamic_strategy import DynamicStrategyAdapter, create_dynamic_strategy_adapter
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -61,6 +63,40 @@ class AIConfig:
     evaluation_enabled: bool = True
     verbose_output: bool = False
 
+    # Dynamic strategy weights - exposed for external adjustment
+    dynamic_weights: dict = field(
+        default_factory=lambda: {
+            # Aggression factor for shoot confidence threshold adjustment
+            "aggression_factor": 0.3,  # Higher = more aggressive shooting
+            # Mobility thresholds for movement mode switching
+            "mobility_threshold_high": 0.7,  # Above this -> aggressive mode
+            "mobility_threshold_low": 0.3,  # Below this -> defensive mode
+            # Fire rate factor for aim interval adjustment
+            "fire_rate_factor": 0.5,  # Higher = more frequent shooting at high fire rate
+            # Safety margin factor for distance calculations
+            "safety_margin_factor": 0.4,  # Higher = larger safety margins
+            # Combat power factor for aggression bias
+            "combat_power_factor": 1.0,  # Multiplier for combat power influence
+            # Mobility factor for distance reduction
+            "mobility_distance_factor": 0.3,  # Higher = more distance reduction with mobility
+            # Player capability analysis weights
+            "range_bonus_factor": 0.3,  # Range score contribution to aggression
+            "mobility_bonus_factor": 0.2,  # Mobility score contribution to aggression
+            "survival_penalty_factor": 0.2,  # Survival penalty factor
+            "range_factor": 0.5,  # Range factor for combat distance calculation
+            # Combat power weights
+            "damage_weight": 0.25,
+            "range_weight": 0.15,
+            "fire_rate_weight": 0.20,
+            "mobility_weight": 0.10,
+            "dps_weight": 0.20,
+            "accuracy_weight": 0.10,
+        }
+    )
+
+    # Current strategy adjustments (updated by dynamic strategy system)
+    strategy_adjustments: dict = field(default_factory=dict)
+
 
 class SocketAIAgent:
     """Complete AI Agent integrating all modules."""
@@ -76,6 +112,9 @@ class SocketAIAgent:
             "total_decisions": 0,
             "avg_decision_time_ms": 0.0,
         }
+        self._last_bt_action = None
+        self.previous_enemy_hp = {}  # Track enemy HP for damage detection
+        self._strategy_adjustments = {}
 
         logger.info("SocketAIAgent initialized")
 
@@ -87,7 +126,7 @@ class SocketAIAgent:
         self.environment = EnvironmentModel()
 
         # Phase 3: Threat analysis
-        self.threat_analyzer = ThreatAnalyzer()
+        self.danger_system = DangerSystem()
 
         # Phase 4: Smart aiming
         self.aiming = SmartAimingSystem()
@@ -104,6 +143,9 @@ class SocketAIAgent:
         # Phase 7: Performance evaluation
         self.evaluation = EvaluationSystem()
 
+        # Phase 8: Dynamic strategy adaptation
+        self.dynamic_strategy = DynamicStrategyAdapter()
+
         self.current_threat = None
         self.target_enemy_id = None
 
@@ -114,24 +156,39 @@ class SocketAIAgent:
         # Priority 1: Emergency dodge
         builder.sequence("EmergencyDodge")
         builder.condition("HasThreats", lambda ctx: len(ctx.projectiles) > 0)
-        builder.action("Dodge", lambda ctx: NodeStatus.SUCCESS)
+        builder.action("Dodge", self._bt_dodge)
         builder.end()
 
         # Priority 2: Combat
         builder.sequence("Combat")
         builder.condition("HasEnemies", lambda ctx: len(ctx.enemies) > 0)
         builder.selector("CombatActions")
-        builder.action("Attack", lambda ctx: NodeStatus.SUCCESS)
+        builder.action("Attack", self._bt_attack)
         builder.end()
         builder.end()
 
         # Priority 3: Explore
         builder.sequence("Explore")
         builder.condition("NoEnemies", lambda ctx: len(ctx.enemies) == 0)
-        builder.action("Explore", lambda ctx: NodeStatus.SUCCESS)
+        builder.action("Explore", self._bt_explore)
         builder.end()
 
         return builder.build()
+
+    def _bt_dodge(self, ctx):
+        """Behavior tree dodge action"""
+        ctx.action = "dodge"
+        return NodeStatus.SUCCESS
+
+    def _bt_attack(self, ctx):
+        """Behavior tree attack action"""
+        ctx.action = "attack"
+        return NodeStatus.SUCCESS
+
+    def _bt_explore(self, ctx):
+        """Behavior tree explore action"""
+        ctx.action = "explore"
+        return NodeStatus.SUCCESS
 
     def initialize(self):
         logger.info("SocketAIAgent initialized successfully")
@@ -199,7 +256,25 @@ class SocketAIAgent:
             if not player:
                 return control
 
-            # 2. Update environment
+            # 2. Dynamic strategy adaptation
+            if hasattr(self, "dynamic_strategy") and self.dynamic_strategy:
+                # Record damage events by comparing enemy HP with previous frame
+                for enemy_id, enemy in game_state.enemies.items():
+                    prev_hp = self.previous_enemy_hp.get(enemy_id)
+                    if prev_hp is not None and enemy.hp < prev_hp:
+                        damage_dealt = prev_hp - enemy.hp
+                        self.dynamic_strategy.record_combat_event(
+                            "damage",
+                            damage_dealt=damage_dealt,
+                            enemy=enemy,
+                            enemy_before_hp=prev_hp,
+                        )
+                    self.previous_enemy_hp[enemy_id] = enemy.hp
+
+                strategy_adjustments = self.dynamic_strategy.update(player, game_state)
+                self._apply_strategy_adjustments(strategy_adjustments)
+
+            # 3. Update environment
             if game_state.room_info:
                 self.environment.update_room(
                     room_info=game_state.room_info,
@@ -208,8 +283,56 @@ class SocketAIAgent:
                     room_layout=game_state.raw_room_layout,
                 )
 
-            # 3. Threat analysis
-            threat = self.threat_analyzer.analyze(game_state)
+            # Sync dynamic obstacles to pathfinder
+            if hasattr(self, "pathfinder") and self.pathfinder is not None:
+                # Update map size if needed
+                if hasattr(self.environment, "game_map"):
+                    self.pathfinder.set_map_size(
+                        self.environment.game_map.width,
+                        self.environment.game_map.height,
+                    )
+                # Clear and add dynamic obstacles
+                self.pathfinder.clear_dynamic_obstacles()
+                obstacle_count = 0
+                for obstacle in self.environment.game_map.dynamic_obstacles:
+                    self.pathfinder.add_dynamic_obstacle(
+                        obstacle.position, obstacle.radius
+                    )
+                    obstacle_count += 1
+                # Debug output
+                if self.config.verbose_output and self.current_frame % 60 == 0:
+                    print(
+                        f"[DEBUG-PATH] Synced {obstacle_count} dynamic obstacles to pathfinder"
+                    )
+
+            # 3. Threat analysis using DangerSystem (high-frequency threats)
+            room_bounds = None
+            if game_state.room_info:
+                room_left = 280
+                room_top = 140
+                grid_size = 40
+                if game_state.room_info.pixel_width > 0:
+                    room_width = game_state.room_info.pixel_width
+                else:
+                    room_width = game_state.room_info.grid_width * grid_size
+                if game_state.room_info.pixel_height > 0:
+                    room_height = game_state.room_info.pixel_height
+                else:
+                    room_height = game_state.room_info.grid_height * grid_size
+                room_bounds = (
+                    room_left,
+                    room_top,
+                    room_left + room_width,
+                    room_top + room_height,
+                )
+
+            threat = self.danger_system.update(
+                frame=self.current_frame,
+                player_position=player.position,
+                enemies=game_state.enemies,
+                projectiles=game_state.projectiles,
+                room_bounds=room_bounds,
+            )
             self.current_threat = threat
 
             # 4. Target selection
@@ -277,6 +400,15 @@ class SocketAIAgent:
                 aim_result
                 and aim_result.confidence > self.config.shoot_confidence_threshold
             ):
+                # Record shot event for dynamic strategy
+                if hasattr(self, "dynamic_strategy") and self.dynamic_strategy:
+                    self.dynamic_strategy.record_combat_event(
+                        "shot",
+                        player_pos=player.position,
+                        target_pos=target_enemy.position
+                        if target_enemy
+                        else player.position,
+                    )
                 control.shoot = True
                 dx, dy = self._vector_to_direction(aim_result.direction)
                 control.shoot_x = dx
@@ -284,6 +416,13 @@ class SocketAIAgent:
             elif target_enemy:
                 direction = target_enemy.position - player.position
                 if direction.magnitude() > 0:
+                    # Record shot event for dynamic strategy
+                    if hasattr(self, "dynamic_strategy") and self.dynamic_strategy:
+                        self.dynamic_strategy.record_combat_event(
+                            "shot",
+                            player_pos=player.position,
+                            target_pos=target_enemy.position,
+                        )
                     dx, dy = self._vector_to_direction(direction)
                     control.shoot = True
                     control.shoot_x = dx
@@ -293,6 +432,15 @@ class SocketAIAgent:
             bt_context = self._build_behavior_context(game_state, threat)
             self.behavior_tree.context = bt_context
             self.behavior_tree.update()
+
+            # Process behavior tree result
+            if bt_context.action:
+                if self.config.verbose_output and self.current_frame % 60 == 0:
+                    print(f"[DEBUG-BT] Behavior tree action: {bt_context.action}")
+                # Store the action for potential use in movement decisions
+                self._last_bt_action = bt_context.action
+            else:
+                self._last_bt_action = None
 
             # 9. Bounds check
             if self.config.stay_in_bounds:
@@ -346,20 +494,31 @@ class SocketAIAgent:
 
         # 1. Emergency evasion
         if threat.immediate_threats:
-            evasion = self._compute_evasion(player, threat.immediate_threats)
+            if threat.suggested_evasion_dir.magnitude() > 0:
+                evasion = threat.suggested_evasion_dir
+            else:
+                evasion = self._compute_evasion(player, threat.immediate_threats)
             return self._normalize_direction(evasion)
 
-        # 2. Combat distance control
+        # 2. Combat with pathfinding
         if target:
             direction = target.position - player.position
             distance = direction.magnitude()
 
             if distance > self.config.combat_distance:
-                move_x, move_y = self._normalize_direction(direction)
+                # Use pathfinding for long-distance approach
+                path = self._find_path_to_target(player.position, target.position)
+                if path and len(path) > 1:
+                    # Follow the path
+                    return self._follow_path(player.position, path)
+                else:
+                    # Fallback to direct approach
+                    move_x, move_y = self._normalize_direction(direction)
             elif distance < self.config.combat_distance * 0.5:
                 retreat = Vector2D(-direction.x, -direction.y)
                 move_x, move_y = self._normalize_direction(retreat)
             else:
+                # Maintain combat distance with side movement
                 perpendicular = Vector2D(-direction.y, direction.x)
                 move_x, move_y = self._normalize_direction(perpendicular)
 
@@ -395,6 +554,44 @@ class SocketAIAgent:
             return 0.0, 0.0
         return direction.x / mag, direction.y / mag
 
+    def _find_path_to_target(
+        self, start: Vector2D, goal: Vector2D
+    ) -> Optional[List[Vector2D]]:
+        """Find path from start to goal using A* pathfinder"""
+        if not hasattr(self, "pathfinder") or self.pathfinder is None:
+            return None
+
+        # Get static obstacles from environment
+        obstacles = set()
+        if hasattr(self.environment, "game_map"):
+            obstacles = self.environment.game_map.static_obstacles.copy()
+
+        # Find path
+        return self.pathfinder.find_path(start, goal, obstacles)
+
+    def _follow_path(
+        self, current_pos: Vector2D, path: List[Vector2D]
+    ) -> Tuple[float, float]:
+        """Follow a path by moving toward the next waypoint"""
+        if not path or len(path) < 2:
+            return 0.0, 0.0
+
+        # Find the nearest waypoint in the path
+        nearest_idx = 0
+        min_dist = float("inf")
+        for i, point in enumerate(path):
+            dist = current_pos.distance_to(point)
+            if dist < min_dist:
+                min_dist = dist
+                nearest_idx = i
+
+        # Move toward the next waypoint (or the one after if we're close to current)
+        next_idx = min(nearest_idx + 1, len(path) - 1)
+        target = path[next_idx]
+
+        direction = target - current_pos
+        return self._normalize_direction(direction)
+
     def _vector_to_direction(self, vec: Vector2D) -> Tuple[int, int]:
         x, y = 0, 0
         threshold = 0.3
@@ -423,6 +620,28 @@ class SocketAIAgent:
             context.nearest_enemy = game_state.get_nearest_enemy(player.position)
 
         context.threat_level = threat.overall_threat_level.value / 3
+
+        # Apply dynamic strategy adjustments to behavior tree context
+        if hasattr(self, "dynamic_strategy") and self.dynamic_strategy:
+            context_dict = {
+                "debug_info": {},
+                "condition_thresholds": {},
+                "game_state": context.game_state,
+                "player_health": context.player_health,
+                "player_position": context.player_position,
+                "enemies": context.enemies,
+                "nearest_enemy": context.nearest_enemy,
+                "threat_level": context.threat_level,
+                "projectiles": context.projectiles,
+            }
+            updated_dict = self.dynamic_strategy.apply_to_behavior_tree(context_dict)
+
+            for key, value in updated_dict.items():
+                setattr(context, key, value)
+
+        # Add strategy adjustments for debug
+        context.debug_info["strategy_adjustments"] = self._strategy_adjustments
+
         return context
 
     def _apply_bounds_check(
@@ -438,6 +657,41 @@ class SocketAIAgent:
             elif player.position.y > 230:
                 control.move_y = -1
         return control
+
+    def _apply_strategy_adjustments(self, adjustments: Dict[str, float]):
+        """Apply dynamic strategy adjustments to AI configuration and behavior tree."""
+
+        # Store adjustments in config for external access
+        self.config.strategy_adjustments = adjustments
+
+        # Apply AI config adjustments from dynamic strategy
+        if hasattr(self, "dynamic_strategy") and self.dynamic_strategy:
+            config_updates = self.dynamic_strategy.get_ai_config_adjustments(
+                vars(self.config)
+            )
+            for key, value in config_updates.items():
+                if hasattr(self.config, key):
+                    setattr(self.config, key, value)
+                else:
+                    # Store in dynamic_weights if not a direct config attribute
+                    self.config.dynamic_weights[key] = value
+
+        # Also apply direct adjustments to config attributes that might not be covered by get_ai_config_adjustments
+        if "recommended_combat_distance" in adjustments:
+            self.config.combat_distance = adjustments["recommended_combat_distance"]
+
+        # Adjust shoot confidence threshold based on aggression bias using configurable factor
+        if "aggression_bias" in adjustments:
+            aggression = adjustments["aggression_bias"]
+            aggression_factor = self.config.dynamic_weights.get(
+                "aggression_factor", 0.3
+            )
+            base_threshold = self.config.shoot_confidence_threshold
+            adjusted = base_threshold * (1.0 - aggression * aggression_factor)
+            self.config.shoot_confidence_threshold = max(0.3, min(0.9, adjusted))
+
+        # Store adjustments for behavior tree context (backward compatibility)
+        self._strategy_adjustments = adjustments
 
     def get_performance_stats(self) -> Dict[str, Any]:
         return {
