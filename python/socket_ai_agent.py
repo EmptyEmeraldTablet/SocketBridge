@@ -204,8 +204,12 @@ class SocketAIAgent:
         try:
             # === DEBUG: 打印原始消息结构 ===
             if self.config.verbose_output and self.current_frame <= 5:
-                print(f"[DEBUG] update() frame={self.current_frame}")
-                print(f"[DEBUG]   raw_message type: {type(raw_message)}")
+                print(
+                    f"[FRAME {self.current_frame} {time.strftime('%H:%M:%S')}] [DEBUG] update() frame={self.current_frame}"
+                )
+                print(
+                    f"[FRAME {self.current_frame} {time.strftime('%H:%M:%S')}] [DEBUG]   raw_message type: {type(raw_message)}"
+                )
                 if isinstance(raw_message, dict):
                     print(f"[DEBUG]   raw_message keys: {list(raw_message.keys())}")
                     if "payload" in raw_message:
@@ -244,12 +248,14 @@ class SocketAIAgent:
                     room_bottom = room_top + room_height
 
                     print(
-                        f"[DEBUG-ROOM] grid={game_state.room_info.grid_width}x{game_state.room_info.grid_height}, "
+                        f"[FRAME {self.current_frame} {time.strftime('%H:%M:%S')}] [DEBUG-ROOM] grid={game_state.room_info.grid_width}x{game_state.room_info.grid_height}, "
                         f"bounds=({room_left},{room_top})-({room_right},{room_bottom}), "
                         f"enemy_count={game_state.room_info.enemy_count}"
                     )
                 else:
-                    print("[DEBUG-ROOM] No room_info available")
+                    print(
+                        f"[FRAME {self.current_frame} {time.strftime('%H:%M:%S')}] [DEBUG-ROOM] No room_info available"
+                    )
 
             player = game_state.get_primary_player()
 
@@ -302,7 +308,7 @@ class SocketAIAgent:
                 # Debug output
                 if self.config.verbose_output and self.current_frame % 60 == 0:
                     print(
-                        f"[DEBUG-PATH] Synced {obstacle_count} dynamic obstacles to pathfinder"
+                        f"[FRAME {self.current_frame} {time.strftime('%H:%M:%S')}] [DEBUG-PATH] Synced {obstacle_count} dynamic obstacles to pathfinder"
                     )
 
             # 3. Threat analysis using DangerSystem (high-frequency threats)
@@ -357,7 +363,7 @@ class SocketAIAgent:
                     los_status = self.aiming.last_los_result or "N/A"
                     if target_enemy:
                         print(
-                            f"[DEBUG-AIM] Target={target_enemy.id} LOS={los_status} "
+                            f"[FRAME {self.current_frame} {time.strftime('%H:%M:%S')}] [DEBUG-AIM] Target={target_enemy.id} LOS={los_status} "
                             f"Conf={aim_result.confidence:.2f} Reason={aim_result.reasoning} "
                             f"TargetPos=({target_enemy.position.x:.0f},{target_enemy.position.y:.0f})"
                         )
@@ -387,7 +393,7 @@ class SocketAIAgent:
                     )
 
                     print(
-                        f"[DEBUG-MOVE] Move=({move_x:.2f},{move_y:.2f}) "
+                        f"[FRAME {self.current_frame} {time.strftime('%H:%M:%S')}] [DEBUG-MOVE] Move=({move_x:.2f},{move_y:.2f}) "
                         f"Player=({player.position.x:.0f},{player.position.y:.0f})->Target=({target_pos.x:.0f},{target_pos.y:.0f}) "
                         f"PlayerInBounds={player_in_bounds} TargetInBounds={in_bounds} Obstacle={has_obstacle} CanReach={can_reach}"
                     )
@@ -436,7 +442,9 @@ class SocketAIAgent:
             # Process behavior tree result
             if bt_context.action:
                 if self.config.verbose_output and self.current_frame % 60 == 0:
-                    print(f"[DEBUG-BT] Behavior tree action: {bt_context.action}")
+                    print(
+                        f"[FRAME {self.current_frame} {time.strftime('%H:%M:%S')}] [DEBUG-BT] Behavior tree action: {bt_context.action}"
+                    )
                 # Store the action for potential use in movement decisions
                 self._last_bt_action = bt_context.action
             else:
@@ -809,6 +817,7 @@ def run_replay_test(session_id: Optional[str] = None, verbose: bool = False):
 
 def run_realtime_test(host: str = "127.0.0.1", port: int = 9527):
     from isaac_bridge import IsaacBridge
+    from data_replay_system import create_recorder, RawMessage, MessageType
 
     print("\n" + "=" * 60)
     print("SocketAIAgent Real-time Game Test")
@@ -821,14 +830,69 @@ def run_realtime_test(host: str = "127.0.0.1", port: int = 9527):
 
     bridge = IsaacBridge(host=host, port=port)
 
+    # 创建录制器
+    recorder = create_recorder(output_dir="./recordings")
+
+    @bridge.on("message")
+    def on_message(msg):
+        """录制完整消息"""
+        if recorder.recording:
+            raw_msg = RawMessage(
+                version=msg.version,
+                msg_type=msg.msg_type,
+                timestamp=msg.timestamp,
+                frame=msg.frame,
+                room_index=msg.room_index,
+                payload=msg.payload,
+                channels=msg.channels,
+            )
+            recorder.record_message(raw_msg)
+
+    @bridge.on("event_message")
+    def on_event_message(event):
+        """录制事件消息"""
+        if recorder.recording:
+            import time
+
+            raw_msg = RawMessage(
+                version=2,
+                msg_type=MessageType.EVENT.value,
+                timestamp=int(time.time() * 1000),
+                frame=event.frame,
+                room_index=-1,
+                event_type=event.type,
+                event_data=event.data,
+            )
+            recorder.record_message(raw_msg)
+
     @bridge.on("connected")
     def on_connected(info):
         print(f"Connected to {info['address']}")
+        if not recorder.recording:
+            # 全新开始
+            recorder.start_session(
+                {
+                    "description": "SocketAIAgent real-time session",
+                    "game_version": "repentance",
+                    "host": host,
+                    "port": port,
+                }
+            )
+            print("开始录制...")
+        elif recorder.paused:
+            # 恢复之前的录制会话
+            recorder.resume()
+            print("恢复录制...")
+        else:
+            print("继续录制...")
 
     @bridge.on("disconnected")
     def on_disconnected():
         print("Disconnected")
         agent.disable()
+        if recorder.recording:
+            recorder.pause()  # 暂停录制，而不是结束会话
+            print("录制已暂停，等待重连...")
 
     @bridge.on("data")
     def on_data(data):
@@ -925,6 +989,9 @@ def run_realtime_test(host: str = "127.0.0.1", port: int = 9527):
     except KeyboardInterrupt:
         print("\nStopping...")
         agent.disable()
+        if recorder.recording:
+            recorder.end_session(reason="user_stop")
+            print("录制会话已结束")
         bridge.stop()
 
 
