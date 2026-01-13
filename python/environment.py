@@ -145,9 +145,11 @@ class GameMap:
         self.width = width
         self.height = height
 
-        # 像素尺寸
-        self.pixel_width = width * grid_size
-        self.pixel_height = height * grid_size
+        # 像素尺寸（不包含墙壁，可移动区域）
+        # 公式: pixel = (grid - 2) * grid_size
+        # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
+        self.pixel_width = max(0, (width - 2) * grid_size)
+        self.pixel_height = max(0, (height - 2) * grid_size)
 
         # 网格数据: (grid_x, grid_y) -> TileType
         self.grid: Dict[Tuple[int, int], TileType] = {}
@@ -215,16 +217,18 @@ class GameMap:
         # DEBUG: Log grid_size verification
         logger.debug(f"[GameMap] grid_size unchanged: {self.grid_size}")
 
-        # 像素尺寸优先使用 RoomInfo 中的值，如果为 0 则从网格计算
+        # 像素尺寸优先使用 RoomInfo 中的值，如果为 0 则从网格计算（不包含墙壁）
+        # 公式: pixel = (grid - 2) * grid_size
+        # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
         if room_info.pixel_width > 0:
             self.pixel_width = room_info.pixel_width
         else:
-            self.pixel_width = self.width * self.grid_size
+            self.pixel_width = max(0, (self.width - 2) * self.grid_size)
 
         if room_info.pixel_height > 0:
             self.pixel_height = room_info.pixel_height
         else:
-            self.pixel_height = self.height * self.grid_size
+            self.pixel_height = max(0, (self.height - 2) * self.grid_size)
 
         logger.debug(
             f"[GameMap] Pixel dimensions: {self.pixel_width}x{self.pixel_height}"
@@ -282,9 +286,11 @@ class GameMap:
         # 更新网格大小（常量 40，根据 analyzed_rooms 分析确认）
         self.grid_size = grid_size
 
-        # 计算像素尺寸
-        self.pixel_width = self.width * grid_size
-        self.pixel_height = self.height * grid_size
+        # 计算像素尺寸（不包含墙壁，可移动区域）
+        # 公式: pixel = (grid - 2) * grid_size
+        # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
+        self.pixel_width = max(0, (self.width - 2) * grid_size)
+        self.pixel_height = max(0, (self.height - 2) * grid_size)
 
         logger.debug(
             f"[GameMap] Pixel dimensions: {self.pixel_width}x{self.pixel_height}"
@@ -358,15 +364,15 @@ class GameMap:
                 f"[GameMap] No doors data in ROOM_LAYOUT (doors_data={doors_data})"
             )
 
-        # DEBUG: Log VOID handling status
-        # Room shape 2 (L-shape top fold) should have VOID tiles for missing area
-        if room_info and room_info.room_shape == 2:
+        # L形房间检测 (Shape Code 9-12)
+        # Shape 9: L1 (左上缺失), Shape 10: L2 (右上缺失)
+        # Shape 11: L3 (左下缺失), Shape 12: L4 (右下缺失)
+        # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
+        if room_info and room_info.room_shape in [9, 10, 11, 12]:
             logger.debug(
-                f"[GameMap] Room shape=2 (L-shape) - Calculating VOID tiles based on room dimensions"
+                f"[GameMap] Room shape={room_info.room_shape} (L-shape) - Calculating VOID tiles"
             )
-            # L-shaped room (top fold) - mark upper rows as VOID
-            # Room 73 analysis: height=120px (3 grids) instead of standard 280px (7 grids)
-            # The top portion of the API grid is not accessible
+            # L-shaped room - mark missing corner area as VOID
             self._mark_l_shape_void_tiles(room_info)
         else:
             logger.debug(
@@ -377,48 +383,60 @@ class GameMap:
         """为L形房间标记VOID区域
 
         基于 analyzed_rooms 分析结论:
-        - Shape 2 = L形房间，折角在顶部
-        - Room 73 边界: (60, 220) - (580, 340) = 520x120px
-        - API grid_height = 9, 但实际可访问区域只有约 3-4 格高
+        L形房间基于大房间(26×14)剪去一个象限(13×7)：
 
-        计算逻辑:
-        - 标准房间: pixel_height = 280 (7格 × 40px)
-        - L形房间: pixel_height = 120 (3格 × 40px) - 只访问下半部分
-        - 因此需要将上方区域标记为 VOID
+        | Shape Code | 缺角位置 | 缺角边界 |
+        |------------|----------|----------|
+        | 9 | 左上(L1) | 左上 13×7 区域 |
+        | 10 | 右上(L2) | 右上 13×7 区域 |
+        | 11 | 左下(L3) | 左下 13×7 区域 |
+        | 12 | 右下(L4) | 右下 13×7 区域 |
+
+        大房间 L 形: grid=26×14, center=(13,7), 每个缺失区域=13×7
+        来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
         """
         if not room_info:
             return
 
-        # 计算实际像素高度与API报告高度的差异
-        api_pixel_height = room_info.grid_height * self.grid_size
-        actual_pixel_height = (
-            room_info.pixel_height if room_info.pixel_height > 0 else api_pixel_height
-        )
+        shape = room_info.room_shape
+        width = self.width
+        height = self.height
 
-        # 估算可访问区域的高度（网格数）
-        # 标准房间: 7格 = 280px
-        # L形房间: 约 3-4 格 = 120-160px
-        accessible_grids = (
-            int(actual_pixel_height / self.grid_size)
-            if actual_pixel_height > 0
-            else self.height
-        )
+        # 计算中心点（网格坐标）
+        center_gx = width // 2  # 26/2 = 13
+        center_gy = height // 2  # 14/2 = 7
+
+        # 根据 Shape Code 确定缺角区域边界（网格坐标）
+        # 跳过边界行/列（门的位置）：范围是 1 到 width-1 / height-1
+        min_gx, max_gx = 1, width - 1
+        min_gy, max_gy = 1, height - 1
+
+        if shape == 9:  # L1 - 左上缺失
+            void_gx_range = (min_gx, center_gx)
+            void_gy_range = (min_gy, center_gy)
+        elif shape == 10:  # L2 - 右上缺失
+            void_gx_range = (center_gx, max_gx + 1)
+            void_gy_range = (min_gy, center_gy)
+        elif shape == 11:  # L3 - 左下缺失
+            void_gx_range = (min_gx, center_gx)
+            void_gy_range = (center_gy, max_gy + 1)
+        elif shape == 12:  # L4 - 右下缺失
+            void_gx_range = (center_gx, max_gx + 1)
+            void_gy_range = (center_gy, max_gy + 1)
+        else:
+            logger.warning(f"[GameMap] Unknown L-shape type: {shape}")
+            return
 
         logger.debug(
-            f"[GameMap] L-shape VOID calculation: api_height={api_pixel_height}px ({room_info.grid_height} grids), "
-            f"actual={actual_pixel_height}px, accessible={accessible_grids} grids"
+            f"[GameMap] L-shape VOID: shape={shape}, grid={width}x{height}, "
+            f"center=({center_gx}, {center_gy}), "
+            f"void_x=({void_gx_range[0]}-{void_gx_range[1]}), void_y=({void_gy_range[0]}-{void_gy_range[1]})"
         )
 
-        # 标记上方不可访问的区域为 VOID
+        # 标记 VOID 区域
         void_count = 0
-        for gy in range(accessible_grids, self.height):
-            for gx in range(self.width):
-                # 边界行不标记为 VOID（门的位置）
-                if gy == 0 or gy == self.height - 1:
-                    continue
-                # 边界列不标记为 VOID（门的位置）
-                if gx == 0 or gx == self.width - 1:
-                    continue
+        for gy in range(*void_gy_range):
+            for gx in range(*void_gx_range):
                 # 已经是墙壁的不处理
                 if self.grid.get((gx, gy)) == TileType.WALL:
                     continue
@@ -427,7 +445,9 @@ class GameMap:
                 self.void_tiles.add((gx, gy))
                 void_count += 1
 
-        logger.debug(f"[GameMap] Marked {void_count} VOID tiles for L-shape room")
+        logger.debug(
+            f"[GameMap] Marked {void_count} VOID tiles for L-shape room (shape={shape})"
+        )
 
     def clear_entities(self):
         """清除所有房间实体"""
