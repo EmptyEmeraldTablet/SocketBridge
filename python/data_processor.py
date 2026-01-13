@@ -320,15 +320,18 @@ class DataParser:
                             tile.is_solid = tile_data.get("solid", False)
 
         # 解析门
+        # DEBUG: Fix doors parsing - doors is dict format per DATA_PROTOCOL.md
+        # {"0": {"target_room": 3, "is_open": true, ...}, "1": {...}}
         if "doors" in data:
-            for door_data in data["doors"]:
+            for door_idx, door_data in data["doors"].items():
                 door = DoorData(
-                    direction=door_data.get("direction", 0),
+                    direction=int(door_idx) if door_idx.isdigit() else 0,
                     door_type=door_data.get("type", "door"),
                     target_room=door_data.get("target_room", -1),
                     is_open=door_data.get("is_open", False),
                 )
                 layout.doors.append(door)
+            logger.debug(f"[DataParser] Parsed {len(layout.doors)} doors")
 
         return layout
 

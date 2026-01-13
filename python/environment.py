@@ -22,6 +22,7 @@ from models import (
     RoomInfo,
     EnemyData,
     ProjectileData,
+    DoorData,
 )
 
 logger = logging.getLogger("Environment")
@@ -110,6 +111,10 @@ class GameMap:
         # 虚空区域（L型房间的缺口），这些位置不属于房间
         self.void_tiles: Set[Tuple[int, int]] = set()
 
+        # 门数据（从 ROOM_LAYOUT.doors 解析）
+        # DoorData: direction (0-7), type, target_room, is_open
+        self.doors: List[DoorData] = []
+
         # 初始化为空地图
         self._initialize_empty_map()
 
@@ -160,6 +165,7 @@ class GameMap:
         # 重新初始化网格
         self.grid.clear()
         self.static_obstacles.clear()
+        self.doors.clear()  # DEBUG: Clear doors when no layout data
         self._initialize_empty_map()
 
         # 默认创建一个空房间（墙壁边界）
@@ -256,6 +262,32 @@ class GameMap:
 
             logger.debug(
                 f"[GameMap] Marked {wall_count} walls, {len(self.static_obstacles)} static obstacles"
+            )
+
+        # DEBUG: Parse doors from ROOM_LAYOUT
+        # Doors format per DATA_PROTOCOL.md:
+        # {"0": {"target_room": 3, "target_room_type": 1, "is_open": true, "is_locked": false}, ...}
+        doors_data = layout_data.get("doors", {})
+        if isinstance(doors_data, dict) and doors_data:
+            self.doors.clear()
+            for door_idx, door_info in doors_data.items():
+                try:
+                    door = DoorData(
+                        direction=int(door_idx) if door_idx.isdigit() else 0,
+                        door_type=door_info.get("type", "door"),
+                        target_room=door_info.get("target_room", -1),
+                        is_open=door_info.get("is_open", False),
+                    )
+                    self.doors.append(door)
+                except (ValueError, TypeError) as e:
+                    logger.warning(
+                        f"[GameMap] Failed to parse door at index {door_idx}: {e}"
+                    )
+            logger.debug(f"[GameMap] Parsed {len(self.doors)} doors from ROOM_LAYOUT")
+        else:
+            self.doors.clear()
+            logger.debug(
+                f"[GameMap] No doors data in ROOM_LAYOUT (doors_data={doors_data})"
             )
 
         # DEBUG: Log VOID handling status
