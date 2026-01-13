@@ -39,6 +39,59 @@ class TileType(Enum):
     VOID = 5  # 虚空，不属于房间（L型房间的缺口）
 
 
+class EntityType(Enum):
+    """房间实体类型枚举
+
+    用于分类和注册所有房间内实体，支持扩展新类型。
+    """
+
+    # 危险物
+    FIRE_HAZARD = "fire_hazard"  # 火堆
+    SPIKES = "spikes"  # 尖刺
+    BOMB = "bomb"  # 炸弹
+
+    # 可交互物
+    BUTTON = "button"  # 按钮
+    DESTRUCTIBLE = "destructible"  # 可破坏物
+    INTERACTABLE = "interactable"  # 可互动实体（机器、乞丐等）
+    PICKUP = "pickup"  # 可拾取物
+
+    # 特殊
+    TRAPDOOR = "trapdoor"  # 活板门（下一层）
+    CRAWLSPACE = "crawlspace"  # 夹层入口
+
+
+@dataclass
+class RoomEntity:
+    """房间实体
+
+    统一存储所有房间内非玩家实体。
+    """
+
+    entity_type: EntityType  # 实体类型
+    entity_id: int  # 游戏内 ID
+    position: Vector2D  # 像素坐标
+    variant_name: str = ""  # 变种名称
+    state: int = 0  # 状态
+    distance: float = 0.0  # 到玩家距离
+    radius: float = 20.0  # 碰撞半径
+    is_active: bool = True  # 是否激活
+    extra_data: Dict[str, Any] = field(default_factory=dict)  # 额外数据
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "type": self.entity_type.value,
+            "id": self.entity_id,
+            "x": self.position.x,
+            "y": self.position.y,
+            "variant": self.variant_name,
+            "state": self.state,
+            "distance": self.distance,
+            "active": self.is_active,
+        }
+
+
 @dataclass
 class Obstacle:
     """障碍物"""
@@ -114,6 +167,20 @@ class GameMap:
         # 门数据（从 ROOM_LAYOUT.doors 解析）
         # DoorData: direction (0-7), type, target_room, is_open
         self.doors: List[DoorData] = []
+
+        # 房间实体注册表 (EntityType -> List[RoomEntity])
+        # 用于存储: FIRE_HAZARDS, BUTTONS, DESTRUCTIBLES, INTERACTABLES, PICKUPS, etc.
+        self.entities: Dict[EntityType, List[RoomEntity]] = {
+            EntityType.FIRE_HAZARD: [],
+            EntityType.SPIKES: [],
+            EntityType.BOMB: [],
+            EntityType.BUTTON: [],
+            EntityType.DESTRUCTIBLE: [],
+            EntityType.INTERACTABLE: [],
+            EntityType.PICKUP: [],
+            EntityType.TRAPDOOR: [],
+            EntityType.CRAWLSPACE: [],
+        }
 
         # 初始化为空地图
         self._initialize_empty_map()
@@ -360,6 +427,215 @@ class GameMap:
                 void_count += 1
 
         logger.debug(f"[GameMap] Marked {void_count} VOID tiles for L-shape room")
+
+    def clear_entities(self):
+        """清除所有房间实体"""
+        for entity_list in self.entities.values():
+            entity_list.clear()
+        logger.debug("[GameMap] Cleared all entities")
+
+    # ========== 实体更新方法 ==========
+
+    def update_fire_hazards(self, fire_data: List[Dict[str, Any]]):
+        """更新火堆数据
+
+        Args:
+            fire_data: FIRE_HAZARDS 通道数据
+                [{"id": 60, "type": "FIREPLACE", "pos": {"x": 400, "y": 350}, ...}]
+        """
+        self.entities[EntityType.FIRE_HAZARD].clear()
+        count = 0
+        for fire in fire_data:
+            try:
+                entity = RoomEntity(
+                    entity_type=EntityType.FIRE_HAZARD,
+                    entity_id=fire.get("id", 0),
+                    position=Vector2D(
+                        fire.get("pos", {}).get("x", 0), fire.get("pos", {}).get("y", 0)
+                    ),
+                    variant_name=fire.get("fireplace_type", fire.get("type", "")),
+                    state=fire.get("state", 0),
+                    distance=fire.get("distance", 0.0),
+                    radius=fire.get("collision_radius", 25.0),
+                    is_active=not fire.get("is_extinguished", False),
+                    extra_data={
+                        "hp": fire.get("hp", 0),
+                        "max_hp": fire.get("max_hp", 0),
+                        "is_shooting": fire.get("is_shooting", False),
+                    },
+                )
+                self.entities[EntityType.FIRE_HAZARD].append(entity)
+                count += 1
+            except (ValueError, TypeError) as e:
+                logger.warning(f"[GameMap] Failed to parse fire_hazard: {e}")
+
+        logger.debug(f"[GameMap] Updated {count} fire_hazards")
+
+    def update_buttons(self, button_data: Dict[str, Dict[str, Any]]):
+        """更新按钮数据
+
+        Args:
+            button_data: BUTTONS 通道数据
+                {"0": {"type": 18, "variant_name": "NORMAL", "x": 320, "y": 400, ...}, ...}
+        """
+        self.entities[EntityType.BUTTON].clear()
+        count = 0
+        for idx, btn in button_data.items():
+            try:
+                entity = RoomEntity(
+                    entity_type=EntityType.BUTTON,
+                    entity_id=int(idx) if idx.isdigit() else 0,
+                    position=Vector2D(btn.get("x", 0), btn.get("y", 0)),
+                    variant_name=btn.get("variant_name", ""),
+                    state=btn.get("state", 0),
+                    distance=btn.get("distance", 0.0),
+                    radius=15.0,
+                    is_active=not btn.get("is_pressed", False),
+                    extra_data={
+                        "btn_type": btn.get("type", 0),
+                        "btn_variant": btn.get("variant", 0),
+                    },
+                )
+                self.entities[EntityType.BUTTON].append(entity)
+                count += 1
+            except (ValueError, TypeError) as e:
+                logger.warning(f"[GameMap] Failed to parse button: {e}")
+
+        logger.debug(f"[GameMap] Updated {count} buttons")
+
+    def update_destructibles(self, destructible_data: List[Dict[str, Any]]):
+        """更新可破坏物数据
+
+        Args:
+            destructible_data: DESTRUCTIBLES 通道数据
+                [{"id": 30, "type": 20, "variant_name": "CRACKED_ROCK", "pos": {...}, ...}]
+        """
+        self.entities[EntityType.DESTRUCTIBLE].clear()
+        count = 0
+        for dest in destructible_data:
+            try:
+                entity = RoomEntity(
+                    entity_type=EntityType.DESTRUCTIBLE,
+                    entity_id=dest.get("id", 0),
+                    position=Vector2D(
+                        dest.get("pos", {}).get("x", 0), dest.get("pos", {}).get("y", 0)
+                    ),
+                    variant_name=dest.get("variant_name", ""),
+                    state=dest.get("state", 0),
+                    distance=dest.get("distance", 0.0),
+                    radius=dest.get("collision_radius", 20.0),
+                    is_active=dest.get("state", 0) == 0,  # state=0 表示未破坏
+                    extra_data={
+                        "dest_type": dest.get("type", 0),
+                        "dest_variant": dest.get("variant", 0),
+                    },
+                )
+                self.entities[EntityType.DESTRUCTIBLE].append(entity)
+                count += 1
+            except (ValueError, TypeError) as e:
+                logger.warning(f"[GameMap] Failed to parse destructible: {e}")
+
+        logger.debug(f"[GameMap] Updated {count} destructibles")
+
+    def update_interactables(self, interactable_data: List[Dict[str, Any]]):
+        """更新可交互实体数据
+
+        Args:
+            interactable_data: INTERACTABLES 通道数据
+                [{"id": 40, "variant_name": "SLOT_MACHINE", "pos": {...}, ...}]
+        """
+        self.entities[EntityType.INTERACTABLE].clear()
+        count = 0
+        for entity_data in interactable_data:
+            try:
+                entity = RoomEntity(
+                    entity_type=EntityType.INTERACTABLE,
+                    entity_id=entity_data.get("id", 0),
+                    position=Vector2D(
+                        entity_data.get("pos", {}).get("x", 0),
+                        entity_data.get("pos", {}).get("y", 0),
+                    ),
+                    variant_name=entity_data.get("variant_name", ""),
+                    state=entity_data.get("state", 0),
+                    distance=entity_data.get("distance", 0.0),
+                    radius=25.0,  # 机器通常较大
+                    is_active=True,
+                    extra_data={
+                        "entity_type": entity_data.get("type", 0),
+                        "entity_variant": entity_data.get("variant", 0),
+                        "sub_type": entity_data.get("sub_type", 0),
+                    },
+                )
+                self.entities[EntityType.INTERACTABLE].append(entity)
+                count += 1
+            except (ValueError, TypeError) as e:
+                logger.warning(f"[GameMap] Failed to parse interactable: {e}")
+
+        logger.debug(f"[GameMap] Updated {count} interactables")
+
+    def update_pickups(self, pickup_data: List[Dict[str, Any]]):
+        """更新可拾取物数据
+
+        Args:
+            pickup_data: PICKUPS 通道数据
+                [{"id": 50, "variant": 20, "sub_type": 1, "pos": {...}, ...}]
+        """
+        self.entities[EntityType.PICKUP].clear()
+        count = 0
+        for pickup in pickup_data:
+            try:
+                entity = RoomEntity(
+                    entity_type=EntityType.PICKUP,
+                    entity_id=pickup.get("id", 0),
+                    position=Vector2D(
+                        pickup.get("pos", {}).get("x", 0)
+                        if "pos" in pickup
+                        else pickup.get("x", 0),
+                        pickup.get("pos", {}).get("y", 0)
+                        if "pos" in pickup
+                        else pickup.get("y", 0),
+                    ),
+                    variant_name=self._get_pickup_name(pickup.get("variant", 0)),
+                    state=pickup.get("sub_type", 0),
+                    distance=pickup.get("distance", 0.0),
+                    radius=15.0,
+                    is_active=True,
+                    extra_data={
+                        "pickup_variant": pickup.get("variant", 0),
+                        "price": pickup.get("price", 0),
+                        "shop_id": pickup.get("shop_item_id", -1),
+                    },
+                )
+                self.entities[EntityType.PICKUP].append(entity)
+                count += 1
+            except (ValueError, TypeError) as e:
+                logger.warning(f"[GameMap] Failed to parse pickup: {e}")
+
+        logger.debug(f"[GameMap] Updated {count} pickups")
+
+    def _get_pickup_name(self, variant: int) -> str:
+        """获取拾取物名称"""
+        pickup_names = {
+            10: "HEART",
+            12: "COIN",
+            15: "KEY",
+            17: "BOMB",
+            20: "COLLECTIBLE",
+            21: "SHOP_ITEM",
+            22: "ENDING",
+        }
+        return pickup_names.get(variant, f"UNKNOWN_{variant}")
+
+    def get_entities_by_type(self, entity_type: EntityType) -> List[RoomEntity]:
+        """按类型获取实体列表"""
+        return self.entities.get(entity_type, [])
+
+    def get_all_entities(self) -> List[RoomEntity]:
+        """获取所有实体"""
+        all_entities = []
+        for entity_list in self.entities.values():
+            all_entities.extend(entity_list)
+        return all_entities
 
     def _is_edge_tile(self, gx: int, gy: int) -> bool:
         """检查是否是边界格子（L型房间的边缘必须是实际房间区域）"""
@@ -870,6 +1146,7 @@ class EnvironmentModel:
         enemies: Dict[int, EnemyData],
         projectiles: Dict[int, ProjectileData],
         room_layout: Optional[Dict[str, Any]] = None,
+        entity_data: Optional[Dict[str, Any]] = None,
     ):
         """更新环境模型
 
@@ -878,6 +1155,14 @@ class EnvironmentModel:
             enemies: 敌人数据
             projectiles: 投射物数据
             room_layout: ROOM_LAYOUT原始数据（支持L型房间）
+            entity_data: 其他实体数据（可选）
+                {
+                    "FIRE_HAZARDS": [...],
+                    "BUTTONS": {...},
+                    "DESTRUCTIBLES": [...],
+                    "INTERACTABLES": [...],
+                    "PICKUPS": [...],
+                }
         """
         # 如果房间变化了，或者第一次有布局数据，重置地图
         # 注意：初始房间的room_index可能是-1，需要特殊处理
@@ -901,6 +1186,25 @@ class EnvironmentModel:
 
         # 更新动态障碍物
         self.game_map.update_dynamic_obstacles(enemies, projectiles)
+
+        # 更新房间实体（如果提供）
+        if entity_data:
+            self.game_map.clear_entities()
+
+            if "FIRE_HAZARDS" in entity_data:
+                self.game_map.update_fire_hazards(entity_data["FIRE_HAZARDS"])
+
+            if "BUTTONS" in entity_data:
+                self.game_map.update_buttons(entity_data["BUTTONS"])
+
+            if "DESTRUCTIBLES" in entity_data:
+                self.game_map.update_destructibles(entity_data["DESTRUCTIBLES"])
+
+            if "INTERACTABLES" in entity_data:
+                self.game_map.update_interactables(entity_data["INTERACTABLES"])
+
+            if "PICKUPS" in entity_data:
+                self.game_map.update_pickups(entity_data["PICKUPS"])
 
     def is_safe(self, position: Vector2D) -> Tuple[bool, float]:
         """
