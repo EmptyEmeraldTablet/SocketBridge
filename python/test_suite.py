@@ -42,6 +42,8 @@ from data_replay_system import RawMessage, LuaSimulator
 from models import (
     Vector2D,
     PlayerData,
+    PlayerStatsData,
+    PlayerHealthData,
     EnemyData,
     ProjectileData,
     GameStateData,
@@ -1220,6 +1222,153 @@ class TestReplayIntegration:
 
 
 # ============================================================================
+# 状态保持测试 (models.py, data_processor.py)
+# ============================================================================
+
+
+class TestStatePersistence:
+    """状态保持功能测试类"""
+
+    def test_channel_last_update(self) -> bool:
+        """测试通道最后更新帧跟踪"""
+        state = GameStateData()
+        state.frame = 100
+
+        # 初始状态
+        assert state.get_channel_last_frame("PLAYER_STATS") is None, "初始应该为None"
+
+        # 标记更新
+        state.mark_channel_updated("PLAYER_STATS", 100)
+        assert state.get_channel_last_frame("PLAYER_STATS") == 100, "应该返回100"
+
+        # 检查过期
+        state.frame = 110
+        assert state.is_channel_stale("PLAYER_STARS", max_staleness=5), "应该过期"
+
+        return True
+
+    def test_cleanup_stale_entities(self) -> bool:
+        """测试过期实体清理"""
+        state = GameStateData()
+        state.frame = 100
+
+        # 添加敌人
+        enemy = EnemyData(enemy_id=1, position=Vector2D(400, 200))
+        enemy.last_seen_frame = 30  # 70帧前看到，超过60帧阈值
+        state.enemies[1] = enemy
+
+        # 添加投射物
+        proj = ProjectileData(projectile_id=1, position=Vector2D(300, 200))
+        proj.last_seen_frame = 30
+        proj.is_enemy = True
+        state.projectiles[1] = proj
+
+        # 清理（当前帧100，阈值60，应该清理70帧之前看到的实体）
+        state.cleanup_stale_entities(100)
+
+        assert len(state.enemies) == 0, "敌人应该被清理"
+        assert len(state.projectiles) == 0, "投射物应该被清理"
+
+        return True
+
+    def test_player_stats_shortcut(self) -> bool:
+        """测试玩家属性快捷方法"""
+        state = GameStateData()
+        state.frame = 100
+
+        # 添加 player_stats
+        stats = PlayerStatsData(
+            player_idx=1,
+            damage=5.0,
+            speed=1.2,
+            tears=15.0,
+        )
+        state.player_stats[1] = stats
+
+        # 测试获取
+        result = state.get_primary_player_stats()
+        assert result is not None, "应该返回player_stats"
+        assert result.damage == 5.0, "伤害值错误"
+        assert result.speed == 1.2, "速度值错误"
+
+        return True
+
+    def test_player_health_ratio_fallback(self) -> bool:
+        """测试血量比例回退逻辑"""
+        state = GameStateData()
+        state.frame = 100
+
+        # 初始状态（无 player_health）
+        ratio = state.get_primary_player_health_ratio()
+        assert ratio == 1.0, "无数据时应该返回1.0"
+
+        # 添加 player_health
+        health = PlayerHealthData(
+            player_idx=1,
+            red_hearts=3,
+            max_red_hearts=6,
+            soul_hearts=2,
+        )
+        state.player_health[1] = health
+
+        # 测试（3红心+2灵魂心=4心，最大6心=2/3）
+        ratio = state.get_primary_player_health_ratio()
+        assert abs(ratio - (4.0 / 6.0)) < 0.01, f"血量比例计算错误: {ratio}"
+
+        return True
+
+    def test_get_stats_fallback(self) -> bool:
+        """测试 PlayerData.get_stats() 回退"""
+        player = PlayerData(player_idx=1, position=Vector2D(300, 200))
+        player.damage = 4.0
+        player.speed = 1.1
+
+        # 无 player_stats 时回退到 PlayerData
+        stats = player.get_stats(None)
+        assert stats.damage == 4.0, "应该从PlayerData获取伤害"
+        assert stats.speed == 1.1, "应该从PlayerData获取速度"
+
+        # 有 player_stats 时优先使用
+        stats2 = PlayerStatsData(
+            player_idx=1,
+            damage=6.0,
+            speed=1.3,
+        )
+        stats3 = player.get_stats(stats2)
+        assert stats3.damage == 6.0, "应该优先使用player_stats"
+        assert stats3.speed == 1.3, "应该优先使用player_stats"
+
+        return True
+
+    def run_all(self) -> Tuple[int, int]:
+        """运行所有状态保持测试"""
+        tests = [
+            ("Channel Last Update", self.test_channel_last_update),
+            ("Cleanup Stale Entities", self.test_cleanup_stale_entities),
+            ("Player Stats Shortcut", self.test_player_stats_shortcut),
+            ("Player Health Ratio Fallback", self.test_player_health_ratio_fallback),
+            ("Get Stats Fallback", self.test_get_stats_fallback),
+        ]
+
+        passed = 0
+        failed = 0
+
+        for name, test_func in tests:
+            try:
+                if test_func():
+                    print(f"  ✅ {name}: PASSED")
+                    passed += 1
+                else:
+                    print(f"  ❌ {name}: 返回 False")
+                    failed += 1
+            except Exception as e:
+                print(f"  ❌ {name}: {e}")
+                failed += 1
+
+        return passed, failed
+
+
+# ============================================================================
 # 主测试运行器
 # ============================================================================
 
@@ -1308,6 +1457,16 @@ def run_all_tests(
         total_failed += failed
         print(f"  小计: {passed} 通过, {failed} 失败")
         print()
+
+    # 7. 状态保持测试
+    print("💾 状态保持测试")
+    print("-" * 50)
+    tester = TestStatePersistence()
+    passed, failed = tester.run_all()
+    total_passed += passed
+    total_failed += failed
+    print(f"  小计: {passed} 通过, {failed} 失败")
+    print()
 
     # 最终总结
     print("=" * 70)

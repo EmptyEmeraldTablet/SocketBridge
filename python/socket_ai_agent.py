@@ -276,11 +276,104 @@ class SocketAIAgent:
 
             # 3. Update environment
             if game_state.room_info:
+                # Build entity data from game_state for room entities
+                entity_data = {}
+                if game_state.fire_hazards:
+                    entity_data["FIRE_HAZARDS"] = [
+                        {
+                            "id": fid,
+                            "type": fh.fire_type,
+                            "pos": {"x": fh.position.x, "y": fh.position.y},
+                            "fireplace_type": fh.fire_type,
+                            "state": fh.state.value
+                            if hasattr(fh.state, "value")
+                            else fh.state,
+                            "collision_radius": fh.collision_radius,
+                            "is_extinguished": fh.is_extinguished,
+                            "is_shooting": fh.is_shooting,
+                            "hp": fh.hp,
+                            "max_hp": fh.max_hp,
+                            "distance": fh.position.distance_to(player.position)
+                            if player
+                            else 0.0,
+                        }
+                        for fid, fh in game_state.fire_hazards.items()
+                    ]
+
+                if game_state.buttons:
+                    entity_data["BUTTONS"] = {
+                        str(bid): {
+                            "type": btn.button_type,
+                            "variant": btn.variant,
+                            "variant_name": btn.variant_name,
+                            "x": btn.position.x,
+                            "y": btn.position.y,
+                            "state": btn.state,
+                            "is_pressed": btn.is_pressed,
+                            "distance": btn.distance,
+                        }
+                        for bid, btn in game_state.buttons.items()
+                    }
+
+                if game_state.interactables:
+                    entity_data["INTERACTABLES"] = [
+                        {
+                            "id": iid,
+                            "type": ent.entity_type,
+                            "variant": ent.variant,
+                            "variant_name": ent.variant_name,
+                            "pos": {"x": ent.position.x, "y": ent.position.y},
+                            "state": ent.state,
+                            "sub_type": ent.sub_type,
+                            "distance": ent.position.distance_to(player.position)
+                            if player
+                            else 0.0,
+                        }
+                        for iid, ent in game_state.interactables.items()
+                    ]
+
+                if game_state.obstacles:
+                    entity_data["DESTRUCTIBLES"] = [
+                        {
+                            "id": oid,
+                            "type": dest.obj_type,
+                            "variant": dest.variant,
+                            "variant_name": "DESTRUCTIBLE",
+                            "pos": {"x": dest.position.x, "y": dest.position.y},
+                            "state": dest.state.value
+                            if hasattr(dest.state, "value")
+                            else dest.state,
+                            "collision_radius": dest.collision_radius,
+                            "distance": dest.position.distance_to(player.position)
+                            if player
+                            else 0.0,
+                        }
+                        for oid, dest in game_state.obstacles.items()
+                    ]
+
+                if game_state.pickups:
+                    entity_data["PICKUPS"] = [
+                        {
+                            "id": pid,
+                            "type": p.pickup_type,
+                            "sub_type": p.sub_type,
+                            "variant": p.variant,
+                            "pos": {"x": p.position.x, "y": p.position.y},
+                            "is_shop_item": p.is_shop_item,
+                            "price": p.price,
+                            "distance": p.position.distance_to(player.position)
+                            if player
+                            else 0.0,
+                        }
+                        for pid, p in game_state.pickups.items()
+                    ]
+
                 self.environment.update_room(
                     room_info=game_state.room_info,
                     enemies=game_state.enemies,
                     projectiles=game_state.projectiles,
                     room_layout=game_state.raw_room_layout,
+                    entity_data=entity_data if entity_data else None,
                 )
 
             # Sync dynamic obstacles to pathfinder
