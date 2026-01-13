@@ -793,6 +793,35 @@ CollectorRegistry:register("ROOM_INFO", {
 })
 
 -- 房间布局/障碍物 (变化时)
+-- ============================================================================
+-- 调试: 记录所有 GridType (临时诊断用)
+-- ============================================================================
+local function diagnoseGridTypes(room, forcePrint)
+    if not forcePrint and math.random(1, 600) ~= 1 then  -- 每10秒左右输出一次
+        return
+    end
+    
+    local types = {}
+    for i = 0, room:GetGridSize() - 1 do
+        local gridEntity = room:GetGridEntity(i)
+        if gridEntity then
+            local gridType = gridEntity:GetType()
+            types[gridType] = (types[gridType] or 0) + 1
+        end
+    end
+    
+    local typeStr = ""
+    for t, count in pairs(types) do
+        typeStr = typeStr .. string.format("%d:%d ", t, count)
+    end
+    print(string.format("[SocketBridge DEBUG] GridTypes in room: %s", typeStr))
+end
+
+-- ============================================================================
+-- 数据收集器定义
+-- ============================================================================
+
+-- 房间布局/障碍物 (变化时)
 CollectorRegistry:register("ROOM_LAYOUT", {
     interval = "LOW",
     priority = 2,
@@ -800,52 +829,14 @@ CollectorRegistry:register("ROOM_LAYOUT", {
         local room = Helpers.getRoom()
         if not room then return nil end
 
+        -- 调试: 诊断房间中的 GridType
+        diagnoseGridTypes(room, false)
+        
         local grid = {}
         local doors = {}
         local width = room:GetGridWidth()
 
-        -- 石头类型 (GridType 1000-1020 范围)
-        local ROCK_VARIANTS = {
-            [0] = "NORMAL",       -- 普通石头
-            [1] = "TINTED",       -- 标记石头
-            [2] = "SUPER_TINTED", -- 超级标记石头
-            [3] = "BOMB_ROCK",    -- 炸弹石头
-            [4] = "SPIKED",       -- 尖刺石头
-            [5] = "FOOLS_GOLD",   -- 愚人金
-        }
-
-        -- 其它石头类型 (GridType 1000+)
-        local STONE_VARIANTS = {
-            [0] = "NORMAL",       -- 普通石头
-            [1] = "TINTED",       -- 标记石头
-        }
-
-        -- 可破坏的"石头"变体
-        local DESTRUCTIBLE_STONE_VARIANTS = {
-            [0] = "URN",          -- 罐子
-            [1] = "BUCKET_EMPTY", -- 空桶
-            [2] = "BUCKET_WATER", -- 水桶
-            [3] = "BUCKET_POOP",  -- 粪桶
-            [4] = "MUSHROOM",     -- 蘑菇
-            [5] = "SKULL",        -- 头骨
-            [6] = "TINTED_SKULL", -- 标记头骨
-            [7] = "POLYP",        -- 息肉
-            [8] = "STICKY_URN",   -- 黏液罐
-        }
-
-        -- 方块类型
-        local BLOCK_VARIANTS = {
-            [0] = "METAL",        -- 钢铁方块
-            [1] = "KEY",          -- 钥匙方块
-            [2] = "PILLAR",       -- 柱子
-        }
-
-        -- 坑类型
-        local PIT_VARIANTS = {
-            [0] = "POOL",         -- 坑池
-            [1] = "HOLE",         -- 洞
-        }
-
+        -- 收集所有 grid entity，不再限制特定类型
         for i = 0, room:GetGridSize() - 1 do
             local gridEntity = room:GetGridEntity(i)
             if gridEntity then
@@ -853,86 +844,45 @@ CollectorRegistry:register("ROOM_LAYOUT", {
                 local collision = gridEntity.CollisionClass
                 local variant = gridEntity:GetVariant()
                 local state = gridEntity.State
-
-                -- 只收集基本不可变的障碍物
-                local shouldCollect = false
-                local variantName = nil
-
-                -- 石头类 (GridType 1000-1020, 但 1006 是 TNT 需要排除)
-                if gridType >= 1000 and gridType <= 1020 and gridType ~= 1006 and gridType ~= 1011 then
-                    shouldCollect = true
-                    -- 根据 GridType 确定具体类型
-                    if gridType == 1000 then
-                        variantName = ROCK_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1001 then
-                        variantName = STONE_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1002 then
-                        variantName = "CRACKED"
-                    elseif gridType == 1003 then
-                        variantName = "COBBLE"
-                    elseif gridType == 1004 then
-                        variantName = "WOODEN"
-                    elseif gridType == 1005 then
-                        variantName = DESTRUCTIBLE_STONE_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1007 then
-                        variantName = "BUCKET_WATER"
-                    elseif gridType == 1008 then
-                        variantName = "BUCKET_POOP"
-                    elseif gridType == 1009 then
-                        variantName = "EVENT"
-                    elseif gridType == 1010 then
-                        variantName = DESTRUCTIBLE_STONE_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1012 then
-                        variantName = "MOSS"
-                    elseif gridType == 1013 then
-                        variantName = "FIREPLACE"  -- 火堆由 FIRE_HAZARDS 处理
-                    elseif gridType == 1014 then
-                        variantName = "WALL"
-                    elseif gridType == 1015 then
-                        variantName = "POT"
-                    elseif gridType == 1016 then
-                        variantName = BLOCK_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1017 then
-                        variantName = PIT_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1018 then
-                        variantName = "SPIKES"
-                    elseif gridType == 1019 then
-                        variantName = "WEB"
-                    elseif gridType == 1020 then
-                        variantName = "TRAPDOOR"
-                    end
-                end
-
-                -- 方块 (GridType 16)
-                if gridType == 16 then
-                    shouldCollect = true
-                    variantName = BLOCK_VARIANTS[variant] or "UNKNOWN"
-                end
-
-                -- 坑 (GridType 17)
-                if gridType == 17 then
-                    shouldCollect = true
-                    variantName = PIT_VARIANTS[variant] or "UNKNOWN"
-                end
-
-                -- 尖刺 (GridType 8-9) - 保留作为危险地形
-                if gridType == 8 or gridType == 9 then
-                    shouldCollect = true
-                    variantName = (gridType == 8) and "SPIKES" or "POISON_SPIKES"
-                end
-
-                -- 蜘蛛网 (GridType 10)
-                if gridType == 10 then
-                    shouldCollect = true
-                    variantName = "WEB"
-                end
-
-                if shouldCollect then
+                
+                -- 排除门 (GridType 1)，门由 door 系统单独处理
+                if gridType ~= 1 then
                     local pos = room:GetGridPosition(i)
+                    
+                    -- 根据 GridType 确定类型名称
+                    local typeName = "UNKNOWN"
+                    if gridType >= 1000 then
+                        typeName = "GRID_1000Plus"
+                    elseif gridType == 0 then
+                        typeName = "ROCK"
+                    elseif gridType == 2 then
+                        typeName = "ROCK_ALT"
+                    elseif gridType == 8 then
+                        typeName = "SPIKES"
+                    elseif gridType == 9 then
+                        typeName = "POISON_SPIKES"
+                    elseif gridType == 10 then
+                        typeName = "WEB"
+                    elseif gridType == 12 then
+                        typeName = "TNT"
+                    elseif gridType == 14 then
+                        typeName = "POOP"
+                    elseif gridType == 15 then
+                        typeName = "PIT"
+                    elseif gridType == 16 then
+                        typeName = "BLOCK"
+                    elseif gridType == 17 then
+                        typeName = "PIT_VARIANT"
+                    elseif gridType == 18 then
+                        typeName = "BUTTON"
+                    else
+                        typeName = string.format("TYPE_%d", gridType)
+                    end
+                    
                     grid[tostring(i)] = {
                         type = gridType,
                         variant = variant,
-                        variant_name = variantName,
+                        type_name = typeName,
                         state = state,
                         collision = collision,
                         x = pos.X,
@@ -942,6 +892,7 @@ CollectorRegistry:register("ROOM_LAYOUT", {
             end
         end
 
+        -- 门处理
         for slot = 0, DoorSlot.NUM_DOOR_SLOTS - 1 do
             local door = room:GetDoor(slot)
             if door then
@@ -1286,27 +1237,29 @@ CollectorRegistry:register("DESTRUCTIBLES", {
         local player = Isaac.GetPlayer(0)
         if not player then return {} end
         
-        local playerPos = player.Position
         local room = Helpers.getRoom()
         local obstacles = {}
         
-        -- 可被泪弹直接破坏的障碍物类型（排除火堆和罐子）
+        -- 扩大可收集的障碍物类型
         local DESTRUCTIBLE_TYPES = {
             [12] = "tnt",
-            [14] = "poop",  -- 大便 (已特殊处理类型)
+            [14] = "poop",
+            -- 添加更多可破坏障碍物类型
+            [3] = "rock_alt",       -- 替代石头
+            [4] = "pit",            -- 坑
         }
         
         -- 大便变种类型
         local POOP_VARIANTS = {
-            [0] = "NORMAL",      -- 普通大便
-            [1] = "CORN",        -- 玉米大便
-            [2] = "RED",         -- 红大便 (燃烧伤害，3秒后重生)
-            [3] = "GOLD",        -- 金大便 (6-12击，掉落硬币/假币)
-            [4] = "RAINBOW",     -- 彩虹大便 (回复红心)
-            [5] = "BLACK",       -- 黑大便 (房间变暗，敌人混沌)
-            [6] = "HOLY",        -- 白大便 (光环效果)
-            [7] = "GIANT",       -- 巨型大便 (20-40击)
-            [8] = "CHARMING",    -- 友好大便 (产生粪滴跟班)
+            [0] = "NORMAL",
+            [1] = "CORN",
+            [2] = "RED",
+            [3] = "GOLD",
+            [4] = "RAINBOW",
+            [5] = "BLACK",
+            [6] = "HOLY",
+            [7] = "GIANT",
+            [8] = "CHARMING",
         }
         
         for i = 0, room:GetGridSize() - 1 do
@@ -1317,27 +1270,26 @@ CollectorRegistry:register("DESTRUCTIBLES", {
                 
                 if typeName then
                     local pos = room:GetGridPosition(i)
-                    local dist = playerPos:Distance(pos)
+                    local dist = player.Position:Distance(pos)
                     
-                    if dist < 500 then
-                        local obstacleData = {
-                            grid_index = i,
-                            type = gridType,
-                            name = typeName,
-                            pos = Helpers.vectorToTable(pos),
-                            state = grid.State,
-                            distance = dist,
-                        }
-                        
-                        -- 大便特殊处理
-                        if gridType == 14 then
-                            local variant = grid:GetVariant() or 0
-                            obstacleData.variant = variant
-                            obstacleData.variant_name = POOP_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
-                        end
-                        
-                        table.insert(obstacles, obstacleData)
+                    -- 移除距离限制，收集所有可破坏障碍物
+                    local obstacleData = {
+                        grid_index = i,
+                        type = gridType,
+                        name = typeName,
+                        pos = Helpers.vectorToTable(pos),
+                        state = grid.State,
+                        distance = dist,
+                    }
+                    
+                    -- 大便特殊处理
+                    if gridType == 14 then
+                        local variant = grid:GetVariant() or 0
+                        obstacleData.variant = variant
+                        obstacleData.variant_name = POOP_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
                     end
+                    
+                    table.insert(obstacles, obstacleData)
                 end
             end
         end
