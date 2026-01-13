@@ -1,0 +1,584 @@
+{
+  "analysis_time": "2026-01-13T11:38:05.482061",
+  "summary": {
+    "total_rooms": 9,
+    "rectangle_rooms": 9,
+    "l_shape_rooms": 0,
+    "unknown_rooms": 0
+  },
+  "rooms": [
+    {
+      "session": "session_20260112_005209",
+      "room_index": 84,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type_code": 1,
+      "room_type_name": "BEDROOM",
+      "grid_size": "15x9",
+      "detected_shape": "rectangle",
+      "confidence": 1.0,
+      "reason": "Shape Code 1 = 标准房间 (normal)",
+      "bounds": {
+        "min_x": 60.0,
+        "min_y": 140.0,
+        "max_x": 580.0,
+        "max_y": 420.0
+      }
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 83,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type_code": 13,
+      "room_type_name": "DIRTY_BEDROOM",
+      "grid_size": "15x9",
+      "detected_shape": "rectangle",
+      "confidence": 1.0,
+      "reason": "Shape Code 1 = 标准房间 (normal)",
+      "bounds": {
+        "min_x": 60.0,
+        "min_y": 140.0,
+        "max_x": 580.0,
+        "max_y": 420.0
+      }
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 71,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type_code": 1,
+      "room_type_name": "BEDROOM",
+      "grid_size": "15x9",
+      "detected_shape": "rectangle",
+      "confidence": 1.0,
+      "reason": "Shape Code 1 = 标准房间 (normal)",
+      "bounds": {
+        "min_x": 60.0,
+        "min_y": 140.0,
+        "max_x": 580.0,
+        "max_y": 420.0
+      }
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 72,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type_code": 4,
+      "room_type_name": "MINIBOSS",
+      "grid_size": "15x9",
+      "detected_shape": "rectangle",
+      "confidence": 1.0,
+      "reason": "Shape Code 1 = 标准房间 (normal)",
+      "bounds": {
+        "min_x": 60.0,
+        "min_y": 140.0,
+        "max_x": 580.0,
+        "max_y": 420.0
+      }
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 97,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type_code": 1,
+      "room_type_name": "BEDROOM",
+      "grid_size": "15x9",
+      "detected_shape": "rectangle",
+      "confidence": 1.0,
+      "reason": "Shape Code 1 = 标准房间 (normal)",
+      "bounds": {
+        "min_x": 60.0,
+        "min_y": 140.0,
+        "max_x": 580.0,
+        "max_y": 420.0
+      }
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 110,
+      "stage": 1,
+      "room_shape": 6,
+      "room_type_code": 1,
+      "room_type_name": "BEDROOM",
+      "grid_size": "28x9",
+      "detected_shape": "rectangle",
+      "confidence": 1.0,
+      "reason": "Shape Code 6 = 两倍宽 (wide)",
+      "bounds": {
+        "min_x": 60.0,
+        "min_y": 140.0,
+        "max_x": 1100.0,
+        "max_y": 420.0
+      }
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 58,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type_code": 1,
+      "room_type_name": "BEDROOM",
+      "grid_size": "15x9",
+      "detected_shape": "rectangle",
+      "confidence": 1.0,
+      "reason": "Shape Code 1 = 标准房间 (normal)",
+      "bounds": {
+        "min_x": 60.0,
+        "min_y": 140.0,
+        "max_x": 580.0,
+        "max_y": 420.0
+      }
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 57,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type_code": 2,
+      "room_type_name": "TREASURE",
+      "grid_size": "15x9",
+      "detected_shape": "rectangle",
+      "confidence": 1.0,
+      "reason": "Shape Code 1 = 标准房间 (normal)",
+      "bounds": {
+        "min_x": 60.0,
+        "min_y": 140.0,
+        "max_x": 580.0,
+        "max_y": 420.0
+      }
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 122,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type_code": 5,
+      "room_type_name": "BOSS",
+      "grid_size": "15x9",
+      "detected_shape": "rectangle",
+      "confidence": 1.0,
+      "reason": "Shape Code 1 = 标准房间 (normal)",
+      "bounds": {
+        "min_x": 60.0,
+        "min_y": 140.0,
+        "max_x": 580.0,
+        "max_y": 420.0
+      }
+    }
+  ],
+  "entity_validation": {
+    "interactables": [
+      {
+        "type": "INTERACTABLE_6_8",
+        "room_index": 57,
+        "stage": 1,
+        "pos": {
+          "x": 200.0,
+          "y": 160.0
+        },
+        "valid": true,
+        "message": "位置合法"
+      }
+    ],
+    "fire_hazards": [
+      {
+        "type": "FIREPLACE",
+        "room_index": 83,
+        "stage": 1,
+        "pos": {
+          "x": 120.0,
+          "y": 200.0
+        },
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "FIREPLACE",
+        "room_index": 83,
+        "stage": 1,
+        "pos": {
+          "x": 520.0,
+          "y": 200.0
+        },
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "FIREPLACE",
+        "room_index": 83,
+        "stage": 1,
+        "pos": {
+          "x": 120.0,
+          "y": 360.0
+        },
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "FIREPLACE",
+        "room_index": 83,
+        "stage": 1,
+        "pos": {
+          "x": 520.0,
+          "y": 360.0
+        },
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "FIREPLACE",
+        "room_index": 57,
+        "stage": 1,
+        "pos": {
+          "x": 280.0,
+          "y": 200.0
+        },
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "FIREPLACE",
+        "room_index": 57,
+        "stage": 1,
+        "pos": {
+          "x": 360.0,
+          "y": 200.0
+        },
+        "valid": true,
+        "message": "位置合法"
+      }
+    ],
+    "obstacles": [
+      {
+        "type": "GRID_16_8",
+        "room_index": 84,
+        "stage": 1,
+        "grid_key": "7",
+        "pos": {
+          "x": 320.0,
+          "y": 120.0
+        },
+        "collision": 5,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 84,
+        "stage": 1,
+        "grid_key": "127",
+        "pos": {
+          "x": 320.0,
+          "y": 440.0
+        },
+        "collision": 5,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 84,
+        "stage": 1,
+        "grid_key": "60",
+        "pos": {
+          "x": 40.0,
+          "y": 280.0
+        },
+        "collision": 5,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_8_3",
+        "room_index": 83,
+        "stage": 1,
+        "grid_key": "67",
+        "pos": {
+          "x": 320.0,
+          "y": 280.0
+        },
+        "collision": 0,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_7",
+        "room_index": 83,
+        "stage": 1,
+        "grid_key": "127",
+        "pos": {
+          "x": 320.0,
+          "y": 440.0
+        },
+        "collision": 4,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 83,
+        "stage": 1,
+        "grid_key": "74",
+        "pos": {
+          "x": 600.0,
+          "y": 280.0
+        },
+        "collision": 5,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 71,
+        "stage": 1,
+        "grid_key": "7",
+        "pos": {
+          "x": 320.0,
+          "y": 120.0
+        },
+        "collision": 4,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 71,
+        "stage": 1,
+        "grid_key": "127",
+        "pos": {
+          "x": 320.0,
+          "y": 440.0
+        },
+        "collision": 4,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 71,
+        "stage": 1,
+        "grid_key": "74",
+        "pos": {
+          "x": 600.0,
+          "y": 280.0
+        },
+        "collision": 4,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 72,
+        "stage": 1,
+        "grid_key": "60",
+        "pos": {
+          "x": 40.0,
+          "y": 280.0
+        },
+        "collision": 5,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 97,
+        "stage": 1,
+        "grid_key": "7",
+        "pos": {
+          "x": 320.0,
+          "y": 120.0
+        },
+        "collision": 5,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 97,
+        "stage": 1,
+        "grid_key": "127",
+        "pos": {
+          "x": 320.0,
+          "y": 440.0
+        },
+        "collision": 5,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_7",
+        "room_index": 97,
+        "stage": 1,
+        "grid_key": "60",
+        "pos": {
+          "x": 40.0,
+          "y": 280.0
+        },
+        "collision": 4,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 110,
+        "stage": 1,
+        "grid_key": "231",
+        "pos": {
+          "x": 320.0,
+          "y": 440.0
+        },
+        "collision": 4,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_10_0",
+        "room_index": 110,
+        "stage": 1,
+        "grid_key": "122",
+        "pos": {
+          "x": 440.0,
+          "y": 280.0
+        },
+        "collision": 0,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_10_0",
+        "room_index": 110,
+        "stage": 1,
+        "grid_key": "95",
+        "pos": {
+          "x": 480.0,
+          "y": 240.0
+        },
+        "collision": 0,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_7",
+        "room_index": 110,
+        "stage": 1,
+        "grid_key": "7",
+        "pos": {
+          "x": 320.0,
+          "y": 120.0
+        },
+        "collision": 4,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_10_0",
+        "room_index": 110,
+        "stage": 1,
+        "grid_key": "156",
+        "pos": {
+          "x": 680.0,
+          "y": 320.0
+        },
+        "collision": 0,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_10_0",
+        "room_index": 110,
+        "stage": 1,
+        "grid_key": "129",
+        "pos": {
+          "x": 720.0,
+          "y": 280.0
+        },
+        "collision": 0,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 110,
+        "stage": 1,
+        "grid_key": "20",
+        "pos": {
+          "x": 840.0,
+          "y": 120.0
+        },
+        "collision": 4,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_7",
+        "room_index": 58,
+        "stage": 1,
+        "grid_key": "7",
+        "pos": {
+          "x": 320.0,
+          "y": 120.0
+        },
+        "collision": 4,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 58,
+        "stage": 1,
+        "grid_key": "127",
+        "pos": {
+          "x": 320.0,
+          "y": 440.0
+        },
+        "collision": 5,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 58,
+        "stage": 1,
+        "grid_key": "60",
+        "pos": {
+          "x": 40.0,
+          "y": 280.0
+        },
+        "collision": 5,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 57,
+        "stage": 1,
+        "grid_key": "74",
+        "pos": {
+          "x": 600.0,
+          "y": 280.0
+        },
+        "collision": 5,
+        "valid": true,
+        "message": "位置合法"
+      },
+      {
+        "type": "GRID_16_8",
+        "room_index": 122,
+        "stage": 1,
+        "grid_key": "7",
+        "pos": {
+          "x": 320.0,
+          "y": 120.0
+        },
+        "collision": 4,
+        "valid": true,
+        "message": "位置合法"
+      }
+    ]
+  },
+  "errors": []
+}

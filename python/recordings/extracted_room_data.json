@@ -1,0 +1,1108 @@
+{
+  "metadata": {
+    "extracted_at": "2026-01-13T11:36:18.790342",
+    "source_session": "session_20260112_005209",
+    "chunks_processed": 12,
+    "total_frames_processed": 136,
+    "extracted_with_types": true,
+    "type_sources": [
+      "IsaacDocs (wofsauge.github.io/IsaacDocs)",
+      "REPENTOGON (repentogon.com)",
+      "IsaacScript TypeScript Definitions",
+      "libraryofisaac (Restored-Mods)",
+      "BOIStageAPI15"
+    ]
+  },
+  "rooms": [
+    {
+      "session": "session_20260112_005209",
+      "chunk_id": 0,
+      "frame": 1079,
+      "room_index": 84,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type": 1,
+      "room_variant": 2,
+      "grid_width": 15,
+      "grid_height": 9,
+      "top_left": {
+        "y": 140.0,
+        "x": 60.0
+      },
+      "bottom_right": {
+        "y": 420.0,
+        "x": 580.0
+      },
+      "is_first_visit": true,
+      "is_clear": true,
+      "first_visited_at": 105010477,
+      "room_type_name": "ROOM_DEFAULT",
+      "room_shape_name": "ROOMSHAPE_1x1",
+      "room_shape_desc": "Standard room",
+      "grid_dimensions": "15x9",
+      "grid_cells": 135,
+      "door_slots": 4,
+      "boss_name": null
+    },
+    {
+      "session": "session_20260112_005209",
+      "chunk_id": 0,
+      "frame": 1199,
+      "room_index": 83,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type": 13,
+      "room_variant": 1,
+      "grid_width": 15,
+      "grid_height": 9,
+      "top_left": {
+        "y": 140.0,
+        "x": 60.0
+      },
+      "bottom_right": {
+        "y": 420.0,
+        "x": 580.0
+      },
+      "is_first_visit": true,
+      "is_clear": true,
+      "first_visited_at": 105014845,
+      "room_type_name": "ROOM_SACRIFICE",
+      "room_shape_name": "ROOMSHAPE_1x1",
+      "room_shape_desc": "Standard room",
+      "grid_dimensions": "15x9",
+      "grid_cells": 135,
+      "door_slots": 4,
+      "boss_name": null
+    },
+    {
+      "session": "session_20260112_005209",
+      "chunk_id": 1,
+      "frame": 1799,
+      "room_index": 71,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type": 1,
+      "room_variant": 47,
+      "grid_width": 15,
+      "grid_height": 9,
+      "top_left": {
+        "y": 140.0,
+        "x": 60.0
+      },
+      "bottom_right": {
+        "y": 420.0,
+        "x": 580.0
+      },
+      "is_first_visit": true,
+      "is_clear": false,
+      "first_visited_at": 105035660,
+      "room_type_name": "ROOM_DEFAULT",
+      "room_shape_name": "ROOMSHAPE_1x1",
+      "room_shape_desc": "Standard room",
+      "grid_dimensions": "15x9",
+      "grid_cells": 135,
+      "door_slots": 4,
+      "boss_name": null
+    },
+    {
+      "session": "session_20260112_005209",
+      "chunk_id": 2,
+      "frame": 2069,
+      "room_index": 72,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type": 4,
+      "room_variant": 1,
+      "grid_width": 15,
+      "grid_height": 9,
+      "top_left": {
+        "y": 140.0,
+        "x": 60.0
+      },
+      "bottom_right": {
+        "y": 420.0,
+        "x": 580.0
+      },
+      "is_first_visit": true,
+      "is_clear": true,
+      "first_visited_at": 105045126,
+      "room_type_name": "ROOM_TREASURE",
+      "room_shape_name": "ROOMSHAPE_1x1",
+      "room_shape_desc": "Standard room",
+      "grid_dimensions": "15x9",
+      "grid_cells": 135,
+      "door_slots": 4,
+      "boss_name": null
+    },
+    {
+      "session": "session_20260112_005209",
+      "chunk_id": 3,
+      "frame": 2549,
+      "room_index": 97,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type": 1,
+      "room_variant": 262,
+      "grid_width": 15,
+      "grid_height": 9,
+      "top_left": {
+        "y": 140.0,
+        "x": 60.0
+      },
+      "bottom_right": {
+        "y": 420.0,
+        "x": 580.0
+      },
+      "is_first_visit": true,
+      "is_clear": true,
+      "first_visited_at": 105062145,
+      "room_type_name": "ROOM_DEFAULT",
+      "room_shape_name": "ROOMSHAPE_1x1",
+      "room_shape_desc": "Standard room",
+      "grid_dimensions": "15x9",
+      "grid_cells": 135,
+      "door_slots": 4,
+      "boss_name": null
+    },
+    {
+      "session": "session_20260112_005209",
+      "chunk_id": 3,
+      "frame": 2639,
+      "room_index": 110,
+      "stage": 1,
+      "room_shape": 6,
+      "room_type": 1,
+      "room_variant": 378,
+      "grid_width": 28,
+      "grid_height": 9,
+      "top_left": {
+        "y": 140.0,
+        "x": 60.0
+      },
+      "bottom_right": {
+        "y": 420.0,
+        "x": 1100.0
+      },
+      "is_first_visit": true,
+      "is_clear": false,
+      "first_visited_at": 105065497,
+      "room_type_name": "ROOM_DEFAULT",
+      "room_shape_name": "ROOMSHAPE_2x1",
+      "room_shape_desc": "Wide room",
+      "grid_dimensions": "28x9",
+      "grid_cells": 252,
+      "door_slots": 6,
+      "boss_name": null
+    },
+    {
+      "session": "session_20260112_005209",
+      "chunk_id": 5,
+      "frame": 3689,
+      "room_index": 58,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type": 1,
+      "room_variant": 36,
+      "grid_width": 15,
+      "grid_height": 9,
+      "top_left": {
+        "y": 140.0,
+        "x": 60.0
+      },
+      "bottom_right": {
+        "y": 420.0,
+        "x": 580.0
+      },
+      "is_first_visit": true,
+      "is_clear": true,
+      "first_visited_at": 105102043,
+      "room_type_name": "ROOM_DEFAULT",
+      "room_shape_name": "ROOMSHAPE_1x1",
+      "room_shape_desc": "Standard room",
+      "grid_dimensions": "15x9",
+      "grid_cells": 135,
+      "door_slots": 4,
+      "boss_name": null
+    },
+    {
+      "session": "session_20260112_005209",
+      "chunk_id": 5,
+      "frame": 3749,
+      "room_index": 57,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type": 2,
+      "room_variant": 3,
+      "grid_width": 15,
+      "grid_height": 9,
+      "top_left": {
+        "y": 140.0,
+        "x": 60.0
+      },
+      "bottom_right": {
+        "y": 420.0,
+        "x": 580.0
+      },
+      "is_first_visit": true,
+      "is_clear": true,
+      "first_visited_at": 105104394,
+      "room_type_name": "ROOM_SHOP",
+      "room_shape_name": "ROOMSHAPE_1x1",
+      "room_shape_desc": "Standard room",
+      "grid_dimensions": "15x9",
+      "grid_cells": 135,
+      "door_slots": 4,
+      "boss_name": null
+    },
+    {
+      "session": "session_20260112_005209",
+      "chunk_id": 7,
+      "frame": 4709,
+      "room_index": 122,
+      "stage": 1,
+      "room_shape": 1,
+      "room_type": 5,
+      "room_variant": 5014,
+      "grid_width": 15,
+      "grid_height": 9,
+      "top_left": {
+        "y": 140.0,
+        "x": 60.0
+      },
+      "bottom_right": {
+        "y": 420.0,
+        "x": 580.0
+      },
+      "is_first_visit": true,
+      "is_clear": false,
+      "first_visited_at": 105139741,
+      "room_type_name": "ROOM_BOSS",
+      "room_shape_name": "ROOMSHAPE_1x1",
+      "room_shape_desc": "Standard room",
+      "grid_dimensions": "15x9",
+      "grid_cells": 135,
+      "door_slots": 4,
+      "boss_name": null
+    }
+  ],
+  "layouts": [
+    {
+      "session": "session_20260112_005209",
+      "room_index": 84,
+      "stage": 1,
+      "grid": {
+        "7": {
+          "state": 2,
+          "variant": 8,
+          "type": 16,
+          "y": 120.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 5
+        },
+        "127": {
+          "state": 2,
+          "variant": 8,
+          "type": 16,
+          "y": 440.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 5
+        },
+        "60": {
+          "state": 2,
+          "variant": 8,
+          "type": 16,
+          "y": 280.0,
+          "variant_name": "UNKNOWN",
+          "x": 40.0,
+          "collision": 5
+        }
+      },
+      "doors": {
+        "3": {
+          "is_locked": false,
+          "target_room": 97,
+          "is_open": true,
+          "target_room_type": 1
+        },
+        "0": {
+          "is_locked": false,
+          "target_room": 83,
+          "is_open": true,
+          "target_room_type": 13
+        },
+        "1": {
+          "is_locked": false,
+          "target_room": 71,
+          "is_open": true,
+          "target_room_type": 1
+        }
+      },
+      "grid_size": 135,
+      "width": 15,
+      "height": 9,
+      "obstacles": []
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 83,
+      "stage": 1,
+      "grid": {
+        "67": {
+          "state": 0,
+          "variant": 3,
+          "type": 8,
+          "y": 280.0,
+          "variant_name": "SPIKES",
+          "x": 320.0,
+          "collision": 0
+        },
+        "127": {
+          "state": 1,
+          "variant": 7,
+          "type": 16,
+          "y": 440.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 4
+        },
+        "74": {
+          "state": 2,
+          "variant": 8,
+          "type": 16,
+          "y": 280.0,
+          "variant_name": "UNKNOWN",
+          "x": 600.0,
+          "collision": 5
+        }
+      },
+      "doors": {
+        "3": {
+          "is_locked": false,
+          "target_room": 96,
+          "is_open": false,
+          "target_room_type": 7
+        },
+        "2": {
+          "is_locked": false,
+          "target_room": 84,
+          "is_open": true,
+          "target_room_type": 1
+        }
+      },
+      "grid_size": 135,
+      "width": 15,
+      "height": 9,
+      "obstacles": []
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 71,
+      "stage": 1,
+      "grid": {
+        "7": {
+          "state": 1,
+          "variant": 8,
+          "type": 16,
+          "y": 120.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 4
+        },
+        "127": {
+          "state": 1,
+          "variant": 8,
+          "type": 16,
+          "y": 440.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 4
+        },
+        "74": {
+          "state": 1,
+          "variant": 8,
+          "type": 16,
+          "y": 280.0,
+          "variant_name": "UNKNOWN",
+          "x": 600.0,
+          "collision": 4
+        }
+      },
+      "doors": {
+        "3": {
+          "is_locked": false,
+          "target_room": 84,
+          "is_open": false,
+          "target_room_type": 1
+        },
+        "1": {
+          "is_locked": false,
+          "target_room": 58,
+          "is_open": false,
+          "target_room_type": 1
+        },
+        "2": {
+          "is_locked": false,
+          "target_room": 72,
+          "is_open": false,
+          "target_room_type": 4
+        }
+      },
+      "grid_size": 135,
+      "width": 15,
+      "height": 9,
+      "obstacles": []
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 72,
+      "stage": 1,
+      "grid": {
+        "60": {
+          "state": 2,
+          "variant": 8,
+          "type": 16,
+          "y": 280.0,
+          "variant_name": "UNKNOWN",
+          "x": 40.0,
+          "collision": 5
+        }
+      },
+      "doors": {
+        "0": {
+          "is_locked": false,
+          "target_room": 71,
+          "is_open": true,
+          "target_room_type": 1
+        }
+      },
+      "grid_size": 135,
+      "width": 15,
+      "height": 9,
+      "obstacles": []
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 97,
+      "stage": 1,
+      "grid": {
+        "7": {
+          "state": 2,
+          "variant": 8,
+          "type": 16,
+          "y": 120.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 5
+        },
+        "127": {
+          "state": 2,
+          "variant": 8,
+          "type": 16,
+          "y": 440.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 5
+        },
+        "60": {
+          "state": 1,
+          "variant": 7,
+          "type": 16,
+          "y": 280.0,
+          "variant_name": "UNKNOWN",
+          "x": 40.0,
+          "collision": 4
+        }
+      },
+      "doors": {
+        "3": {
+          "is_locked": false,
+          "target_room": 110,
+          "is_open": true,
+          "target_room_type": 1
+        },
+        "0": {
+          "is_locked": false,
+          "target_room": 96,
+          "is_open": false,
+          "target_room_type": 7
+        },
+        "1": {
+          "is_locked": false,
+          "target_room": 84,
+          "is_open": true,
+          "target_room_type": 1
+        }
+      },
+      "grid_size": 135,
+      "width": 15,
+      "height": 9,
+      "obstacles": []
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 110,
+      "stage": 1,
+      "grid": {
+        "231": {
+          "state": 1,
+          "variant": 8,
+          "type": 16,
+          "y": 440.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 4
+        },
+        "122": {
+          "state": 0,
+          "variant": 0,
+          "type": 10,
+          "y": 280.0,
+          "variant_name": "WEB",
+          "x": 440.0,
+          "collision": 0
+        },
+        "95": {
+          "state": 0,
+          "variant": 0,
+          "type": 10,
+          "y": 240.0,
+          "variant_name": "WEB",
+          "x": 480.0,
+          "collision": 0
+        },
+        "7": {
+          "state": 1,
+          "variant": 7,
+          "type": 16,
+          "y": 120.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 4
+        },
+        "156": {
+          "state": 0,
+          "variant": 0,
+          "type": 10,
+          "y": 320.0,
+          "variant_name": "WEB",
+          "x": 680.0,
+          "collision": 0
+        },
+        "129": {
+          "state": 0,
+          "variant": 0,
+          "type": 10,
+          "y": 280.0,
+          "variant_name": "WEB",
+          "x": 720.0,
+          "collision": 0
+        },
+        "20": {
+          "state": 1,
+          "variant": 8,
+          "type": 16,
+          "y": 120.0,
+          "variant_name": "UNKNOWN",
+          "x": 840.0,
+          "collision": 4
+        }
+      },
+      "doors": {
+        "3": {
+          "is_locked": false,
+          "target_room": 122,
+          "is_open": false,
+          "target_room_type": 5
+        },
+        "1": {
+          "is_locked": false,
+          "target_room": 96,
+          "is_open": false,
+          "target_room_type": 7
+        },
+        "5": {
+          "is_locked": false,
+          "target_room": 97,
+          "is_open": false,
+          "target_room_type": 1
+        }
+      },
+      "grid_size": 252,
+      "width": 28,
+      "height": 9,
+      "obstacles": []
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 58,
+      "stage": 1,
+      "grid": {
+        "7": {
+          "state": 1,
+          "variant": 7,
+          "type": 16,
+          "y": 120.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 4
+        },
+        "127": {
+          "state": 2,
+          "variant": 8,
+          "type": 16,
+          "y": 440.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 5
+        },
+        "60": {
+          "state": 2,
+          "variant": 8,
+          "type": 16,
+          "y": 280.0,
+          "variant_name": "UNKNOWN",
+          "x": 40.0,
+          "collision": 5
+        }
+      },
+      "doors": {
+        "3": {
+          "is_locked": false,
+          "target_room": 71,
+          "is_open": true,
+          "target_room_type": 1
+        },
+        "0": {
+          "is_locked": false,
+          "target_room": 57,
+          "is_open": true,
+          "target_room_type": 2
+        },
+        "1": {
+          "is_locked": false,
+          "target_room": 45,
+          "is_open": false,
+          "target_room_type": 8
+        }
+      },
+      "grid_size": 135,
+      "width": 15,
+      "height": 9,
+      "obstacles": []
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 57,
+      "stage": 1,
+      "grid": {
+        "74": {
+          "state": 2,
+          "variant": 8,
+          "type": 16,
+          "y": 280.0,
+          "variant_name": "UNKNOWN",
+          "x": 600.0,
+          "collision": 5
+        }
+      },
+      "doors": {
+        "2": {
+          "is_locked": false,
+          "target_room": 58,
+          "is_open": true,
+          "target_room_type": 1
+        }
+      },
+      "grid_size": 135,
+      "width": 15,
+      "height": 9,
+      "obstacles": []
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 122,
+      "stage": 1,
+      "grid": {
+        "7": {
+          "state": 1,
+          "variant": 8,
+          "type": 16,
+          "y": 120.0,
+          "variant_name": "UNKNOWN",
+          "x": 320.0,
+          "collision": 4
+        }
+      },
+      "doors": {
+        "1": {
+          "is_locked": false,
+          "target_room": 109,
+          "is_open": false,
+          "target_room_type": 1
+        }
+      },
+      "grid_size": 135,
+      "width": 15,
+      "height": 9,
+      "obstacles": []
+    }
+  ],
+  "interactables": [
+    {
+      "session": "session_20260112_005209",
+      "room_index": 57,
+      "stage": 1,
+      "type": 6,
+      "variant": 8,
+      "pos": {
+        "y": 160.0,
+        "x": 200.0
+      },
+      "sub_type": 0,
+      "grid_position": null,
+      "type_name": "ENTITY_SLOT",
+      "variant_name": "DONATION_MACHINE"
+    }
+  ],
+  "fire_hazards": [
+    {
+      "session": "session_20260112_005209",
+      "room_index": 83,
+      "stage": 1,
+      "type": "FIREPLACE",
+      "pos": {
+        "y": 200.0,
+        "x": 120.0
+      },
+      "variant": 0,
+      "type_name": "ENTITY_FIREPLACE",
+      "grid_type": "GRID_FIREPLACE"
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 83,
+      "stage": 1,
+      "type": "FIREPLACE",
+      "pos": {
+        "y": 200.0,
+        "x": 520.0
+      },
+      "variant": 0,
+      "type_name": "ENTITY_FIREPLACE",
+      "grid_type": "GRID_FIREPLACE"
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 83,
+      "stage": 1,
+      "type": "FIREPLACE",
+      "pos": {
+        "y": 360.0,
+        "x": 120.0
+      },
+      "variant": 0,
+      "type_name": "ENTITY_FIREPLACE",
+      "grid_type": "GRID_FIREPLACE"
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 83,
+      "stage": 1,
+      "type": "FIREPLACE",
+      "pos": {
+        "y": 360.0,
+        "x": 520.0
+      },
+      "variant": 0,
+      "type_name": "ENTITY_FIREPLACE",
+      "grid_type": "GRID_FIREPLACE"
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 57,
+      "stage": 1,
+      "type": "FIREPLACE",
+      "pos": {
+        "y": 200.0,
+        "x": 280.0
+      },
+      "variant": 0,
+      "type_name": "ENTITY_FIREPLACE",
+      "grid_type": "GRID_FIREPLACE"
+    },
+    {
+      "session": "session_20260112_005209",
+      "room_index": 57,
+      "stage": 1,
+      "type": "FIREPLACE",
+      "pos": {
+        "y": 200.0,
+        "x": 360.0
+      },
+      "variant": 0,
+      "type_name": "ENTITY_FIREPLACE",
+      "grid_type": "GRID_FIREPLACE"
+    }
+  ],
+  "type_mappings": {
+    "room_types": {
+      "0": "ROOM_NULL",
+      "1": "ROOM_DEFAULT",
+      "2": "ROOM_SHOP",
+      "3": "ROOM_ERROR",
+      "4": "ROOM_TREASURE",
+      "5": "ROOM_BOSS",
+      "6": "ROOM_MINIBOSS",
+      "7": "ROOM_SECRET",
+      "8": "ROOM_SUPERSECRET",
+      "9": "ROOM_ARCADE",
+      "10": "ROOM_CURSE",
+      "11": "ROOM_CHALLENGE",
+      "12": "ROOM_LIBRARY",
+      "13": "ROOM_SACRIFICE",
+      "14": "ROOM_DEVIL",
+      "15": "ROOM_ANGEL",
+      "16": "ROOM_DUNGEON",
+      "17": "ROOM_BOSSRUSH",
+      "18": "ROOM_ISAACS",
+      "19": "ROOM_BARREN",
+      "20": "ROOM_CHEST",
+      "21": "ROOM_DICE",
+      "22": "ROOM_BLACK_MARKET",
+      "23": "ROOM_GREED_EXIT",
+      "24": "ROOM_PLANETARIUM",
+      "25": "ROOM_TELEPORTER",
+      "26": "ROOM_TELEPORTER_EXIT",
+      "27": "ROOM_SECRET_EXIT",
+      "28": "ROOM_BLUE",
+      "29": "ROOM_ULTRASECRET",
+      "30": "NUM_ROOMTYPES"
+    },
+    "room_shapes": {
+      "1": {
+        "name": "ROOMSHAPE_1x1",
+        "w": 15,
+        "h": 9,
+        "grid": 135,
+        "doors": 4,
+        "desc": "Standard room"
+      },
+      "2": {
+        "name": "ROOMSHAPE_IH",
+        "w": 15,
+        "h": 9,
+        "grid": 135,
+        "doors": 2,
+        "desc": "Horizontal I (LEFT/RIGHT only)"
+      },
+      "3": {
+        "name": "ROOMSHAPE_IV",
+        "w": 15,
+        "h": 9,
+        "grid": 135,
+        "doors": 2,
+        "desc": "Vertical I (UP/DOWN only)"
+      },
+      "4": {
+        "name": "ROOMSHAPE_1x2",
+        "w": 15,
+        "h": 16,
+        "grid": 240,
+        "doors": 6,
+        "desc": "Tall room"
+      },
+      "5": {
+        "name": "ROOMSHAPE_IIV",
+        "w": 15,
+        "h": 16,
+        "grid": 240,
+        "doors": 2,
+        "desc": "Tall I (UP/DOWN only)"
+      },
+      "6": {
+        "name": "ROOMSHAPE_2x1",
+        "w": 28,
+        "h": 9,
+        "grid": 252,
+        "doors": 6,
+        "desc": "Wide room"
+      },
+      "7": {
+        "name": "ROOMSHAPE_IIH",
+        "w": 28,
+        "h": 9,
+        "grid": 252,
+        "doors": 2,
+        "desc": "Wide I (LEFT/RIGHT only)"
+      },
+      "8": {
+        "name": "ROOMSHAPE_2x2",
+        "w": 28,
+        "h": 16,
+        "grid": 448,
+        "doors": 8,
+        "desc": "Large 2x2 room"
+      },
+      "9": {
+        "name": "ROOMSHAPE_LTL",
+        "w": 28,
+        "h": 16,
+        "grid": 448,
+        "doors": 8,
+        "desc": "L-shape top-left"
+      },
+      "10": {
+        "name": "ROOMSHAPE_LTR",
+        "w": 28,
+        "h": 16,
+        "grid": 448,
+        "doors": 8,
+        "desc": "L-shape top-right"
+      },
+      "11": {
+        "name": "ROOMSHAPE_LBL",
+        "w": 28,
+        "h": 16,
+        "grid": 448,
+        "doors": 8,
+        "desc": "L-shape bottom-left"
+      },
+      "12": {
+        "name": "ROOMSHAPE_LBR",
+        "w": 28,
+        "h": 16,
+        "grid": 448,
+        "doors": 8,
+        "desc": "L-shape bottom-right"
+      }
+    },
+    "door_slots": {
+      "0": {
+        "name": "LEFT0",
+        "desc": "Left door (primary)"
+      },
+      "1": {
+        "name": "UP0",
+        "desc": "Up door (primary)"
+      },
+      "2": {
+        "name": "RIGHT0",
+        "desc": "Right door (primary)"
+      },
+      "3": {
+        "name": "DOWN0",
+        "desc": "Down door (primary)"
+      },
+      "4": {
+        "name": "LEFT1",
+        "desc": "Left door (secondary, large rooms)"
+      },
+      "5": {
+        "name": "UP1",
+        "desc": "Up door (secondary, large rooms)"
+      },
+      "6": {
+        "name": "RIGHT1",
+        "desc": "Right door (secondary, large rooms)"
+      },
+      "7": {
+        "name": "DOWN1",
+        "desc": "Down door (secondary, large rooms)"
+      }
+    },
+    "entity_types": {
+      "0": "ENTITY_NULL",
+      "1": "ENTITY_PLAYER",
+      "2": "ENTITY_TEAR",
+      "3": "ENTITY_FAMILIAR",
+      "4": "ENTITY_BOMB",
+      "5": "ENTITY_PICKUP",
+      "6": "ENTITY_SLOT",
+      "7": "ENTITY_LASER",
+      "8": "ENTITY_KNIFE",
+      "9": "ENTITY_PROJECTILE",
+      "10": "ENTITY_GAPER",
+      "33": "ENTITY_FIREPLACE"
+    },
+    "slot_variants": {
+      "1": "SLOT_MACHINE",
+      "2": "BLOOD_DONATION_MACHINE",
+      "3": "FORTUNE_TELLING_MACHINE",
+      "4": "BEGGAR",
+      "5": "DEVIL_BEGGAR",
+      "6": "SHELL_GAME",
+      "7": "KEY_BEGGAR",
+      "8": "DONATION_MACHINE",
+      "9": "BOMB_BEGGAR",
+      "10": "RESTOCK_MACHINE",
+      "11": "GREED_DONATION_MACHINE",
+      "12": "DRESSING_TABLE",
+      "13": "BATTERY_BEGGAR",
+      "14": "TAINTED_UNLOCK",
+      "15": "HELL_GAME",
+      "16": "CRANE_GAME",
+      "17": "CONFESSIONAL",
+      "18": "ROTTEN_BEGGAR"
+    },
+    "boss_ids": {
+      "1": "MONSTRO",
+      "2": "LARRY_JR",
+      "3": "CHUB",
+      "4": "GURDY",
+      "5": "MONSTRO_2",
+      "6": "MOM",
+      "7": "SOLEX",
+      "8": "MOMS_HEART",
+      "9": "FAMINE",
+      "10": "PESTILENCE",
+      "11": "WAR",
+      "12": "DEATH",
+      "13": "DUKE_OF_FLIES",
+      "14": "PEEP",
+      "15": "LOKI",
+      "24": "SATAN",
+      "39": "ISAAC",
+      "40": "BLUE_BABY",
+      "54": "LAMB",
+      "55": "MEGA_SATAN",
+      "63": "HUSH",
+      "70": "DELIRIUM",
+      "87": "ROTGUT",
+      "88": "MOTHER",
+      "99": "DOGMA",
+      "100": "BEAST"
+    },
+    "grid_entity_types": {
+      "0": "GRID_NULL",
+      "1": "GRID_DECORATION",
+      "2": "GRID_ROCK",
+      "3": "GRID_ROCKB",
+      "4": "GRID_ROCKT",
+      "5": "GRID_ROCK_BOMB",
+      "6": "GRID_ROCK_ALT",
+      "7": "GRID_PIT",
+      "8": "GRID_SPIKES",
+      "9": "GRID_SPIKES_ONOFF",
+      "10": "GRID_SPIDERWEB",
+      "11": "GRID_LOCK",
+      "12": "GRID_TNT",
+      "13": "GRID_FIREPLACE",
+      "14": "GRID_POOP",
+      "15": "GRID_WALL",
+      "16": "GRID_DOOR",
+      "17": "GRID_TRAPDOOR",
+      "18": "GRID_STAIRS",
+      "19": "GRID_GRAVITY",
+      "20": "GRID_PRESSURE_PLATE",
+      "21": "GRID_STATUE",
+      "22": "GRID_ROCK_SS",
+      "23": "GRID_TELEPORTER",
+      "24": "GRID_PILLAR",
+      "25": "GRID_ROCK_SPIKED",
+      "26": "GRID_ROCK_ALT2",
+      "27": "GRID_ROCK_GOLD"
+    }
+  }
+}
