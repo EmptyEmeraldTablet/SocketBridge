@@ -1,339 +1,229 @@
 {
+  "97": {
+    "room_index": 97,
+    "stage": 1,
+    "room_type": 1,
+    "room_shape_code": 1,
+    "bounds": {
+      "min_x": 75.0,
+      "max_x": 565.0,
+      "min_y": 155.0,
+      "max_y": 405.0
+    },
+    "dimensions": {
+      "width": 490.0,
+      "height": 250.0
+    },
+    "walls": [
+      {
+        "side": "left",
+        "x1": 75.0,
+        "y1": 155.0,
+        "x2": 75.0,
+        "y2": 405.0,
+        "confidence": 0.0
+      },
+      {
+        "side": "right",
+        "x1": 565.0,
+        "y1": 155.0,
+        "x2": 565.0,
+        "y2": 405.0,
+        "confidence": 1.0
+      },
+      {
+        "side": "top",
+        "x1": 75.0,
+        "y1": 155.0,
+        "x2": 565.0,
+        "y2": 155.0,
+        "confidence": 1.0
+      },
+      {
+        "side": "bottom",
+        "x1": 75.0,
+        "y1": 405.0,
+        "x2": 565.0,
+        "y2": 405.0,
+        "confidence": 0.0
+      }
+    ],
+    "shape": "rectangle",
+    "shape_confidence": 0.95,
+    "sample_count": 11,
+    "move_ratio_avg": 0.1,
+    "first_visited_at": "2026-01-13T03:21:54.397129"
+  },
+  "86": {
+    "room_index": 86,
+    "stage": 1,
+    "room_type": 1,
+    "room_shape_code": 8,
+    "bounds": {
+      "min_x": 75.0,
+      "max_x": 1085.0,
+      "min_y": 155.0,
+      "max_y": 685.0
+    },
+    "dimensions": {
+      "width": 1010.0,
+      "height": 530.0
+    },
+    "walls": [
+      {
+        "side": "left",
+        "x1": 75.0,
+        "y1": 155.0,
+        "x2": 75.0,
+        "y2": 685.0,
+        "confidence": 0.0
+      },
+      {
+        "side": "right",
+        "x1": 1085.0,
+        "y1": 155.0,
+        "x2": 1085.0,
+        "y2": 685.0,
+        "confidence": 0.0
+      },
+      {
+        "side": "top",
+        "x1": 75.0,
+        "y1": 155.0,
+        "x2": 1085.0,
+        "y2": 155.0,
+        "confidence": 0.0
+      },
+      {
+        "side": "bottom",
+        "x1": 75.0,
+        "y1": 685.0,
+        "x2": 1085.0,
+        "y2": 685.0,
+        "confidence": 0.0
+      }
+    ],
+    "shape": "rectangle",
+    "shape_confidence": 0.95,
+    "sample_count": 12,
+    "move_ratio_avg": 0.07,
+    "first_visited_at": "2026-01-13T03:23:08.345001"
+  },
+  "71": {
+    "room_index": 71,
+    "stage": 2,
+    "room_type": 1,
+    "room_shape_code": 11,
+    "bounds": {
+      "min_x": 75.0,
+      "max_x": 1085.0,
+      "min_y": 155.0,
+      "max_y": 685.0
+    },
+    "dimensions": {
+      "width": 1010.0,
+      "height": 530.0
+    },
+    "walls": [
+      {
+        "side": "left",
+        "x1": 75.0,
+        "y1": 155.0,
+        "x2": 75.0,
+        "y2": 685.0,
+        "confidence": 0.0
+      },
+      {
+        "side": "right",
+        "x1": 1085.0,
+        "y1": 155.0,
+        "x2": 1085.0,
+        "y2": 685.0,
+        "confidence": 0.0
+      },
+      {
+        "side": "top",
+        "x1": 75.0,
+        "y1": 155.0,
+        "x2": 1085.0,
+        "y2": 155.0,
+        "confidence": 0.0
+      },
+      {
+        "side": "bottom",
+        "x1": 75.0,
+        "y1": 685.0,
+        "x2": 1085.0,
+        "y2": 685.0,
+        "confidence": 0.0
+      }
+    ],
+    "shape": "L_shape",
+    "shape_confidence": 0.98,
+    "sample_count": 38,
+    "move_ratio_avg": 0.11,
+    "first_visited_at": "2026-01-13T03:24:57.014703"
+  },
   "83": {
     "room_index": 83,
-    "stage": 1,
-    "room_type": 6,
-    "room_shape_code": 1,
-    "bounds": {
-      "min_x": 75.0,
-      "max_x": 565.0,
-      "min_y": 155.0,
-      "max_y": 405.0
-    },
-    "dimensions": {
-      "width": 490.0,
-      "height": 250.0
-    },
-    "walls": [
-      {
-        "side": "left",
-        "x1": 75.0,
-        "y1": 155.0,
-        "x2": 75.0,
-        "y2": 405.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "right",
-        "x1": 565.0,
-        "y1": 155.0,
-        "x2": 565.0,
-        "y2": 405.0,
-        "confidence": 0.5
-      },
-      {
-        "side": "top",
-        "x1": 75.0,
-        "y1": 155.0,
-        "x2": 565.0,
-        "y2": 155.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "bottom",
-        "x1": 75.0,
-        "y1": 405.0,
-        "x2": 565.0,
-        "y2": 405.0,
-        "confidence": 0.5
-      }
-    ],
-    "shape": "rectangle",
-    "shape_confidence": 0.95,
-    "sample_count": 7,
-    "move_ratio_avg": 0.15,
-    "first_visited_at": "2026-01-13T02:22:52.657635"
-  },
-  "58": {
-    "room_index": 58,
-    "stage": 1,
-    "room_type": 1,
-    "room_shape_code": 6,
-    "bounds": {
-      "min_x": 75.0,
-      "max_x": 1085.0,
-      "min_y": 155.0,
-      "max_y": 405.0
-    },
-    "dimensions": {
-      "width": 1010.0,
-      "height": 250.0
-    },
-    "walls": [
-      {
-        "side": "left",
-        "x1": 75.0,
-        "y1": 155.0,
-        "x2": 75.0,
-        "y2": 405.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "right",
-        "x1": 1085.0,
-        "y1": 155.0,
-        "x2": 1085.0,
-        "y2": 405.0,
-        "confidence": 1.0
-      },
-      {
-        "side": "top",
-        "x1": 75.0,
-        "y1": 155.0,
-        "x2": 1085.0,
-        "y2": 155.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "bottom",
-        "x1": 75.0,
-        "y1": 405.0,
-        "x2": 1085.0,
-        "y2": 405.0,
-        "confidence": 1.0
-      }
-    ],
-    "shape": "rectangle",
-    "shape_confidence": 0.95,
-    "sample_count": 9,
-    "move_ratio_avg": 0.08,
-    "first_visited_at": "2026-01-13T02:24:02.991489"
-  },
-  "45": {
-    "room_index": 45,
-    "stage": 2,
-    "room_type": 10,
-    "room_shape_code": 3,
-    "bounds": {
-      "min_x": 235.0,
-      "max_x": 420.0,
-      "min_y": 155.0,
-      "max_y": 405.0
-    },
-    "dimensions": {
-      "width": 185.0,
-      "height": 250.0
-    },
-    "walls": [
-      {
-        "side": "left",
-        "x1": 235.0,
-        "y1": 155.0,
-        "x2": 235.0,
-        "y2": 405.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "right",
-        "x1": 420.0,
-        "y1": 155.0,
-        "x2": 420.0,
-        "y2": 405.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "top",
-        "x1": 235.0,
-        "y1": 155.0,
-        "x2": 420.0,
-        "y2": 155.0,
-        "confidence": 0.5
-      },
-      {
-        "side": "bottom",
-        "x1": 235.0,
-        "y1": 405.0,
-        "x2": 420.0,
-        "y2": 405.0,
-        "confidence": 1.0
-      }
-    ],
-    "shape": "L_shape",
-    "shape_confidence": 0.85,
-    "sample_count": 5,
-    "move_ratio_avg": 0.14,
-    "first_visited_at": "2026-01-13T02:25:53.221291"
-  },
-  "121": {
-    "room_index": 121,
     "stage": 3,
-    "room_type": 5,
+    "room_type": 1,
     "room_shape_code": 1,
     "bounds": {
-      "min_x": 60.0,
-      "max_x": 580.0,
+      "min_x": 235.0,
+      "max_x": 405.0,
       "min_y": 155.0,
       "max_y": 405.0
     },
     "dimensions": {
-      "width": 520.0,
+      "width": 170.0,
       "height": 250.0
     },
     "walls": [
       {
         "side": "left",
-        "x1": 60.0,
+        "x1": 235.0,
         "y1": 155.0,
-        "x2": 60.0,
+        "x2": 235.0,
         "y2": 405.0,
         "confidence": 0.0
       },
       {
         "side": "right",
-        "x1": 580.0,
+        "x1": 405.0,
         "y1": 155.0,
-        "x2": 580.0,
+        "x2": 405.0,
         "y2": 405.0,
         "confidence": 0.0
       },
       {
         "side": "top",
-        "x1": 60.0,
+        "x1": 235.0,
         "y1": 155.0,
-        "x2": 580.0,
+        "x2": 405.0,
         "y2": 155.0,
         "confidence": 0.0
       },
       {
         "side": "bottom",
-        "x1": 60.0,
+        "x1": 235.0,
         "y1": 405.0,
-        "x2": 580.0,
+        "x2": 405.0,
         "y2": 405.0,
         "confidence": 0.0
-      }
-    ],
-    "shape": "L_shape",
-    "shape_confidence": 0.7,
-    "sample_count": 7,
-    "move_ratio_avg": 0.09,
-    "first_visited_at": "2026-01-13T02:28:16.520789"
-  },
-  "73": {
-    "room_index": 73,
-    "stage": 4,
-    "room_type": 1,
-    "room_shape_code": 2,
-    "bounds": {
-      "min_x": 75.0,
-      "max_x": 565.0,
-      "min_y": 220.0,
-      "max_y": 325.0
-    },
-    "dimensions": {
-      "width": 490.0,
-      "height": 105.0
-    },
-    "walls": [
-      {
-        "side": "left",
-        "x1": 75.0,
-        "y1": 220.0,
-        "x2": 75.0,
-        "y2": 325.0,
-        "confidence": 1.0
-      },
-      {
-        "side": "right",
-        "x1": 565.0,
-        "y1": 220.0,
-        "x2": 565.0,
-        "y2": 325.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "top",
-        "x1": 75.0,
-        "y1": 220.0,
-        "x2": 565.0,
-        "y2": 220.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "bottom",
-        "x1": 75.0,
-        "y1": 325.0,
-        "x2": 565.0,
-        "y2": 325.0,
-        "confidence": 0.5
-      }
-    ],
-    "shape": "L_shape",
-    "shape_confidence": 0.85,
-    "sample_count": 6,
-    "move_ratio_avg": 0.03,
-    "first_visited_at": "2026-01-13T02:29:38.200260"
-  },
-  "48": {
-    "room_index": 48,
-    "stage": 4,
-    "room_type": 1,
-    "room_shape_code": 4,
-    "bounds": {
-      "min_x": 75.0,
-      "max_x": 565.0,
-      "min_y": 155.0,
-      "max_y": 685.0
-    },
-    "dimensions": {
-      "width": 490.0,
-      "height": 530.0
-    },
-    "walls": [
-      {
-        "side": "left",
-        "x1": 75.0,
-        "y1": 155.0,
-        "x2": 75.0,
-        "y2": 685.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "right",
-        "x1": 565.0,
-        "y1": 155.0,
-        "x2": 565.0,
-        "y2": 685.0,
-        "confidence": 0.5
-      },
-      {
-        "side": "top",
-        "x1": 75.0,
-        "y1": 155.0,
-        "x2": 565.0,
-        "y2": 155.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "bottom",
-        "x1": 75.0,
-        "y1": 685.0,
-        "x2": 565.0,
-        "y2": 685.0,
-        "confidence": 0.5
       }
     ],
     "shape": "rectangle",
     "shape_confidence": 0.95,
-    "sample_count": 6,
-    "move_ratio_avg": 0.0,
-    "first_visited_at": "2026-01-13T02:30:33.501108"
+    "sample_count": 19,
+    "move_ratio_avg": 0.1,
+    "first_visited_at": "2026-01-13T03:28:55.657301"
   },
-  "34": {
-    "room_index": 34,
-    "stage": 4,
+  "82": {
+    "room_index": 82,
+    "stage": 3,
     "room_type": 1,
-    "room_shape_code": 1,
+    "room_shape_code": 9,
     "bounds": {
       "min_x": 75.0,
       "max_x": 1085.0,
@@ -351,116 +241,6 @@
         "y1": 155.0,
         "x2": 75.0,
         "y2": 685.0,
-        "confidence": 0.5
-      },
-      {
-        "side": "right",
-        "x1": 1085.0,
-        "y1": 155.0,
-        "x2": 1085.0,
-        "y2": 685.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "top",
-        "x1": 75.0,
-        "y1": 155.0,
-        "x2": 1085.0,
-        "y2": 155.0,
-        "confidence": 0.5
-      },
-      {
-        "side": "bottom",
-        "x1": 75.0,
-        "y1": 685.0,
-        "x2": 1085.0,
-        "y2": 685.0,
-        "confidence": 0.0
-      }
-    ],
-    "shape": "rectangle",
-    "shape_confidence": 0.95,
-    "sample_count": 9,
-    "move_ratio_avg": 0.06,
-    "first_visited_at": "2026-01-13T02:31:35.914855"
-  },
-  "18": {
-    "room_index": 18,
-    "stage": 4,
-    "room_type": 5,
-    "room_shape_code": 4,
-    "bounds": {
-      "min_x": 75.0,
-      "max_x": 565.0,
-      "min_y": 155.0,
-      "max_y": 405.0
-    },
-    "dimensions": {
-      "width": 490.0,
-      "height": 250.0
-    },
-    "walls": [
-      {
-        "side": "left",
-        "x1": 75.0,
-        "y1": 155.0,
-        "x2": 75.0,
-        "y2": 405.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "right",
-        "x1": 565.0,
-        "y1": 155.0,
-        "x2": 565.0,
-        "y2": 405.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "top",
-        "x1": 75.0,
-        "y1": 155.0,
-        "x2": 565.0,
-        "y2": 155.0,
-        "confidence": 0.0
-      },
-      {
-        "side": "bottom",
-        "x1": 75.0,
-        "y1": 405.0,
-        "x2": 565.0,
-        "y2": 405.0,
-        "confidence": 0.0
-      }
-    ],
-    "shape": "rectangle",
-    "shape_confidence": 0.95,
-    "sample_count": 15,
-    "move_ratio_avg": 0.07,
-    "first_visited_at": "2026-01-13T02:32:55.265816"
-  },
-  "107": {
-    "room_index": 107,
-    "stage": 6,
-    "room_type": 1,
-    "room_shape_code": 1,
-    "bounds": {
-      "min_x": 235.0,
-      "max_x": 1085.0,
-      "min_y": 155.0,
-      "max_y": 685.0
-    },
-    "dimensions": {
-      "width": 850.0,
-      "height": 530.0
-    },
-    "walls": [
-      {
-        "side": "left",
-        "x1": 235.0,
-        "y1": 155.0,
-        "x2": 235.0,
-        "y2": 685.0,
         "confidence": 0.0
       },
       {
@@ -473,7 +253,7 @@
       },
       {
         "side": "top",
-        "x1": 235.0,
+        "x1": 75.0,
         "y1": 155.0,
         "x2": 1085.0,
         "y2": 155.0,
@@ -481,17 +261,17 @@
       },
       {
         "side": "bottom",
-        "x1": 235.0,
+        "x1": 75.0,
         "y1": 685.0,
         "x2": 1085.0,
         "y2": 685.0,
         "confidence": 0.0
       }
     ],
-    "shape": "rectangle",
-    "shape_confidence": 0.95,
-    "sample_count": 29,
-    "move_ratio_avg": 0.08,
-    "first_visited_at": "2026-01-13T02:37:16.808971"
+    "shape": "L_shape",
+    "shape_confidence": 0.98,
+    "sample_count": 34,
+    "move_ratio_avg": 0.1,
+    "first_visited_at": "2026-01-13T03:30:43.804805"
   }
 }
