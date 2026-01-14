@@ -1042,21 +1042,20 @@ CollectorRegistry:register("BUTTONS", {
                 local pos = room:GetGridPosition(i)
                 local dist = playerPos:Distance(pos)
 
-                if dist < 800 then
-                    local buttonType = BUTTON_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
-                    local isPressed = state == BUTTON_STATE_PRESSED
+                -- 移除距离限制，收集所有按钮
+                local buttonType = BUTTON_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
+                local isPressed = state == BUTTON_STATE_PRESSED
 
-                    buttons[tostring(i)] = {
-                        type = 18,
-                        variant = variant,
-                        variant_name = buttonType,
-                        state = state,
-                        is_pressed = isPressed,
-                        x = pos.X,
-                        y = pos.Y,
-                        distance = dist,
-                    }
-                end
+                buttons[tostring(i)] = {
+                    type = 18,
+                    variant = variant,
+                    variant_name = buttonType,
+                    state = state,
+                    is_pressed = isPressed,
+                    x = pos.X,
+                    y = pos.Y,
+                    distance = dist,
+                }
             end
         end
 
@@ -1265,49 +1264,48 @@ CollectorRegistry:register("FIRE_HAZARDS", {
             if entity.Type == EntityType.ENTITY_EFFECT then
                 if DANGEROUS_FIRE_EFFECTS[entity.Variant] then
                     local dist = playerPos:Distance(entity.Position)
-                    if dist < 500 then
-                        table.insert(fires, {
-                            id = entity.Index,
-                            type = "EFFECT",
-                            variant = entity.Variant,
-                            pos = Helpers.vectorToTable(entity.Position),
-                            collision_radius = entity.Size > 0 and entity.Size or 20,
-                            distance = dist,
-                        })
-                    end
+                    -- 移除距离限制，收集所有火焰危险物
+                    table.insert(fires, {
+                        id = entity.Index,
+                        type = "EFFECT",
+                        variant = entity.Variant,
+                        pos = Helpers.vectorToTable(entity.Position),
+                        collision_radius = entity.Size > 0 and entity.Size or 20,
+                        distance = dist,
+                    })
                 end
             elseif entity.Type == 33 then  -- ENTITY_FIREPLACE
                 local dist = playerPos:Distance(entity.Position)
-                if dist < 500 then
-                    local variant = entity.Variant
-                    local subVariant = entity.SubType
-                    
-                    -- 确定火堆类型名称
-                    local fireplaceType = FIREPLACE_TYPES[variant] or ("UNKNOWN_" .. tostring(variant))
-                    
-                    -- 判断火堆是否点燃（State == 1000 表示已熄灭）
-                    local isExtinguished = entity.State == FIREPLACE_STATE_EXTINGUISHED
-                    
-                    -- 红色/紫色火堆发射泪弹状态检测
-                    local isShooting = false
-                    local npc = entity:ToNPC()
-                    if npc and (variant == 1 or variant == 3) then
-                        -- 红色和紫色火堆发射状态是 8
-                        isShooting = (npc.State == 8)
-                    end
-                    
-                    table.insert(fires, {
-                        id = entity.Index,
-                        type = "FIREPLACE",
-                        fireplace_type = fireplaceType,
-                        variant = variant,
-                        sub_variant = subVariant,
-                        pos = Helpers.vectorToTable(entity.Position),
-                        hp = entity.HitPoints,
-                        max_hp = entity.MaxHitPoints,
-                        state = entity.State,
-                        is_extinguished = isExtinguished,
-                        collision_radius = entity.Size > 0 and entity.Size or 25,
+                -- 移除距离限制，收集所有火堆
+                local variant = entity.Variant
+                local subVariant = entity.SubType
+                
+                -- 确定火堆类型名称
+                local fireplaceType = FIREPLACE_TYPES[variant] or ("UNKNOWN_" .. tostring(variant))
+                
+                -- 判断火堆是否点燃（State == 1000 表示已熄灭）
+                local isExtinguished = entity.State == FIREPLACE_STATE_EXTINGUISHED
+                
+                -- 红色/紫色火堆发射泪弹状态检测
+                local isShooting = false
+                local npc = entity:ToNPC()
+                if npc and (variant == 1 or variant == 3) then
+                    -- 红色和紫色火堆发射状态是 8
+                    isShooting = (npc.State == 8)
+                end
+                
+                table.insert(fires, {
+                    id = entity.Index,
+                    type = "FIREPLACE",
+                    fireplace_type = fireplaceType,
+                    variant = variant,
+                    sub_variant = subVariant,
+                    pos = Helpers.vectorToTable(entity.Position),
+                    hp = entity.HitPoints,
+                    max_hp = entity.MaxHitPoints,
+                    state = entity.State,
+                    is_extinguished = isExtinguished,
+                    collision_radius = entity.Size > 0 and entity.Size or 25,
                         distance = dist,
                         is_shooting = isShooting,
                         sprite_scale = entity.SpriteScale.X,
