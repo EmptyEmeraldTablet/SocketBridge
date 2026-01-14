@@ -61,6 +61,12 @@ class RoomVisualizer:
         self.use_colors = use_colors
         self.grid_size = 40.0
 
+        # 房间边界偏移（来自 room_info.top_left）
+        # 这些值用于正确将世界坐标转换为网格坐标
+        # 参考: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
+        self.top_left_x = 0.0
+        self.top_left_y = 0.0
+
         # 颜色配置
         if use_colors and os.name != "nt":
             self.COLOR_WALL = "\033[90m"
@@ -76,8 +82,19 @@ class RoomVisualizer:
             self.COLOR_RESET = ""
 
     def world_to_grid(self, pos: Vector2D) -> Tuple[int, int]:
-        """世界坐标转网格坐标"""
-        return (int(pos.x / self.grid_size), int(pos.y / self.grid_size))
+        """世界坐标转网格坐标（考虑房间边界偏移）
+
+        根据 ROOM_GEOMETRY_BY_SESSION.md:
+        - room_info.top_left 是墙壁内边界左上角坐标（可移动区域左上角）
+        - 玩家位置是世界坐标，需要减去 top_left 偏移后再除以 grid_size
+
+        例如：玩家位置 (100, 200)，top_left (60, 140):
+        - grid_x = (100 - 60) / 40 = 1
+        - grid_y = (200 - 140) / 40 = 1.5 → 1
+        """
+        grid_x = int((pos.x - self.top_left_x) / self.grid_size)
+        grid_y = int((pos.y - self.top_left_y) / self.grid_size)
+        return (grid_x, grid_y)
 
     def get_color(self, symbol: str) -> str:
         colors = {
@@ -97,6 +114,19 @@ class RoomVisualizer:
         """渲染房间为ASCII字符串"""
         self.grid_size = game_map.grid_size
         width, height = game_map.width, game_map.height
+
+        # 提取房间边界偏移（用于正确的坐标转换）
+        if game_state.room_info and game_state.room_info.top_left:
+            tl = game_state.room_info.top_left
+            if isinstance(tl, tuple) and len(tl) == 2:
+                self.top_left_x = tl[0]
+                self.top_left_y = tl[1]
+            else:
+                self.top_left_x = 0.0
+                self.top_left_y = 0.0
+        else:
+            self.top_left_x = 0.0
+            self.top_left_y = 0.0
 
         # 初始化显示网格
         display: List[List[str]] = [

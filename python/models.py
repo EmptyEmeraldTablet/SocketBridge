@@ -387,7 +387,13 @@ class ProjectileData(EntityData):
 
 @dataclass
 class RoomInfo:
-    """房间信息"""
+    """房间信息
+
+    注意：top_left 和 bottom_right 是墙壁内边界坐标（可移动区域边界）
+    玩家位置是世界坐标，需要减去 top_left 偏移后才能正确转换为网格坐标
+
+    来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
+    """
 
     room_index: int = -1
     stage: int = 1
@@ -401,6 +407,12 @@ class RoomInfo:
     # 像素尺寸
     pixel_width: int = 0
     pixel_height: int = 0
+
+    # 房间边界坐标（墙壁内边界，即可移动区域边界）
+    # top_left: 可移动区域左上角坐标
+    # bottom_right: 可移动区域右下角坐标
+    top_left: Optional[Tuple[float, float]] = None
+    bottom_right: Optional[Tuple[float, float]] = None
 
     # 房间类型
     room_type: str = "normal"  # normal, treasure, shop, boss, secret, etc.

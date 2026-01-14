@@ -286,6 +286,15 @@ class DataParser:
         info.pixel_width = data.get("pixel_width", 0)
         info.pixel_height = data.get("pixel_height", 0)
 
+        # 解析房间边界坐标（top_left 和 bottom_right）
+        top_left = data.get("top_left")
+        if top_left and isinstance(top_left, dict):
+            info.top_left = (top_left.get("x", 0.0), top_left.get("y", 0.0))
+
+        bottom_right = data.get("bottom_right")
+        if bottom_right and isinstance(bottom_right, dict):
+            info.bottom_right = (bottom_right.get("x", 0.0), bottom_right.get("y", 0.0))
+
         info.room_type = data.get("room_type", "normal")
 
         # DEBUG: Parse room_shape (MISSING before fix)
@@ -690,6 +699,21 @@ class DataProcessor:
             room_info.grid_height = room_data.get("grid_height", 7)
             room_info.pixel_width = room_data.get("pixel_width", 0)
             room_info.pixel_height = room_data.get("pixel_height", 0)
+
+            # 解析房间边界坐标（top_left 和 bottom_right）
+            # 这些值用于正确的世界坐标到网格坐标转换
+            # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
+            top_left = room_data.get("top_left")
+            if top_left and isinstance(top_left, dict):
+                room_info.top_left = (top_left.get("x", 0.0), top_left.get("y", 0.0))
+
+            bottom_right = room_data.get("bottom_right")
+            if bottom_right and isinstance(bottom_right, dict):
+                room_info.bottom_right = (
+                    bottom_right.get("x", 0.0),
+                    bottom_right.get("y", 0.0),
+                )
+
             room_info.room_type = room_data.get("room_type", "normal")
             room_info.room_shape = room_data.get("room_shape", 0)
             room_info.is_clear = room_data.get("is_clear", False)
