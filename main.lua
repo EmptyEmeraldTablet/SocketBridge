@@ -804,7 +804,8 @@ CollectorRegistry:register("ROOM_LAYOUT", {
         local doors = {}
         local width = room:GetGridWidth()
 
-        -- 石头类型 (GridType 1000-1020 范围)
+        -- 石头类型 (GridEntityType 2-6)
+        -- 注意：5(炸弹岩),6(罐子/蘑菇/骷髅) 可被泪弹破坏，归入可破坏物通道
         local ROCK_VARIANTS = {
             [0] = "NORMAL",       -- 普通石头
             [1] = "TINTED",       -- 标记石头
@@ -814,7 +815,7 @@ CollectorRegistry:register("ROOM_LAYOUT", {
             [5] = "FOOLS_GOLD",   -- 愚人金
         }
 
-        -- 其它石头类型 (GridType 1000+)
+        -- 其它石头类型
         local STONE_VARIANTS = {
             [0] = "NORMAL",       -- 普通石头
             [1] = "TINTED",       -- 标记石头
@@ -858,73 +859,44 @@ CollectorRegistry:register("ROOM_LAYOUT", {
                 local shouldCollect = false
                 local variantName = nil
 
-                -- 石头类 (GridType 1000-1020, 但 1006 是 TNT 需要排除)
-                if gridType >= 1000 and gridType <= 1020 and gridType ~= 1006 and gridType ~= 1011 then
+                -- 不可破坏障碍物 (GridEntityType)
+                -- 2:岩石, 3:方块, 4:染色岩, 7:坑, 8:尖刺, 9:开关尖刺, 10:蜘蛛网
+                -- 15:墙, 17:陷阱门, 19:重力, 21:雕像, 22:超染岩, 24:柱子, 25:尖刺岩
+                if gridType == 2 or gridType == 3 or gridType == 4 or
+                   gridType == 7 or gridType == 8 or gridType == 9 or gridType == 10 or
+                   gridType == 15 or gridType == 17 or gridType == 19 or
+                   gridType == 21 or gridType == 22 or gridType == 24 or gridType == 25 then
                     shouldCollect = true
-                    -- 根据 GridType 确定具体类型
-                    if gridType == 1000 then
+                    -- 根据 GridEntityType 确定具体类型
+                    if gridType == 2 then
                         variantName = ROCK_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1001 then
-                        variantName = STONE_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1002 then
-                        variantName = "CRACKED"
-                    elseif gridType == 1003 then
-                        variantName = "COBBLE"
-                    elseif gridType == 1004 then
-                        variantName = "WOODEN"
-                    elseif gridType == 1005 then
-                        variantName = DESTRUCTIBLE_STONE_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1007 then
-                        variantName = "BUCKET_WATER"
-                    elseif gridType == 1008 then
-                        variantName = "BUCKET_POOP"
-                    elseif gridType == 1009 then
-                        variantName = "EVENT"
-                    elseif gridType == 1010 then
-                        variantName = DESTRUCTIBLE_STONE_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1012 then
-                        variantName = "MOSS"
-                    elseif gridType == 1013 then
-                        variantName = "FIREPLACE"  -- 火堆由 FIRE_HAZARDS 处理
-                    elseif gridType == 1014 then
-                        variantName = "WALL"
-                    elseif gridType == 1015 then
-                        variantName = "POT"
-                    elseif gridType == 1016 then
+                    elseif gridType == 3 then
                         variantName = BLOCK_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1017 then
+                    elseif gridType == 4 then
+                        variantName = STONE_VARIANTS[variant] or "UNKNOWN"
+                    elseif gridType == 7 then
                         variantName = PIT_VARIANTS[variant] or "UNKNOWN"
-                    elseif gridType == 1018 then
+                    elseif gridType == 8 then
                         variantName = "SPIKES"
-                    elseif gridType == 1019 then
+                    elseif gridType == 9 then
+                        variantName = "POISON_SPIKES"
+                    elseif gridType == 10 then
                         variantName = "WEB"
-                    elseif gridType == 1020 then
+                    elseif gridType == 15 then
+                        variantName = "WALL"
+                    elseif gridType == 17 then
                         variantName = "TRAPDOOR"
+                    elseif gridType == 19 then
+                        variantName = "GRAVITY"
+                    elseif gridType == 21 then
+                        variantName = "STATUE"
+                    elseif gridType == 22 then
+                        variantName = "SUPER_TINTED"
+                    elseif gridType == 24 then
+                        variantName = "PILLAR"
+                    elseif gridType == 25 then
+                        variantName = "SPIKED_ROCK"
                     end
-                end
-
-                -- 方块 (GridType 16)
-                if gridType == 16 then
-                    shouldCollect = true
-                    variantName = BLOCK_VARIANTS[variant] or "UNKNOWN"
-                end
-
-                -- 坑 (GridType 17)
-                if gridType == 17 then
-                    shouldCollect = true
-                    variantName = PIT_VARIANTS[variant] or "UNKNOWN"
-                end
-
-                -- 尖刺 (GridType 8-9) - 保留作为危险地形
-                if gridType == 8 or gridType == 9 then
-                    shouldCollect = true
-                    variantName = (gridType == 8) and "SPIKES" or "POISON_SPIKES"
-                end
-
-                -- 蜘蛛网 (GridType 10)
-                if gridType == 10 then
-                    shouldCollect = true
-                    variantName = "WEB"
                 end
 
                 if shouldCollect then
@@ -994,7 +966,7 @@ CollectorRegistry:register("BUTTONS", {
 
         for i = 0, room:GetGridSize() - 1 do
             local grid = room:GetGridEntity(i)
-            if grid and grid:GetType() == 18 then  -- GridType 18 = 按钮
+            if grid and grid:GetType() == 20 then  -- GridType 20 = GRID_PRESSURE_PLATE (按钮)
                 local variant = grid:GetVariant()
                 local state = grid.State
                 local pos = room:GetGridPosition(i)
