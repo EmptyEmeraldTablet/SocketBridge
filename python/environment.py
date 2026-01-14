@@ -331,11 +331,19 @@ class GameMap:
 
                 # 检查是否在有效范围内
                 if 0 <= gx < self.width and 0 <= gy < self.height:
-                    if collision > 0:
-                        # 有碰撞，标记为墙壁
+                    # 根据 tile_type 判断格子类型
+                    # type=1000 或 collision 很大的是墙壁
+                    # type=16 是 Rocks（岩石障碍物）
+                    # 超出房间范围的 collision 不处理（门位置）
+                    if tile_type == 1000 and collision > 0:
+                        # 墙壁类型
                         self.grid[(gx, gy)] = TileType.WALL
                         self.static_obstacles.add((gx, gy))
                         wall_count += 1
+                    elif tile_type == 16 and collision > 0:
+                        # Rocks - 障碍物但不是墙
+                        self.grid[(gx, gy)] = TileType.SPECIAL
+                        self.static_obstacles.add((gx, gy))
                     # 无碰撞的不处理（保持EMPTY）
 
             logger.debug(

@@ -133,12 +133,14 @@ class RoomVisualizer:
             [self.FLOOR for _ in range(width)] for _ in range(height)
         ]
 
-        # 墙壁和VOID
+        # 墙壁、VOID和障碍物
         for (gx, gy), tile_type in game_map.grid.items():
             if tile_type == TileType.WALL:
                 display[gy][gx] = self.WALL
             elif tile_type == TileType.VOID:
                 display[gy][gx] = self.VOID
+            elif tile_type == TileType.SPECIAL:
+                display[gy][gx] = "O"  # 障碍物/岩石
 
         # 门
         if game_state.raw_room_layout:
