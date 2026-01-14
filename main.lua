@@ -929,11 +929,15 @@ CollectorRegistry:register("ROOM_LAYOUT", {
         for slot = 0, DoorSlot.NUM_DOOR_SLOTS - 1 do
             local door = room:GetDoor(slot)
             if door then
+                -- 获取门的世界坐标
+                local doorPos = door.Position
                 doors[tostring(slot)] = {
                     target_room = door.TargetRoomIndex,
                     target_room_type = door.TargetRoomType,
                     is_open = door:IsOpen(),
                     is_locked = door:IsLocked(),
+                    x = doorPos.X,
+                    y = doorPos.Y,
                 }
             end
         end

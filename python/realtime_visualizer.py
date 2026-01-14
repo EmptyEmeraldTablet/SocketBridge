@@ -145,22 +145,16 @@ class RoomVisualizer:
         # 门
         if game_state.raw_room_layout:
             doors = game_state.raw_room_layout.get("doors", {})
-            for door_idx in doors:
+            for door_idx, door_info in doors.items():
                 try:
-                    direction = int(door_idx) if door_idx.isdigit() else 0
-                    if direction == 0:
-                        gx, gy = width // 2, 0
-                    elif direction == 4:
-                        gx, gy = width // 2, height - 1
-                    elif direction == 2:
-                        gx, gy = width - 1, height // 2
-                    elif direction == 6:
-                        gx, gy = 0, height // 2
-                    else:
-                        continue
+                    # 使用门的世界坐标转换为网格坐标
+                    door_x = door_info.get("x", 0)
+                    door_y = door_info.get("y", 0)
+                    gx = int((door_x - self.top_left_x) / self.grid_size)
+                    gy = int((door_y - self.top_left_y) / self.grid_size)
                     if 0 <= gx < width and 0 <= gy < height:
                         display[gy][gx] = self.DOOR
-                except (ValueError, TypeError):
+                except (ValueError, TypeError, KeyError):
                     pass
 
         # 实体 (不区分类型)
