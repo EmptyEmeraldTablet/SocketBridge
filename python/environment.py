@@ -323,6 +323,7 @@ class GameMap:
                 tile_y = tile_data.get("y", 0)
                 collision = tile_data.get("collision", 0)
                 tile_type = tile_data.get("type", 0)
+                variant = tile_data.get("variant", 0)
 
                 # 转换为网格坐标（使用实际游戏 grid_size=40）
                 # 录制数据中的 grid_size=135 是中间值，不应用于坐标转换
@@ -331,21 +332,34 @@ class GameMap:
 
                 # 检查是否在有效范围内
                 if 0 <= gx < self.width and 0 <= gy < self.height:
-                    # 根据 tile_type 判断格子类型
-                    # type=1000+ 是岩石类障碍物 (ROCK, STONE, CRACKED 等)
-                    # type=16 是 METAL/KEY/PILLAR（方块/金属块）
-                    # 超出房间范围的 collision 不处理（门位置）
+                    # 根据 tile_type 和 variant 判断格子类型
                     # 来源: DATA_PROTOCOL.md 障碍物类型表
-                    if 1000 <= tile_type < 2000:
-                        # 岩石类型
+                    #
+                    # 岩石类 (collision > 0):
+                    #   type=1000+: ROCK, STONE, CRACKED, COBBLE 等
+                    # 特殊地面覆盖物 (无碰撞):
+                    #   type=16, variant=8: 地面装饰/覆盖物 (忽略)
+                    #   其他 type=16 变体: 需要时再添加
+                    #
+                    if tile_type == 17 and collision > 0:
+                        # POOL/HOLE - 坑
+                        self.grid[(gx, gy)] = TileType.VOID
+                    elif tile_type == 16:
+                        # type=16 是特殊地面覆盖物，根据 variant 判断
+                        if variant == 8:
+                            # 地面覆盖物，无碰撞，忽略
+                            pass
+                        else:
+                            # 其他 variant 可能是障碍物
+                            if collision > 0:
+                                self.grid[(gx, gy)] = TileType.SPECIAL
+                                self.static_obstacles.add((gx, gy))
+                    elif tile_type >= 1000 and collision > 0:
+                        # 岩石类 - 墙壁
                         self.grid[(gx, gy)] = TileType.WALL
                         self.static_obstacles.add((gx, gy))
                         wall_count += 1
-                    elif tile_type == 16 and collision > 0:
-                        # Pillar/金属块 - 障碍物但不是墙壁
-                        self.grid[(gx, gy)] = TileType.SPECIAL
-                        self.static_obstacles.add((gx, gy))
-                    # 无碰撞的不处理（保持EMPTY）
+                    # 其他类型（尖刺、门等）由其他逻辑处理
 
             logger.debug(
                 f"[GameMap] Marked {wall_count} walls, {len(self.static_obstacles)} static obstacles"
