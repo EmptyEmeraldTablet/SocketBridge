@@ -303,6 +303,7 @@ class GameMap:
         self.grid.clear()
         self.static_obstacles.clear()
         self.void_tiles.clear()
+        self.danger_zones.clear()  # 清空危险区域，避免跨房间残留
 
         # 初始化所有格子为EMPTY（ROOM_LAYOUT.grid只包含特殊格子，其他都是地板）
         # DEBUG: This matches analyzed_rooms finding - ROOM_LAYOUT.grid only contains obstacles
@@ -1331,6 +1332,7 @@ class EnvironmentModel:
     """环境模型
 
     整合GameMap和SpatialQuery，提供完整的环境建模功能。
+    支持与Pathfinder集成，实现自动障碍物和危险区域同步。
     """
 
     def __init__(self, grid_size: float = 40.0, width: int = 13, height: int = 7):
@@ -1342,6 +1344,76 @@ class EnvironmentModel:
 
         # 当前房间索引
         self.current_room_index = -1
+
+        # 绑定的寻路器（可选，用于自动同步）
+        self._pathfinder = None
+        self._pathfinder_last_sync_room = -1
+
+    def bind_pathfinder(self, pathfinder):
+        """绑定寻路器并保持自动同步
+
+        绑定后，每次 update_room() 调用时会自动同步：
+        - 地图尺寸
+        - 静态障碍物
+        - 危险区域
+        - VOID 区域
+
+        Args:
+            pathfinder: AStarPathfinder 实例
+        """
+        from pathfinding import AStarPathfinder
+
+        if not isinstance(pathfinder, AStarPathfinder):
+            logger.warning(
+                f"[EnvironmentModel] bind_pathfinder: expected AStarPathfinder, got {type(pathfinder)}"
+            )
+            return
+
+        self._pathfinder = pathfinder
+        self._pathfinder_last_sync_room = -1  # 强制首次同步
+        logger.info("[EnvironmentModel] Pathfinder bound successfully")
+
+    def _sync_pathfinder(self):
+        """同步环境数据到寻路器
+
+        同步内容：
+        1. 地图尺寸 (set_map_size)
+        2. 静态障碍物 (set_obstacles)
+        3. 危险区域 (set_danger_zones)
+        4. VOID 区域（作为高代价障碍物）
+        """
+        if self._pathfinder is None:
+            return
+
+        # 检查是否需要同步（房间变化时）
+        if self._pathfinder_last_sync_room == self.current_room_index:
+            return
+
+        # 1. 同步地图尺寸
+        self._pathfinder.set_map_size(self.game_map.width, self.game_map.height)
+
+        # 2. 同步静态障碍物（包括 VOID 区域）
+        all_obstacles = self.game_map.static_obstacles.copy()
+        # 将 VOID 区域也视为障碍物
+        all_obstacles.update(self.game_map.void_tiles)
+        self._pathfinder.set_obstacles(all_obstacles)
+
+        # 3. 同步危险区域
+        danger_zones: Dict[Tuple[int, int], float] = {}
+        for zone in self.game_map.danger_zones:
+            gx = int(zone.center.x / self.game_map.grid_size)
+            gy = int(zone.center.y / self.game_map.grid_size)
+            # 使用危险强度作为代价乘数
+            danger_zones[(gx, gy)] = zone.intensity
+        self._pathfinder.set_danger_zones(danger_zones)
+
+        # 4. 记录同步状态
+        self._pathfinder_last_sync_room = self.current_room_index
+
+        logger.debug(
+            f"[EnvironmentModel] Synced pathfinder: room={self.current_room_index}, "
+            f"obstacles={len(all_obstacles)}, danger_zones={len(danger_zones)}"
+        )
 
     def update_room(
         self,
@@ -1408,6 +1480,9 @@ class EnvironmentModel:
 
             if "PICKUPS" in entity_data:
                 self.game_map.update_pickups(entity_data["PICKUPS"])
+
+        # 同步到绑定的寻路器
+        self._sync_pathfinder()
 
     def is_safe(self, position: Vector2D) -> Tuple[bool, float]:
         """

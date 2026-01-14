@@ -146,6 +146,9 @@ class SocketAIAgent:
         # Phase 8: Dynamic strategy adaptation
         self.dynamic_strategy = DynamicStrategyAdapter()
 
+        # 绑定寻路器到环境模型，实现自动同步
+        self.environment.bind_pathfinder(self.pathfinder)
+
         self.current_threat = None
         self.target_enemy_id = None
 
@@ -396,14 +399,9 @@ class SocketAIAgent:
                 )
 
             # Sync dynamic obstacles to pathfinder
+            # 注意：静态障碍物和危险区域已由 EnvironmentModel 自动同步
             if hasattr(self, "pathfinder") and self.pathfinder is not None:
-                # Update map size if needed
-                if hasattr(self.environment, "game_map"):
-                    self.pathfinder.set_map_size(
-                        self.environment.game_map.width,
-                        self.environment.game_map.height,
-                    )
-                # Clear and add dynamic obstacles
+                # 清除并重新添加动态障碍物（敌人、投射物）
                 self.pathfinder.clear_dynamic_obstacles()
                 obstacle_count = 0
                 for obstacle in self.environment.game_map.dynamic_obstacles:
