@@ -273,7 +273,10 @@ def build_game_map(game_state: GameStateData) -> Tuple[GameMap, GameStateData]:
     layout = game_state.raw_room_layout
 
     if room_info:
-        grid_size = layout.get("grid_size", 40.0) if layout else 40.0
+        # 始终使用 grid_size=40（游戏实际使用的值）
+        # 录制数据中的 grid_size=135 是中间值，不应用于坐标转换
+        # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
+        grid_size = 40.0
         game_map = GameMap(
             grid_size=grid_size,
             width=room_info.grid_width,

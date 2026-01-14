@@ -280,17 +280,20 @@ class GameMap:
 
         # DEBUG: Log dimension changes
         logger.debug(
-            f"[GameMap] Dimensions: {self.width}x{self.height} grids, grid_size={grid_size}"
+            f"[GameMap] Dimensions: {self.width}x{self.height} grids, input_grid_size={grid_size}"
         )
 
-        # 更新网格大小（常量 40，根据 analyzed_rooms 分析确认）
-        self.grid_size = grid_size
+        # 强制使用 grid_size=40（游戏实际使用的值）
+        # 录制数据中的 grid_size=135 是中间值/录制格式，不应用于坐标转换
+        # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
+        self.grid_size = 40.0
+        ACTUAL_GRID_SIZE = 40.0
 
         # 计算像素尺寸（不包含墙壁，可移动区域）
-        # 公式: pixel = (grid - 2) * grid_size
-        # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
-        self.pixel_width = max(0, (self.width - 2) * grid_size)
-        self.pixel_height = max(0, (self.height - 2) * grid_size)
+        # 公式: pixel = (grid - 2) * 40
+        # 使用实际游戏 grid_size=40
+        self.pixel_width = max(0, (self.width - 2) * ACTUAL_GRID_SIZE)
+        self.pixel_height = max(0, (self.height - 2) * ACTUAL_GRID_SIZE)
 
         logger.debug(
             f"[GameMap] Pixel dimensions: {self.pixel_width}x{self.pixel_height}"
@@ -321,9 +324,10 @@ class GameMap:
                 collision = tile_data.get("collision", 0)
                 tile_type = tile_data.get("type", 0)
 
-                # 转换为网格坐标
-                gx = int(tile_x / grid_size)
-                gy = int(tile_y / grid_size)
+                # 转换为网格坐标（使用实际游戏 grid_size=40）
+                # 录制数据中的 grid_size=135 是中间值，不应用于坐标转换
+                gx = int(tile_x / ACTUAL_GRID_SIZE)
+                gy = int(tile_y / ACTUAL_GRID_SIZE)
 
                 # 检查是否在有效范围内
                 if 0 <= gx < self.width and 0 <= gy < self.height:
@@ -378,6 +382,10 @@ class GameMap:
             logger.debug(
                 f"[GameMap] Room shape={room_info.room_shape if room_info else 'None'} - No VOID marking needed"
             )
+
+        # 创建房间边界墙壁
+        # 即使有 ROOM_LAYOUT 数据，也需要默认的墙壁边界
+        self._create_default_walls()
 
     def _mark_l_shape_void_tiles(self, room_info: RoomInfo):
         """为L形房间标记VOID区域
