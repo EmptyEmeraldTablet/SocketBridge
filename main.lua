@@ -860,12 +860,14 @@ CollectorRegistry:register("ROOM_LAYOUT", {
                 local variantName = nil
 
                 -- 不可破坏障碍物 (GridEntityType)
-                -- 2:岩石, 3:方块, 4:染色岩, 7:坑, 8:尖刺, 9:开关尖刺, 10:蜘蛛网
-                -- 15:墙, 17:陷阱门, 19:重力, 21:雕像, 22:超染岩, 24:柱子, 25:尖刺岩
+                -- 一般障碍物: 2:岩石, 3:方块, 4:染色岩, 11:锁块, 15:墙
+                -- 危险地形: 7:坑, 8:尖刺, 9:开关尖刺, 10:蜘蛛网
+                -- 特殊: 17:陷阱门, 18:楼梯, 19:重力, 21:雕像, 22:超染岩, 23:传送门, 24:柱子, 25:尖刺岩, 26:染色骷髅, 27:聚宝岩
                 if gridType == 2 or gridType == 3 or gridType == 4 or
                    gridType == 7 or gridType == 8 or gridType == 9 or gridType == 10 or
-                   gridType == 15 or gridType == 17 or gridType == 19 or
-                   gridType == 21 or gridType == 22 or gridType == 24 or gridType == 25 then
+                   gridType == 11 or gridType == 15 or
+                   gridType == 17 or gridType == 18 or gridType == 19 or
+                   gridType == 21 or gridType == 22 or gridType == 23 or gridType == 24 or gridType == 25 or gridType == 26 or gridType == 27 then
                     shouldCollect = true
                     -- 根据 GridEntityType 确定具体类型
                     if gridType == 2 then
@@ -882,20 +884,30 @@ CollectorRegistry:register("ROOM_LAYOUT", {
                         variantName = "POISON_SPIKES"
                     elseif gridType == 10 then
                         variantName = "WEB"
+                    elseif gridType == 11 then
+                        variantName = "LOCK"
                     elseif gridType == 15 then
                         variantName = "WALL"
                     elseif gridType == 17 then
                         variantName = "TRAPDOOR"
+                    elseif gridType == 18 then
+                        variantName = "STAIRS"
                     elseif gridType == 19 then
                         variantName = "GRAVITY"
                     elseif gridType == 21 then
                         variantName = "STATUE"
                     elseif gridType == 22 then
                         variantName = "SUPER_TINTED"
+                    elseif gridType == 23 then
+                        variantName = "TELEPORTER"
                     elseif gridType == 24 then
                         variantName = "PILLAR"
                     elseif gridType == 25 then
                         variantName = "SPIKED_ROCK"
+                    elseif gridType == 26 then
+                        variantName = "TINTED_SKULL"
+                    elseif gridType == 27 then
+                        variantName = "GOLD_ROCK"
                     end
                 end
 
@@ -977,7 +989,7 @@ CollectorRegistry:register("BUTTONS", {
                 local isPressed = state == BUTTON_STATE_PRESSED
 
                 buttons[tostring(i)] = {
-                    type = 18,
+                    type = 20,  -- GridEntityType 20 = GRID_PRESSURE_PLATE
                     variant = variant,
                     variant_name = buttonType,
                     state = state,

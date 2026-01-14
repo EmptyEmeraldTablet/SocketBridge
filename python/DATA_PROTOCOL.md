@@ -559,22 +559,27 @@ if room_info:
 ```
 
 **障碍物类型 (GridEntityType)**:
-| GridEntityType | 名称 | 说明 |
-|---------------|------|------|
-| 2 | GRID_ROCK | 普通岩石 |
-| 3 | GRID_ROCKB | 可炸岩石 (方块) |
-| 4 | GRID_ROCKT | 染色岩石 (秘密房) |
-| 7 | GRID_PIT | 坑/洞 |
-| 8 | GRID_SPIKES | 尖刺 |
-| 9 | GRID_SPIKES_ONOFF | 开关尖刺 |
-| 10 | GRID_SPIDERWEB | 蜘蛛网 |
-| 15 | GRID_WALL | 墙 |
-| 17 | GRID_TRAPDOOR | 陷阱门 |
-| 19 | GRID_GRAVITY | 重力区域 |
-| 21 | GRID_STATUE | 雕像 |
-| 22 | GRID_ROCK_SS | 超级染色岩 |
-| 24 | GRID_PILLAR | 柱子 |
-| 25 | GRID_ROCK_SPIKED | 尖刺岩石 |
+| GridEntityType | 名称 | 说明 | TileType映射 |
+|---------------|------|------|-------------|
+| 2 | GRID_ROCK | 普通岩石 | WALL |
+| 3 | GRID_ROCKB | 可炸岩石 (方块) | WALL |
+| 4 | GRID_ROCKT | 染色岩石 (秘密房) | WALL |
+| 7 | GRID_PIT | 坑/洞 | VOID |
+| 8 | GRID_SPIKES | 尖刺 | HAZARD |
+| 9 | GRID_SPIKES_ONOFF | 开关尖刺 | HAZARD |
+| 10 | GRID_SPIDERWEB | 蜘蛛网 | HAZARD |
+| 11 | GRID_LOCK | 锁块 (钥匙块) | WALL |
+| 15 | GRID_WALL | 墙 | WALL |
+| 17 | GRID_TRAPDOOR | 陷阱门 | SPECIAL |
+| 18 | GRID_STAIRS | 楼梯 | SPECIAL |
+| 19 | GRID_GRAVITY | 重力区域 | SPECIAL |
+| 21 | GRID_STATUE | 雕像 | WALL |
+| 22 | GRID_ROCK_SS | 超级染色岩 | WALL |
+| 23 | GRID_TELEPORTER | 传送门 | SPECIAL |
+| 24 | GRID_PILLAR | 柱子 | WALL |
+| 25 | GRID_ROCK_SPIKED | 尖刺岩石 | WALL |
+| 26 | GRID_ROCK_ALT2 | 染色骷髅 (Rep+) | WALL |
+| 27 | GRID_ROCK_GOLD | 聚宝岩 (Rep+) | WALL |
 
 **可破坏物类型 (DESTRUCTIBLES)**:
 | GridEntityType | 名称 | 说明 |
@@ -583,13 +588,26 @@ if room_info:
 | 6 | GRID_ROCK_ALT | 罐子/蘑菇/骷髅 |
 | 12 | GRID_TNT | TNT |
 | 14 | GRID_POOP | 便便 |
-| 26 | GRID_ROCK_ALT2 | 染色骷髅 (Rep+) |
-| 27 | GRID_ROCK_GOLD | 聚宝岩 (Rep+) |
 
 **按钮类型 (BUTTONS)**:
 | GridEntityType | 名称 | 说明 |
 |---------------|------|------|
 | 20 | GRID_PRESSURE_PLATE | 按钮 |
+
+**未处理类型**:
+| GridEntityType | 名称 | 说明 |
+|---------------|------|------|
+| 0 | GRID_NULL | 空 (无需处理) |
+| 1 | GRID_DECORATION | 装饰 (预留未来处理) |
+| 13 | GRID_FIREPLACE | 火盆 (已废弃) |
+
+**门数据 (ROOM_LAYOUT.doors)**:
+| 字段 | 说明 |
+|------|------|
+| target_room | 目标房间索引 |
+| target_room_type | 目标房间类型 |
+| is_open | 是否开启 |
+| is_locked | 是否锁定 |
 
 **门槽位 (DoorSlot)**:
 | 值 | 说明 |
