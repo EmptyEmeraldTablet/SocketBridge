@@ -143,15 +143,31 @@ class RoomVisualizer:
                 display[gy][gx] = "O"  # 障碍物/岩石
 
         # 门
+        # DoorSlot enum: 0=LEFT0, 1=UP0, 2=RIGHT0, 3=DOWN0, 4=LEFT1, 5=UP1, 6=RIGHT1, 7=DOWN1
         if game_state.raw_room_layout:
             doors = game_state.raw_room_layout.get("doors", {})
             for door_idx, door_info in doors.items():
                 try:
-                    # 使用门的世界坐标转换为网格坐标
-                    door_x = door_info.get("x", 0)
-                    door_y = door_info.get("y", 0)
-                    gx = int((door_x - self.top_left_x) / self.grid_size)
-                    gy = int((door_y - self.top_left_y) / self.grid_size)
+                    # 优先使用门的世界坐标
+                    door_x = door_info.get("x")
+                    door_y = door_info.get("y")
+                    if door_x is not None and door_y is not None:
+                        # 使用世界坐标转换为网格坐标
+                        gx = int((door_x - self.top_left_x) / self.grid_size)
+                        gy = int((door_y - self.top_left_y) / self.grid_size)
+                    else:
+                        # 回退：使用 DoorSlot 枚举定位
+                        slot = int(door_idx)
+                        if slot == 0 or slot == 4:  # LEFT
+                            gx, gy = 0, height // 2
+                        elif slot == 1 or slot == 5:  # UP
+                            gx, gy = width // 2, 0
+                        elif slot == 2 or slot == 6:  # RIGHT
+                            gx, gy = width - 1, height // 2
+                        elif slot == 3 or slot == 7:  # DOWN
+                            gx, gy = width // 2, height - 1
+                        else:
+                            continue
                     if 0 <= gx < width and 0 <= gy < height:
                         display[gy][gx] = self.DOOR
                 except (ValueError, TypeError, KeyError):
