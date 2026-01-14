@@ -432,8 +432,20 @@ class GameMap:
             )
 
         # 创建房间边界墙壁
-        # 即使有 ROOM_LAYOUT 数据，也需要默认的墙壁边界
-        self._create_default_walls()
+        # 解析门位置用于跳过墙壁覆盖
+        door_positions: Set[Tuple[int, int]] = set()
+        doors_data = layout_data.get("doors", {})
+        if isinstance(doors_data, dict) and doors_data:
+            for door_idx, door_info in doors_data.items():
+                try:
+                    door_x = door_info.get("x", 0)
+                    door_y = door_info.get("y", 0)
+                    gx = int(door_x / ACTUAL_GRID_SIZE)
+                    gy = int(door_y / ACTUAL_GRID_SIZE)
+                    door_positions.add((gx, gy))
+                except (ValueError, TypeError):
+                    pass
+        self._create_default_walls(door_positions)
 
     def _mark_l_shape_void_tiles(self, room_info: RoomInfo):
         """为L形房间标记VOID区域
@@ -779,8 +791,16 @@ class GameMap:
         """检查是否是边界格子（L型房间的边缘必须是实际房间区域）"""
         return gx == 0 or gx == self.width - 1 or gy == 0 or gy == self.height - 1
 
-    def _create_default_walls(self):
-        """创建默认墙壁边界"""
+    def _create_default_walls(
+        self, door_positions: Optional[Set[Tuple[int, int]]] = None
+    ):
+        """创建默认墙壁边界
+
+        Args:
+            door_positions: 门的位置集合，用于跳过门位置的墙壁创建
+        """
+        if door_positions is None:
+            door_positions = set()
         for gx in range(self.width):
             self.grid[(gx, 0)] = TileType.WALL
             self.grid[(gx, self.height - 1)] = TileType.WALL
