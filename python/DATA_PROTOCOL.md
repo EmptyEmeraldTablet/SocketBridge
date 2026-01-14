@@ -558,22 +558,38 @@ if room_info:
 }
 ```
 
-**障碍物类型 (GridType)**:
-| GridType | 名称 | 说明 |
-|----------|------|------|
-| 1000 | ROCK | 普通石头 |
-| 1001 | STONE | 石头 |
-| 1002 | CRACKED | 破裂石头 |
-| 1003 | COBBLE | 鹅卵石 |
-| 1004 | WOODEN | 木板 |
-| 1005 | URN/BUCKET | 罐子/桶 |
-| 1007 | BUCKET_WATER | 水桶 |
-| 1008 | BUCKET_POOP | 粪桶 |
-| 8 | SPIKES | 尖刺 |
-| 9 | POISON_SPIKES | 毒尖刺 |
-| 10 | WEB | 蜘蛛网 |
-| 16 | METAL/KEY/PILLAR | 方块 |
-| 17 | POOL/HOLE | 坑 |
+**障碍物类型 (GridEntityType)**:
+| GridEntityType | 名称 | 说明 |
+|---------------|------|------|
+| 2 | GRID_ROCK | 普通岩石 |
+| 3 | GRID_ROCKB | 可炸岩石 (方块) |
+| 4 | GRID_ROCKT | 染色岩石 (秘密房) |
+| 7 | GRID_PIT | 坑/洞 |
+| 8 | GRID_SPIKES | 尖刺 |
+| 9 | GRID_SPIKES_ONOFF | 开关尖刺 |
+| 10 | GRID_SPIDERWEB | 蜘蛛网 |
+| 15 | GRID_WALL | 墙 |
+| 17 | GRID_TRAPDOOR | 陷阱门 |
+| 19 | GRID_GRAVITY | 重力区域 |
+| 21 | GRID_STATUE | 雕像 |
+| 22 | GRID_ROCK_SS | 超级染色岩 |
+| 24 | GRID_PILLAR | 柱子 |
+| 25 | GRID_ROCK_SPIKED | 尖刺岩石 |
+
+**可破坏物类型 (DESTRUCTIBLES)**:
+| GridEntityType | 名称 | 说明 |
+|---------------|------|------|
+| 5 | GRID_ROCK_BOMB | 炸弹岩石 |
+| 6 | GRID_ROCK_ALT | 罐子/蘑菇/骷髅 |
+| 12 | GRID_TNT | TNT |
+| 14 | GRID_POOP | 便便 |
+| 26 | GRID_ROCK_ALT2 | 染色骷髅 (Rep+) |
+| 27 | GRID_ROCK_GOLD | 聚宝岩 (Rep+) |
+
+**按钮类型 (BUTTONS)**:
+| GridEntityType | 名称 | 说明 |
+|---------------|------|------|
+| 20 | GRID_PRESSURE_PLATE | 按钮 |
 
 **门槽位 (DoorSlot)**:
 | 值 | 说明 |
