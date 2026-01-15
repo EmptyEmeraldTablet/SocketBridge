@@ -132,10 +132,18 @@ class RoomCoordinatePrinter:
             gx, gy = self.world_to_grid(pickup.position)
             coords["pickups"].append((gx, gy))
 
-        # 障碍物
+        # 障碍物 - 从两个来源获取：
+        # 1. game_state.obstacles (DESTRUCTIBLES通道: TNT, POOP等)
+        # 2. game_map.static_obstacles (ROOM_LAYOUT通道: 石头等)
+        obstacle_coords = set()
         for obs_id, obs in game_state.obstacles.items():
             gx, gy = self.world_to_grid(obs.position)
-            coords["obstacles"].append((gx, gy))
+            obstacle_coords.add((gx, gy))
+        # 从 static_obstacles 添加石头坐标
+        if hasattr(game_map, "static_obstacles"):
+            for gx, gy in game_map.static_obstacles:
+                obstacle_coords.add((gx, gy))
+        coords["obstacles"] = list(obstacle_coords)
 
         # 按钮
         for btn_id, btn in game_state.buttons.items():
