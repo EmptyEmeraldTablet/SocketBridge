@@ -33,6 +33,7 @@ import os
 import sys
 import time
 import argparse
+import logging
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
@@ -43,6 +44,9 @@ from environment import GameMap, TileType
 from data_processor import create_data_processor
 from isaac_bridge import IsaacBridge, GameDataAccessor
 from data_replay_system import SessionReplayer, create_replayer
+
+logger = logging.getLogger("RealtimeVisualizer")
+logging.basicConfig(level=logging.DEBUG)
 
 
 class RoomCoordinatePrinter:
@@ -299,11 +303,18 @@ def run_replay_mode(
                 "channels": msg.channels,
                 "timestamp": msg.timestamp,
             }
+            logger.debug(f"[Visualizer] Received channels: {msg.channels}")
+            logger.debug(
+                f"[Visualizer] Payload keys: {list(msg.payload.keys()) if isinstance(msg.payload, dict) else 'N/A'}"
+            )
             current_game_state = processor.process_message(raw_message)
             if current_game_state:
+                logger.debug(
+                    f"[Visualizer] After processing - projectiles: {len(current_game_state.projectiles)}, bombs: {len(current_game_state.bombs)}, obstacles: {len(current_game_state.obstacles)}"
+                )
                 current_game_map, _ = build_game_map(current_game_state)
         except Exception as e:
-            pass
+            logger.error(f"[Visualizer] Error processing message: {e}")
 
     print("\nPrinting coordinates... Press Ctrl+C to stop")
     print("-" * 60)
@@ -384,11 +395,18 @@ def run_live_mode():
                 "channels": msg.channels,
                 "timestamp": msg.timestamp,
             }
+            logger.debug(f"[Visualizer] Received channels: {msg.channels}")
+            logger.debug(
+                f"[Visualizer] Payload keys: {list(msg.payload.keys()) if isinstance(msg.payload, dict) else 'N/A'}"
+            )
             current_game_state = processor.process_message(raw_message)
             if current_game_state:
+                logger.debug(
+                    f"[Visualizer] After processing - projectiles: {len(current_game_state.projectiles)}, bombs: {len(current_game_state.bombs)}, obstacles: {len(current_game_state.obstacles)}"
+                )
                 current_game_map, _ = build_game_map(current_game_state)
         except Exception as e:
-            pass
+            logger.error(f"[Visualizer] Error processing message: {e}")
 
     # 启动桥接器
     bridge.start()

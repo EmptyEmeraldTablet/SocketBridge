@@ -606,6 +606,13 @@ class DataProcessor:
         # 或直接格式 {"id": {...}, ...} (测试数据格式)
         # ============================================================
         proj_data = payload.get("projectiles") or payload.get("PROJECTILES")
+        logger.debug(
+            f"[DataProcessor] PROJECTILES channel - data: {proj_data is not None}"
+        )
+        if proj_data is not None:
+            logger.debug(
+                f"[DataProcessor] PROJECTILES data type: {type(proj_data)}, keys: {list(proj_data.keys()) if isinstance(proj_data, dict) else 'N/A'}"
+            )
         if proj_data is not None and isinstance(proj_data, dict):
             self.current_state.mark_channel_updated(
                 "PROJECTILES", self.current_state.frame
@@ -953,6 +960,11 @@ class DataProcessor:
         # 格式: [{"id": 30, "variant_name": "NORMAL", ...}, ...]
         # ============================================================
         bombs_data = payload.get("BOMBS") or payload.get("bombs")
+        logger.debug(f"[DataProcessor] BOMBS channel - data: {bombs_data is not None}")
+        if bombs_data is not None:
+            logger.debug(
+                f"[DataProcessor] BOMBS data type: {type(bombs_data)}, count: {len(bombs_data) if isinstance(bombs_data, list) else 'N/A'}"
+            )
         if bombs_data is not None and isinstance(bombs_data, list):
             self.current_state.mark_channel_updated("BOMBS", self.current_state.frame)
             for bdata in bombs_data:
@@ -983,6 +995,13 @@ class DataProcessor:
         destructibles_data = payload.get("DESTRUCTIBLES") or payload.get(
             "destructibles"
         )
+        logger.debug(
+            f"[DataProcessor] DESTRUCTIBLES channel - data: {destructibles_data is not None}"
+        )
+        if destructibles_data is not None:
+            logger.debug(
+                f"[DataProcessor] DESTRUCTIBLES data type: {type(destructibles_data)}, count: {len(destructibles_data) if isinstance(destructibles_data, list) else 'N/A'}"
+            )
         if destructibles_data is not None and isinstance(destructibles_data, list):
             self.current_state.mark_channel_updated(
                 "DESTRUCTIBLES", self.current_state.frame
