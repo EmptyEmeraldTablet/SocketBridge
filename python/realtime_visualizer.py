@@ -37,6 +37,11 @@ import logging
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
+# 配置日志级别，确保DEBUG信息能输出
+logging.basicConfig(
+    level=logging.DEBUG, format="%(name)s - %(levelname)s - %(message)s"
+)
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from models import Vector2D, RoomInfo, GameStateData
@@ -46,7 +51,6 @@ from isaac_bridge import IsaacBridge, GameDataAccessor
 from data_replay_system import SessionReplayer, create_replayer
 
 logger = logging.getLogger("RealtimeVisualizer")
-logging.basicConfig(level=logging.DEBUG)
 
 
 class RoomCoordinatePrinter:
