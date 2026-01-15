@@ -1,21 +1,20 @@
 """
-SocketBridge 实时房间可视化工具
+SocketBridge 房间坐标输出工具
 
 功能:
-1. 从录制数据回放并实时显示房间布局
-2. 支持两种模式:
-   - 回放模式: 从录制的数据回放
-   - 实时模式: 连接游戏实时显示
+1. 计算并输出当前房间内各类实体的网格坐标
+2. 支持回放模式和实时模式
+3. 保持输出刷新，便于使用
 
-数据来源:
-- ROOM_LAYOUT: 房间几何信息
-- ROOM_INFO: 房间元数据
-- FIRE_HAZARDS: 火堆
-- BUTTONS: 按钮
-- DESTRUCTIBLES: 可破坏物
-- INTERACTABLES: 可交互实体
-- PICKUPS: 拾取物
-- PLAYER_POSITION: 玩家位置
+实体类型:
+- fire_hazards: 火焰危险物
+- buttons: 按钮
+- obstacles: 可破坏物/障碍物
+- interactables: 可交互实体
+- pickups: 拾取物
+- enemies: 敌人
+- projectiles: 投射物
+- player: 玩家
 
 使用方法:
     # 回放模式
@@ -46,40 +45,15 @@ from isaac_bridge import IsaacBridge, GameDataAccessor
 from data_replay_system import SessionReplayer, create_replayer
 
 
-class RoomVisualizer:
-    """房间实时可视化器"""
+class RoomCoordinatePrinter:
+    """房间坐标输出器 - 计算并输出实体的网格坐标"""
 
-    # 符号定义
-    WALL = "#"
-    VOID = "X"
-    FLOOR = "."
-    DOOR = "D"
-    ENTITY = "E"
-    PLAYER = "P"
-
-    def __init__(self, use_colors: bool = True):
-        self.use_colors = use_colors
+    def __init__(self):
         self.grid_size = 40.0
 
         # 房间边界偏移（来自 room_info.top_left）
-        # 这些值用于正确将世界坐标转换为网格坐标
-        # 参考: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
         self.top_left_x = 0.0
         self.top_left_y = 0.0
-
-        # 颜色配置
-        if use_colors and os.name != "nt":
-            self.COLOR_WALL = "\033[90m"
-            self.COLOR_VOID = "\033[95m"
-            self.COLOR_FLOOR = "\033[37m"
-            self.COLOR_DOOR = "\033[93m"
-            self.COLOR_ENTITY = "\033[94m"
-            self.COLOR_PLAYER = "\033[92m"
-            self.COLOR_RESET = "\033[0m"
-        else:
-            self.COLOR_WALL = self.COLOR_VOID = self.COLOR_FLOOR = ""
-            self.COLOR_DOOR = self.COLOR_ENTITY = self.COLOR_PLAYER = ""
-            self.COLOR_RESET = ""
 
     def world_to_grid(self, pos: Vector2D) -> Tuple[int, int]:
         """世界坐标转网格坐标（考虑房间边界偏移）
@@ -87,35 +61,13 @@ class RoomVisualizer:
         根据 ROOM_GEOMETRY_BY_SESSION.md:
         - room_info.top_left 是墙壁内边界左上角坐标（可移动区域左上角）
         - 玩家位置是世界坐标，需要减去 top_left 偏移后再除以 grid_size
-
-        例如：玩家位置 (100, 200)，top_left (60, 140):
-        - grid_x = (100 - 60) / 40 = 1
-        - grid_y = (200 - 140) / 40 = 1.5 → 1
         """
         grid_x = int((pos.x - self.top_left_x) / self.grid_size)
         grid_y = int((pos.y - self.top_left_y) / self.grid_size)
         return (grid_x, grid_y)
 
-    def get_color(self, symbol: str) -> str:
-        colors = {
-            self.WALL: self.COLOR_WALL,
-            self.VOID: self.COLOR_VOID,
-            self.FLOOR: self.COLOR_FLOOR,
-            self.DOOR: self.COLOR_DOOR,
-            self.ENTITY: self.COLOR_ENTITY,
-            self.PLAYER: self.COLOR_PLAYER,
-        }
-        return colors.get(symbol, "")
-
-    def clear_screen(self):
-        os.system("cls" if os.name == "nt" else "clear")
-
-    def render(self, game_state: GameStateData, game_map: GameMap) -> str:
-        """渲染房间为ASCII字符串"""
-        self.grid_size = game_map.grid_size
-        width, height = game_map.width, game_map.height
-
-        # 提取房间边界偏移（用于正确的坐标转换）
+    def update_room_offset(self, game_state: GameStateData):
+        """更新房间边界偏移"""
         if game_state.room_info and game_state.room_info.top_left:
             tl = game_state.room_info.top_left
             if isinstance(tl, tuple) and len(tl) == 2:
@@ -128,155 +80,125 @@ class RoomVisualizer:
             self.top_left_x = 0.0
             self.top_left_y = 0.0
 
-        # 初始化显示网格
-        display: List[List[str]] = [
-            [self.FLOOR for _ in range(width)] for _ in range(height)
-        ]
+    def get_coordinates(
+        self, game_state: GameStateData, game_map: GameMap
+    ) -> Dict[str, List[Tuple[int, int]]]:
+        """获取所有实体的网格坐标
 
-        # 墙壁、VOID和障碍物
-        for (gx, gy), tile_type in game_map.grid.items():
-            if tile_type == TileType.WALL:
-                display[gy][gx] = self.WALL
-            elif tile_type == TileType.VOID:
-                display[gy][gx] = self.VOID
-            elif tile_type == TileType.SPECIAL:
-                display[gy][gx] = "O"  # 障碍物/岩石
+        Returns:
+            按类型分组的坐标字典
+        """
+        self.grid_size = game_map.grid_size
+        self.update_room_offset(game_state)
 
-        # 门
-        # DoorSlot enum: 0=LEFT0, 1=UP0, 2=RIGHT0, 3=DOWN0, 4=LEFT1, 5=UP1, 6=RIGHT1, 7=DOWN1
-        if game_state.raw_room_layout:
-            doors = game_state.raw_room_layout.get("doors", {})
-            for door_idx, door_info in doors.items():
-                try:
-                    # 优先使用门的世界坐标
-                    door_x = door_info.get("x")
-                    door_y = door_info.get("y")
-                    if door_x is not None and door_y is not None:
-                        # 使用世界坐标转换为网格坐标
-                        gx = int((door_x - self.top_left_x) / self.grid_size)
-                        gy = int((door_y - self.top_left_y) / self.grid_size)
-                    else:
-                        # 回退：使用 DoorSlot 枚举定位
-                        slot = int(door_idx)
-                        if slot == 0 or slot == 4:  # LEFT
-                            gx, gy = 0, height // 2
-                        elif slot == 1 or slot == 5:  # UP
-                            gx, gy = width // 2, 0
-                        elif slot == 2 or slot == 6:  # RIGHT
-                            gx, gy = width - 1, height // 2
-                        elif slot == 3 or slot == 7:  # DOWN
-                            gx, gy = width // 2, height - 1
-                        else:
-                            continue
-                    if 0 <= gx < width and 0 <= gy < height:
-                        display[gy][gx] = self.DOOR
-                except (ValueError, TypeError, KeyError):
-                    pass
-
-        # 实体 (不区分类型)
-        self._mark_entities(display, game_state)
+        coords = {
+            "fire_hazards": [],
+            "buttons": [],
+            "obstacles": [],
+            "interactables": [],
+            "pickups": [],
+            "enemies": [],
+            "projectiles": [],
+            "player": [],
+        }
 
         # 玩家
         player = game_state.get_primary_player()
         if player:
             gx, gy = self.world_to_grid(player.position)
-            if 0 <= gx < width and 0 <= gy < height:
-                display[gy][gx] = self.PLAYER
+            coords["player"].append((gx, gy))
 
-        return self._build_output(display, game_state, player)
+        # 敌人
+        for enemy_id, enemy in game_state.enemies.items():
+            if enemy.state.value == "active":
+                gx, gy = self.world_to_grid(enemy.position)
+                coords["enemies"].append((gx, gy))
 
-    def _mark_entities(self, display: List[List[str]], game_state: GameStateData):
-        """标记所有实体"""
-        for fh in game_state.fire_hazards.values():
-            gx, gy = self.world_to_grid(fh.position)
-            if 0 <= gx < len(display[0]) and 0 <= gy < len(display):
-                display[gy][gx] = self.ENTITY
+        # 投射物
+        for proj_id, proj in game_state.projectiles.items():
+            gx, gy = self.world_to_grid(proj.position)
+            coords["projectiles"].append((gx, gy))
 
-        for btn in game_state.buttons.values():
+        # 拾取物
+        for pickup_id, pickup in game_state.pickups.items():
+            gx, gy = self.world_to_grid(pickup.position)
+            coords["pickups"].append((gx, gy))
+
+        # 障碍物
+        for obs_id, obs in game_state.obstacles.items():
+            gx, gy = self.world_to_grid(obs.position)
+            coords["obstacles"].append((gx, gy))
+
+        # 按钮
+        for btn_id, btn in game_state.buttons.items():
             gx, gy = self.world_to_grid(btn.position)
-            if 0 <= gx < len(display[0]) and 0 <= gy < len(display):
-                display[gy][gx] = self.ENTITY
+            coords["buttons"].append((gx, gy))
 
-        for dest in game_state.obstacles.values():
-            gx, gy = self.world_to_grid(dest.position)
-            if 0 <= gx < len(display[0]) and 0 <= gy < len(display):
-                display[gy][gx] = self.ENTITY
+        # 火焰危险物
+        for fire_id, fire in game_state.fire_hazards.items():
+            gx, gy = self.world_to_grid(fire.position)
+            coords["fire_hazards"].append((gx, gy))
 
-        for ent in game_state.interactables.values():
+        # 可交互实体
+        for ent_id, ent in game_state.interactables.items():
             gx, gy = self.world_to_grid(ent.position)
-            if 0 <= gx < len(display[0]) and 0 <= gy < len(display):
-                display[gy][gx] = self.ENTITY
+            coords["interactables"].append((gx, gy))
 
-        for p in game_state.pickups.values():
-            gx, gy = self.world_to_grid(p.position)
-            if 0 <= gx < len(display[0]) and 0 <= gy < len(display):
-                display[gy][gx] = self.ENTITY
+        return coords
 
-    def _build_output(
-        self, display: List[List[str]], game_state: GameStateData, player
+    def format_output(
+        self, game_state: GameStateData, coords: Dict[str, List[Tuple[int, int]]]
     ) -> str:
-        """构建输出字符串"""
+        """简化坐标输出"""
         lines = []
 
-        room_idx = game_state.room_index or -1
         frame = game_state.frame or 0
-        lines.append(
-            f"[Frame:{frame:06d}] Room:{room_idx:03d} ({len(display[0])}x{len(display)})"
-        )
-        lines.append("=" * (len(display[0]) + 2))
+        room_idx = game_state.room_index or -1
+        lines.append(f"[Frame:{frame:06d} Room:{room_idx:03d}]")
 
-        for gy in range(len(display)):
-            line = ""
-            for gx in range(len(display[0])):
-                symbol = display[gy][gx]
-                color = self.get_color(symbol)
-                if color and self.use_colors:
-                    line += f"{color}{symbol}{self.COLOR_RESET}"
-                else:
-                    line += symbol
-            lines.append("|" + line + "|")
+        # 按类型输出坐标（只显示非空类型）
+        type_names = {
+            "player": "Player",
+            "enemies": "Enemies",
+            "projectiles": "Projectiles",
+            "fire_hazards": "Fire",
+            "buttons": "Buttons",
+            "obstacles": "Obstacles",
+            "interactables": "Interactables",
+            "pickups": "Pickups",
+        }
 
-        lines.append("=" * (len(display[0]) + 2))
+        total_count = 0
+        for entity_type, type_name in type_names.items():
+            positions = coords.get(entity_type, [])
+            if positions:
+                unique_positions = sorted(set(positions))
+                count = len(unique_positions)
+                total_count += count
+                pos_strs = [f"({gx},{gy})" for gx, gy in unique_positions]
+                lines.append(f"{type_name} [{count}]: {', '.join(pos_strs)}")
 
-        # 统计
-        entity_count = (
-            len(game_state.fire_hazards)
-            + len(game_state.buttons)
-            + len(game_state.obstacles)
-            + len(game_state.interactables)
-            + len(game_state.pickups)
-        )
-
-        player_pos = player.position if player else None
-        if player_pos:
-            lines.append(
-                f"Entities: {entity_count} | Player: ({player_pos.x:.0f},{player_pos.y:.0f})"
-            )
-        else:
-            lines.append(f"Entities: {entity_count}")
-
-        lines.append(
-            f"Fire:{len(game_state.fire_hazards)} Buttons:{len(game_state.buttons)} "
-            f"Destruct:{len(game_state.obstacles)} Inter:{len(game_state.interactables)} Pickup:{len(game_state.pickups)}"
-        )
-        lines.append("")
-        lines.append("Legend: .path  #wall  Xvoid  Ddoor  Eentity  Pplayer")
+        lines.append(f"Total: {total_count}")
 
         return "\n".join(lines)
 
-    def display(self, game_state: GameStateData, game_map: GameMap, clear: bool = True):
-        """清屏刷新显示"""
+    def print(self, game_state: GameStateData, game_map: GameMap, clear: bool = True):
+        """打印坐标（清屏刷新）"""
         if clear:
-            self.clear_screen()
-        print(self.render(game_state, game_map))
+            os.system("cls" if os.name == "nt" else "clear")
+
+        coords = self.get_coordinates(game_state, game_map)
+        output = self.format_output(game_state, coords)
+        print(output)
 
     def refresh(self, game_state: GameStateData, game_map: GameMap) -> str:
-        """滚动刷新显示 - 返回完整的帧字符串供外部打印
+        """刷新输出 - 返回完整的输出字符串
 
         Returns:
-            完整的帧字符串（包含所有行）
+            完整的输出字符串（包含所有行）
         """
-        return self.render(game_state, game_map)
+        coords = self.get_coordinates(game_state, game_map)
+        return self.format_output(game_state, coords)
 
 
 def build_game_map(game_state: GameStateData) -> Tuple[GameMap, GameStateData]:
@@ -285,9 +207,6 @@ def build_game_map(game_state: GameStateData) -> Tuple[GameMap, GameStateData]:
     layout = game_state.raw_room_layout
 
     if room_info:
-        # 始终使用 grid_size=40（游戏实际使用的值）
-        # 录制数据中的 grid_size=135 是中间值，不应用于坐标转换
-        # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
         grid_size = 40.0
         game_map = GameMap(
             grid_size=grid_size,
@@ -309,15 +228,14 @@ def run_replay_mode(
     speed: float = 1.0,
     recordings_dir: str = "./recordings",
 ):
-    """回放模式: 从录制数据回放并显示"""
+    """回放模式: 从录制数据回放并输出坐标"""
     print("=" * 60)
-    print("Room Visualizer - Replay Mode")
+    print("Room Coordinate Printer - Replay Mode")
     print("=" * 60)
 
-    # 创建组件 (使用正确的录制目录)
+    # 创建组件
     recordings_path = Path(recordings_dir)
 
-    # 检查是否有meta文件（直接在该目录下或子目录中）
     def has_meta_files(path):
         if not path.exists():
             return False
@@ -326,17 +244,15 @@ def run_replay_mode(
         return len(direct) > 0 or len(subdir) > 0
 
     if not has_meta_files(recordings_path):
-        # 尝试python子目录
         recordings_path = Path(__file__).parent / "recordings"
         if not has_meta_files(recordings_path):
-            # 最终检查：如果还是找不到，尝试python/recordings
             recordings_path = Path(__file__).parent / "python" / "recordings"
 
     print(f"Recordings directory: {recordings_path}")
 
     replayer = create_replayer(str(recordings_path))
     processor = create_data_processor()
-    visualizer = RoomVisualizer()
+    printer = RoomCoordinatePrinter()
 
     # 列出会话
     sessions = replayer.list_sessions()
@@ -389,18 +305,16 @@ def run_replay_mode(
         except Exception as e:
             pass
 
-    print("\nVisualizing... Press Ctrl+C to stop")
+    print("\nPrinting coordinates... Press Ctrl+C to stop")
     print("-" * 60)
 
-    # 直接遍历消息并处理（不通过网络）
+    # 直接遍历消息并处理
     messages = replayer.simulator.messages
     total_messages = len(messages)
     last_timestamp = 0
     start_time = time.time()
 
     try:
-        visualizer.clear_screen()
-
         for i, msg in enumerate(messages):
             # 处理消息
             if msg.msg_type == "DATA":
@@ -408,7 +322,7 @@ def run_replay_mode(
 
             # 构建并显示输出
             if current_game_state and current_game_map:
-                frame_output = visualizer.refresh(current_game_state, current_game_map)
+                frame_output = printer.refresh(current_game_state, current_game_map)
                 progress = (i + 1) / total_messages * 100
                 progress_line = (
                     f"\nProgress: {progress:.1f}% | Messages: {i + 1}/{total_messages}"
@@ -426,13 +340,13 @@ def run_replay_mode(
     except KeyboardInterrupt:
         print("\nStopping...")
 
-    print("\nReplay visualization complete!")
+    print("\nReplay complete!")
 
 
 def run_live_mode():
-    """实时模式: 连接游戏实时显示"""
+    """实时模式: 连接游戏实时输出坐标"""
     print("=" * 60)
-    print("Room Visualizer - Live Mode")
+    print("Room Coordinate Printer - Live Mode")
     print("=" * 60)
     print("Waiting for game connection...")
     print("Make sure SocketBridge mod is running in-game")
@@ -440,7 +354,7 @@ def run_live_mode():
 
     # 创建组件
     processor = create_data_processor()
-    visualizer = RoomVisualizer()
+    printer = RoomCoordinatePrinter()
 
     # IsaacBridge作为服务器等待游戏连接
     bridge = IsaacBridge()
@@ -482,7 +396,7 @@ def run_live_mode():
     try:
         while True:
             if current_game_state and current_game_map:
-                frame_output = visualizer.refresh(current_game_state, current_game_map)
+                frame_output = printer.refresh(current_game_state, current_game_map)
                 output = f"\033[H\033[J{frame_output}\n"
                 print(output, end="", flush=True)
             time.sleep(0.1)
@@ -490,7 +404,7 @@ def run_live_mode():
         print("\nStopping...")
         bridge.stop()
 
-    print("Live visualization stopped.")
+    print("Live mode stopped.")
 
 
 def list_sessions():
@@ -508,7 +422,7 @@ def list_sessions():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SocketBridge Room Visualizer - Real-time ASCII room display",
+        description="SocketBridge Room Coordinate Printer - Calculate and output entity grid coordinates",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -552,7 +466,7 @@ Examples:
 
     # Live command
     live_parser = subparsers.add_parser(
-        "live", help="Connect to game and visualize live"
+        "live", help="Connect to game and print coordinates live"
     )
 
     args = parser.parse_args()
