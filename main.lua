@@ -1264,7 +1264,6 @@ CollectorRegistry:register("FIRE_HAZARDS", {
 })
 
 -- 可破坏障碍物 (中频)
--- 收集所有岩石类型、TNT、大便等可破坏物
 CollectorRegistry:register("DESTRUCTIBLES", {
     interval = "LOW",
     priority = 3,
@@ -1276,20 +1275,19 @@ CollectorRegistry:register("DESTRUCTIBLES", {
         local room = Helpers.getRoom()
         local obstacles = {}
         
-        -- 可被泪弹直接破坏的障碍物类型
-        -- 包含所有岩石类型和其他可破坏物
+        -- 所有障碍物类型（石头大便等可被泪弹破坏的）
         local DESTRUCTIBLE_TYPES = {
-            [2] = "rock",           -- 普通岩石
-            [3] = "rock_block",     -- 方块岩石
-            [4] = "rock_tinted",    -- 深色岩石（可能有道具）
-            [5] = "rock_bomb",      -- 炸弹岩石
-            [6] = "rock_alt",       -- 罐子/蘑菇/骷髅
-            [12] = "tnt",           -- TNT
-            [14] = "poop",          -- 大便
-            [22] = "rock_super",    -- 超深色岩石（双奖励）
-            [25] = "rock_spiked",   -- 尖刺岩石
-            [26] = "rock_skull",    -- 骷髅（掉愚者卡）
-            [27] = "rock_gold",     -- 金色岩石
+            [2] = "ROCK",
+            [3] = "ROCK_B",
+            [4] = "ROCK_T",
+            [5] = "ROCK_BOMB",
+            [6] = "ROCK_ALT",
+            [12] = "TNT",
+            [14] = "POOP",
+            [22] = "ROCK_SS",
+            [25] = "ROCK_SPIKED",
+            [26] = "ROCK_ALT2",
+            [27] = "ROCK_GOLD",
         }
         
         -- 大便变种类型
@@ -1304,23 +1302,17 @@ CollectorRegistry:register("DESTRUCTIBLES", {
             [7] = "GIANT",       -- 巨型大便 (20-40击)
             [8] = "CHARMING",    -- 友好大便 (产生粪滴跟班)
         }
-
-        -- 深色岩石变种类型
-        local TINTED_ROCK_VARIANTS = {
-            [0] = "NORMAL",      -- 普通深色岩石
-            [1] = "CRACKED",     -- 裂纹深色岩石
-        }
-
+        
         for i = 0, room:GetGridSize() - 1 do
             local grid = room:GetGridEntity(i)
             if grid then
                 local gridType = grid:GetType()
                 local typeName = DESTRUCTIBLE_TYPES[gridType]
-
+                
                 if typeName then
                     local pos = room:GetGridPosition(i)
                     local dist = playerPos:Distance(pos)
-
+                    
                     -- 移除距离限制，收集所有可破坏物
                     local obstacleData = {
                         grid_index = i,
@@ -1330,24 +1322,19 @@ CollectorRegistry:register("DESTRUCTIBLES", {
                         state = grid.State,
                         distance = dist,
                     }
-
+                    
                     -- 大便特殊处理
                     if gridType == 14 then
                         local variant = grid:GetVariant() or 0
                         obstacleData.variant = variant
                         obstacleData.variant_name = POOP_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
-                    -- 深色岩石特殊处理
-                    elseif gridType == 4 then
-                        local variant = grid:GetVariant() or 0
-                        obstacleData.variant = variant
-                        obstacleData.variant_name = TINTED_ROCK_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
                     end
-
+                    
                     table.insert(obstacles, obstacleData)
                 end
             end
         end
-
+        
         return obstacles
     end
 })
