@@ -363,6 +363,39 @@ class DataProcessor:
     def __init__(self):
         self.parser = DataParser()
         self.current_state = GameStateData()
+        self._prev_room_index: Optional[int] = None
+
+    def _clear_room_entities(self):
+        """清除所有房间特有的实体（切换房间时调用）
+
+        保留玩家数据（玩家会跟随进入新房间）
+        清除：敌人、投射物、拾取物、障碍物、按钮、火焰、可交互物、炸弹
+        """
+        self.current_state.enemies.clear()
+        self.current_state.projectiles.clear()
+        self.current_state.pickups.clear()
+        self.current_state.obstacles.clear()
+        self.current_state.buttons.clear()
+        self.current_state.fire_hazards.clear()
+        self.current_state.interactables.clear()
+        self.current_state.bombs.clear()
+        self.current_state.lasers.clear()
+        logger.debug("[DataProcessor] Cleared all room entities on room transition")
+
+    def _handle_room_transition(self, new_room_index: int):
+        """处理房间切换
+
+        当 room_index 变化时，清除旧房间的实体数据
+        """
+        if (
+            self._prev_room_index is not None
+            and new_room_index != self._prev_room_index
+        ):
+            logger.debug(
+                f"[DataProcessor] Room transition: {self._prev_room_index} -> {new_room_index}"
+            )
+            self._clear_room_entities()
+        self._prev_room_index = new_room_index
 
     def process_message(self, raw_message: Dict[str, Any]) -> GameStateData:
         """处理原始消息，更新游戏状态
@@ -403,7 +436,11 @@ class DataProcessor:
         # 更新基本信息
         self.current_state.frame = message.get("frame", 0)
         self.current_state.timestamp = message.get("timestamp", 0)
-        self.current_state.room_index = message.get("room_index", -1)
+
+        # 处理房间切换（检测 room_index 变化并清除旧房间实体）
+        new_room_index = message.get("room_index", -1)
+        self._handle_room_transition(new_room_index)
+        self.current_state.room_index = new_room_index
 
         payload = message.get("payload", {})
 
