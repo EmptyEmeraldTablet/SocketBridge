@@ -1001,8 +1001,9 @@ class PlayerHealthData:
 
     @property
     def total_hearts(self) -> float:
-        """计算总心数（红心 + 灵魂心/2 + 黑心/2）"""
-        return self.red_hearts + self.soul_hearts * 0.5 + self.black_hearts * 0.5
+        """计算总心数（红心 + 灵魂心/2 ）"""
+        #黑魂心的值不是数量而是表示黑魂心的位置
+        return self.red_hearts + self.soul_hearts * 0.5 
 
     @property
     def max_hearts(self) -> int:
