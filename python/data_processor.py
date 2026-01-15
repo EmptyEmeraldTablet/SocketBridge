@@ -855,6 +855,7 @@ class DataProcessor:
                 btn.state = bdata.get("state", 0)
                 btn.is_pressed = bdata.get("is_pressed", False)
                 btn.distance = bdata.get("distance", 0.0)
+                btn.last_seen_frame = self.current_state.frame
                 self.current_state.buttons[btn_idx] = btn
 
         # ============================================================
@@ -887,6 +888,7 @@ class DataProcessor:
                 fire.is_extinguished = fdata.get("is_extinguished", False)
                 fire.is_shooting = fdata.get("is_shooting", False)
                 fire.collision_radius = fdata.get("collision_radius", 25.0)
+                fire.last_seen_frame = self.current_state.frame
                 self.current_state.fire_hazards[fire_id] = fire
 
         # ============================================================
@@ -916,6 +918,7 @@ class DataProcessor:
                 entity.sub_type = idata.get("sub_type", 0)
                 entity.state = idata.get("state", 0)
                 entity.state_frame = idata.get("state_frame", 0)
+                entity.last_seen_frame = self.current_state.frame
                 self.current_state.interactables[entity_id] = entity
 
         # ============================================================
@@ -942,6 +945,7 @@ class DataProcessor:
                 pickup.pickup_type = pdata.get("variant", 0)
                 pickup.is_shop_item = pdata.get("shop_item_id", -1) >= 0
                 pickup.price = pdata.get("price", 0)
+                pickup.last_seen_frame = self.current_state.frame
                 self.current_state.pickups[pickup_id] = pickup
 
         # ============================================================
@@ -969,6 +973,7 @@ class DataProcessor:
                 bomb.radius = bdata.get("explosion_radius", 100.0)
                 bomb.damage = bdata.get("damage", 100.0)
                 bomb.is_player_bomb = True
+                bomb.last_seen_frame = self.current_state.frame
                 self.current_state.bombs[bomb_id] = bomb
 
         # ============================================================
@@ -997,6 +1002,7 @@ class DataProcessor:
                 destructible.obj_type = ddata.get("type", 0)
                 destructible.variant = ddata.get("variant", 0)
                 destructible.hp = ddata.get("hp", ddata.get("health", 1))
+                destructible.last_seen_frame = self.current_state.frame
                 self.current_state.obstacles[obj_id] = destructible
 
         # ============================================================

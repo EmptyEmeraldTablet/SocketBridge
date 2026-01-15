@@ -753,7 +753,7 @@ class GameStateData:
         return self.frame - last_frame > max_staleness
 
     def cleanup_stale_entities(self, frame: int = None):
-        """清理过期的实体（敌人和投射物）
+        """清理过期的实体
 
         超过 ENTITY_EXPIRY_FRAMES 未更新的实体被视为已消失，
         从状态中移除以避免使用过期数据。
@@ -786,10 +786,90 @@ class GameStateData:
             del self.projectiles[proj_id]
             logger.debug(f"[GameStateData] Removed stale projectile {proj_id}")
 
-        if stale_enemies or stale_projectiles:
+        # 清理拾取物
+        stale_pickups = [
+            pickup_id
+            for pickup_id, pickup in self.pickups.items()
+            if pickup.last_seen_frame < expiry_threshold
+        ]
+        for pickup_id in stale_pickups:
+            del self.pickups[pickup_id]
+            logger.debug(f"[GameStateData] Removed stale pickup {pickup_id}")
+
+        # 清理按钮
+        stale_buttons = [
+            btn_id
+            for btn_id, btn in self.buttons.items()
+            if btn.last_seen_frame < expiry_threshold
+        ]
+        for btn_id in stale_buttons:
+            del self.buttons[btn_id]
+            logger.debug(f"[GameStateData] Removed stale button {btn_id}")
+
+        # 清理火焰危险物
+        stale_fire = [
+            fire_id
+            for fire_id, fire in self.fire_hazards.items()
+            if fire.last_seen_frame < expiry_threshold
+        ]
+        for fire_id in stale_fire:
+            del self.fire_hazards[fire_id]
+            logger.debug(f"[GameStateData] Removed stale fire_hazard {fire_id}")
+
+        # 清理可交互实体
+        stale_interactables = [
+            ent_id
+            for ent_id, ent in self.interactables.items()
+            if ent.last_seen_frame < expiry_threshold
+        ]
+        for ent_id in stale_interactables:
+            del self.interactables[ent_id]
+            logger.debug(f"[GameStateData] Removed stale interactable {ent_id}")
+
+        # 清理障碍物
+        stale_obstacles = [
+            obj_id
+            for obj_id, obj in self.obstacles.items()
+            if obj.last_seen_frame < expiry_threshold
+        ]
+        for obj_id in stale_obstacles:
+            del self.obstacles[obj_id]
+            logger.debug(f"[GameStateData] Removed stale obstacle {obj_id}")
+
+        # 清理炸弹
+        stale_bombs = [
+            bomb_id
+            for bomb_id, bomb in self.bombs.items()
+            if bomb.last_seen_frame < expiry_threshold
+        ]
+        for bomb_id in stale_bombs:
+            del self.bombs[bomb_id]
+            logger.debug(f"[GameStateData] Removed stale bomb {bomb_id}")
+
+        # 清理激光
+        stale_lasers = [
+            laser_id
+            for laser_id, laser in self.lasers.items()
+            if laser.last_seen_frame < expiry_threshold
+        ]
+        for laser_id in stale_lasers:
+            del self.lasers[laser_id]
+            logger.debug(f"[GameStateData] Removed stale laser {laser_id}")
+
+        # 清理玩家（如果长时间未更新）
+        stale_players = [
+            player_idx
+            for player_idx, player in self.players.items()
+            if player.last_seen_frame < expiry_threshold
+        ]
+        for player_idx in stale_players:
+            del self.players[player_idx]
+            logger.debug(f"[GameStateData] Removed stale player {player_idx}")
+
+        if stale_enemies or stale_projectiles or stale_pickups:
             logger.debug(
                 f"[GameStateData] Cleanup: {len(stale_enemies)} enemies, "
-                f"{len(stale_projectiles)} projectiles"
+                f"{len(stale_projectiles)} projectiles, {len(stale_pickups)} pickups"
             )
 
 
@@ -1002,8 +1082,8 @@ class PlayerHealthData:
     @property
     def total_hearts(self) -> float:
         """计算总心数（红心 + 灵魂心/2 ）"""
-        #黑魂心的值不是数量而是表示黑魂心的位置
-        return self.red_hearts + self.soul_hearts * 0.5 
+        # 黑魂心的值不是数量而是表示黑魂心的位置
+        return self.red_hearts + self.soul_hearts * 0.5
 
     @property
     def max_hearts(self) -> int:
