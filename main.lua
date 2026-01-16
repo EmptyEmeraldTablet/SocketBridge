@@ -818,10 +818,8 @@ CollectorRegistry:register("ROOM_LAYOUT", {
                 local gridType = gridEntity:GetType()
 
                 -- 收集所有 GridEntityType 枚举的实体 (0-27)
-                -- 排除: 13 (FIREPLACE - 已弃用，改用 ENTITY_EFFECT 处理)
-                -- 排除: 16 (DOOR - 门由 doors 单独处理)
-                -- 排除: 20 (PRESSURE_PLATE - 由 BUTTONS 通道单独处理)
-                if gridType >= 0 and gridType <= 27 and gridType ~= 13 and gridType ~= 16 and gridType ~= 20 then
+                -- 不做排除
+                if gridType >= 0 and gridType <= 27  then
                     local collision = gridEntity.CollisionClass
                     local variant = gridEntity:GetVariant()
                     local state = gridEntity.State
