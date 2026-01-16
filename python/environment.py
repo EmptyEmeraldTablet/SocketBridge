@@ -367,8 +367,8 @@ class GameMap:
                     if tile_type == 0:
                         # NULL，忽略
                         pass
-                    elif tile_type == 1 and variant == 8:
-                        # DECORATION variant=8: 特殊地面覆盖物，忽略
+                    elif tile_type == 1 :
+                        # DECORATION : 特殊地面覆盖物，暂时忽略
                         pass
                     elif tile_type == 7 and collision > 0:
                         # PIT -> VOID
