@@ -66,30 +66,31 @@ class RoomCoordinatePrinter:
     def world_to_grid(self, pos: Vector2D) -> Tuple[int, int]:
         """世界坐标转网格坐标
 
-        房间坐标系统：
-        - ROOM_LAYOUT.grid 中的 tile_x, tile_y 是世界坐标
-        - 玩家位置 pos.x, pos.y 也是世界坐标
-        - 直接使用 int(world / 40) 得到网格坐标
+        基于 ROOM_GEOMETRY_BY_SESSION.md 的坐标系统：
+        - top_left 是墙壁内边界左上角坐标（可移动区域左上角）
+        - 房间整体世界坐标 = (top_left_x - 40, top_left_y - 40)
 
-        注意：不使用 top_left 偏移，因为世界坐标和网格坐标都从 (0,0) 开始
+        对于任意点 (x, y)，对应的格点坐标：
+        gx = floor((x - top_left_x) / 40) + 1
+        gy = floor((y - top_left_y) / 40) + 1
+
+        验证：玩家靠近左上角时，中心坐标约为 (75, 155)，top_left = (60, 140)
+        gx = floor((75 - 60) / 40) + 1 = 0 + 1 = 1
+        gy = floor((155 - 140) / 40) + 1 = 0 + 1 = 1
+        结果：(1, 1) ✅
+
+        房间范围：
+        - 15×9 房间: gx ∈ [0, 14], gy ∈ [0, 8]
+        - 可移动区域: gx ∈ [1, 13], gy ∈ [1, 7]
         """
-        grid_x = int(pos.x / self.grid_size)
-        grid_y = int(pos.y / self.grid_size)
+        grid_x = int((pos.x - self.top_left_x) / self.grid_size) + 1
+        grid_y = int((pos.y - self.top_left_y) / self.grid_size) + 1
         return (grid_x, grid_y)
 
-    def update_room_offset(self, game_state: GameStateData):
-        """更新房间边界偏移"""
-        if game_state.room_info and game_state.room_info.top_left:
-            tl = game_state.room_info.top_left
-            if isinstance(tl, tuple) and len(tl) == 2:
-                self.top_left_x = tl[0]
-                self.top_left_y = tl[1]
-            else:
-                self.top_left_x = 0.0
-                self.top_left_y = 0.0
-        else:
-            self.top_left_x = 0.0
-            self.top_left_y = 0.0
+    def set_top_left(self, top_left: Tuple[float, float]):
+        """设置 top_left 偏移"""
+        self.top_left_x = top_left[0]
+        self.top_left_y = top_left[1]
 
     def get_coordinates(
         self, game_state: GameStateData, game_map: GameMap
@@ -100,7 +101,8 @@ class RoomCoordinatePrinter:
             按类型分组的坐标字典
         """
         self.grid_size = game_map.grid_size
-        self.update_room_offset(game_state)
+        # 从 game_map 获取 top_left
+        self.set_top_left(game_map.top_left)
 
         coords = {
             "fire_hazards": [],

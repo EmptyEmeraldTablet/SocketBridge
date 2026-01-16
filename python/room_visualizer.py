@@ -91,12 +91,12 @@ class RoomVisualizer:
     def world_to_grid(self, pos: Vector2D) -> Tuple[int, int]:
         """将世界坐标转换为网格坐标
 
-        Args:
-            pos: 世界坐标
-            top_left: top_left 偏移，默认为 (0, 0)
+        基于 ROOM_GEOMETRY_BY_SESSION.md 的坐标系统：
+        - top_left 是墙壁内边界左上角坐标
+        - 公式: gx = floor((x - top_left_x) / 40) + 1
         """
-        gx = int((pos.x - self.top_left[0]) / self.grid_size)
-        gy = int((pos.y - self.top_left[1]) / self.grid_size)
+        gx = int((pos.x - self.top_left[0]) / self.grid_size) + 1
+        gy = int((pos.y - self.top_left[1]) / self.grid_size) + 1
         return (gx, gy)
 
     def grid_to_world_center(self, gx: int, gy: int) -> Vector2D:

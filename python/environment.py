@@ -335,7 +335,9 @@ class GameMap:
 
         if isinstance(grid_data, dict):
             # grid是字典格式: {"0": {"x": 64, "y": 64, "type": 1000, "collision": 1}, ...}
-            # x, y 是世界坐标，需要减去 top_left 偏移后再除以 grid_size
+            # x, y 是世界坐标，需要转换为网格坐标
+            # 公式: gx = floor((x - top_left_x) / 40) + 1
+            # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
             wall_count = 0
             for idx_str, tile_data in grid_data.items():
                 tile_x = tile_data.get("x", 0)
@@ -345,11 +347,10 @@ class GameMap:
                 variant = tile_data.get("variant", 0)
 
                 # 转换为网格坐标
-                # 世界坐标 → 网格坐标: gx = int((world_x - top_left_x) / grid_size)
-                gx = int((tile_x - top_left_x) / ACTUAL_GRID_SIZE)
-                gy = int((tile_y - top_left_y) / ACTUAL_GRID_SIZE)
+                gx = int((tile_x - top_left_x) / ACTUAL_GRID_SIZE) + 1
+                gy = int((tile_y - top_left_y) / ACTUAL_GRID_SIZE) + 1
 
-                # 检查是否在有效范围内
+                # 检查是否在有效范围内 (0 <= gx < width, 0 <= gy < height)
                 if 0 <= gx < self.width and 0 <= gy < self.height:
                     # 根据 tile_type 和 variant 判断格子类型
                     # GridEntityType 映射到 TileType
@@ -511,8 +512,9 @@ class GameMap:
                 try:
                     door_x = door_info.get("x", 0)
                     door_y = door_info.get("y", 0)
-                    gx = int(door_x / ACTUAL_GRID_SIZE)
-                    gy = int(door_y / ACTUAL_GRID_SIZE)
+                    # 门坐标转换：使用相同的公式
+                    gx = int((door_x - top_left_x) / ACTUAL_GRID_SIZE) + 1
+                    gy = int((door_y - top_left_y) / ACTUAL_GRID_SIZE) + 1
                     door_positions.add((gx, gy))
                 except (ValueError, TypeError):
                     pass
