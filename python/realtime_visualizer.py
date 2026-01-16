@@ -64,14 +64,17 @@ class RoomCoordinatePrinter:
         self.top_left_y = 0.0
 
     def world_to_grid(self, pos: Vector2D) -> Tuple[int, int]:
-        """世界坐标转网格坐标（考虑房间边界偏移）
+        """世界坐标转网格坐标
 
-        根据 ROOM_GEOMETRY_BY_SESSION.md:
-        - room_info.top_left 是墙壁内边界左上角坐标（可移动区域左上角）
-        - 玩家位置是世界坐标，需要减去 top_left 偏移后再除以 grid_size
+        房间坐标系统：
+        - ROOM_LAYOUT.grid 中的 tile_x, tile_y 是世界坐标
+        - 玩家位置 pos.x, pos.y 也是世界坐标
+        - 直接使用 int(world / 40) 得到网格坐标
+
+        注意：不使用 top_left 偏移，因为世界坐标和网格坐标都从 (0,0) 开始
         """
-        grid_x = int((pos.x - self.top_left_x) / self.grid_size)
-        grid_y = int((pos.y - self.top_left_y) / self.grid_size)
+        grid_x = int(pos.x / self.grid_size)
+        grid_y = int(pos.y / self.grid_size)
         return (grid_x, grid_y)
 
     def update_room_offset(self, game_state: GameStateData):
