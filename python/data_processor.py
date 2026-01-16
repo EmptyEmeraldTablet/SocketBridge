@@ -990,7 +990,7 @@ class DataProcessor:
 
         # ============================================================
         # 解析DESTRUCTIBLES（可破坏物）
-        # 格式: [{"grid_index": 0, "type": 2, "name": "ROCK", "pos": {...}}, ...]
+        # 格式: [{"id": 70, "type": 9, "variant": 0, ...}, ...]
         # ============================================================
         destructibles_data = payload.get("DESTRUCTIBLES") or payload.get(
             "destructibles"
@@ -1009,10 +1009,7 @@ class DataProcessor:
             for ddata in destructibles_data:
                 if not isinstance(ddata, dict):
                     continue
-                # Lua 发送 grid_index，Python 使用 id
-                obj_id = ddata.get("grid_index")
-                if obj_id is None:
-                    obj_id = ddata.get("id")
+                obj_id = ddata.get("id")
                 if obj_id is None:
                     continue
 
@@ -1022,9 +1019,7 @@ class DataProcessor:
                     position=pos,
                 )
                 destructible.obj_type = ddata.get("type", 0)
-                # variant 可能不存在（非大便类型）
-                if "variant" in ddata:
-                    destructible.variant = ddata.get("variant", 0)
+                destructible.variant = ddata.get("variant", 0)
                 destructible.hp = ddata.get("hp", ddata.get("health", 1))
                 destructible.last_seen_frame = self.current_state.frame
                 self.current_state.obstacles[obj_id] = destructible
