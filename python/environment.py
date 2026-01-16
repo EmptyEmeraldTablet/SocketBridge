@@ -335,13 +335,46 @@ class GameMap:
                 if 0 <= gx < self.width and 0 <= gy < self.height:
                     # 根据 tile_type 和 variant 判断格子类型
                     # GridEntityType 映射到 TileType
-                    # 障碍物 (WALL): 2,3,4,11,15,21,22,24,25,26,27
-                    # 危险 (HAZARD): 8,9,10
-                    # 特殊 (SPECIAL): 17,18,19,23
-                    # 坑 (VOID): 7
-                    if tile_type == 7 and collision > 0:
+                    # 0: NULL (忽略)
+                    # 1: DECORATION (装饰物)
+                    # 2: ROCK (岩石)
+                    # 3: ROCKB (方块岩石)
+                    # 4: ROCKT (染色岩)
+                    # 5: ROCK_BOMB (炸弹岩，可破坏)
+                    # 6: ROCK_ALT (罐子/蘑菇/骷髅，可破坏)
+                    # 7: PIT (坑)
+                    # 8: SPIKES (尖刺)
+                    # 9: SPIKES_ONOFF (开关尖刺)
+                    # 10: SPIDERWEB (蜘蛛网)
+                    # 11: LOCK (锁块)
+                    # 12: TNT (可破坏)
+                    # 13: FIREPLACE (已弃用，不发送)
+                    # 14: POOP (大便，可破坏)
+                    # 15: WALL (墙)
+                    # 16: DOOR (门，由 doors 处理)
+                    # 17: TRAPDOOR (陷阱门)
+                    # 18: STAIRS (楼梯)
+                    # 19: GRAVITY (重力)
+                    # 20: PRESSURE_PLATE (按钮)
+                    # 21: STATUE (雕像)
+                    # 22: ROCK_SS (超染岩)
+                    # 23: TELEPORTER (传送门)
+                    # 24: PILLAR (柱子)
+                    # 25: ROCK_SPIKED (尖刺岩)
+                    # 26: ROCK_ALT2 (染色骷髅)
+                    # 27: ROCK_GOLD (聚宝岩)
+
+                    if tile_type == 0:
+                        # NULL，忽略
+                        pass
+                    elif tile_type == 1 and variant == 8:
+                        # DECORATION variant=8: 特殊地面覆盖物，忽略
+                        pass
+                    elif tile_type == 7 and collision > 0:
+                        # PIT -> VOID
                         self.grid[(gx, gy)] = TileType.VOID
                     elif tile_type == 8 or tile_type == 9:
+                        # SPIKES, SPIKES_ONOFF -> HAZARD
                         self.grid[(gx, gy)] = TileType.HAZARD
                         center = Vector2D(
                             x=gx * self.grid_size + self.grid_size / 2,
@@ -356,6 +389,7 @@ class GameMap:
                             )
                         )
                     elif tile_type == 10:
+                        # SPIDERWEB -> HAZARD
                         self.grid[(gx, gy)] = TileType.HAZARD
                         center = Vector2D(
                             x=gx * self.grid_size + self.grid_size / 2,
@@ -369,19 +403,37 @@ class GameMap:
                                 intensity=0.5,
                             )
                         )
-                    elif tile_type in [2, 3, 4, 11, 15, 21, 22, 24, 25, 26, 27]:
-                        # 障碍物: 岩石、方块、染色岩、锁块、墙、雕像、超染岩、柱子、尖刺岩、染色骷髅、聚宝岩
+                    elif tile_type in [17, 18, 19, 23]:
+                        # 特殊: TRAPDOOR, STAIRS, GRAVITY, TELEPORTER -> SPECIAL
+                        self.grid[(gx, gy)] = TileType.SPECIAL
+                    elif tile_type == 20:
+                        # PRESSURE_PLATE (按钮) -> SPECIAL
+                        self.grid[(gx, gy)] = TileType.SPECIAL
+                    elif tile_type in [
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        11,
+                        12,
+                        14,
+                        15,
+                        21,
+                        22,
+                        24,
+                        25,
+                        26,
+                        27,
+                    ]:
+                        # 所有可破坏/不可破坏障碍物 -> WALL
+                        # 包括: ROCK, ROCKB, ROCKT, ROCK_BOMB, ROCK_ALT, LOCK, TNT, POOP, WALL, STATUE, ROCK_SS, PILLAR, ROCK_SPIKED, ROCK_ALT2, ROCK_GOLD
                         if collision > 0:
                             self.grid[(gx, gy)] = TileType.WALL
                             self.static_obstacles.add((gx, gy))
                             wall_count += 1
-                    elif tile_type in [17, 18, 19, 23]:
-                        # 特殊: 陷阱门、楼梯、重力、传送门
-                        self.grid[(gx, gy)] = TileType.SPECIAL
-                    elif tile_type == 1 and variant == 8:
-                        # DECORATION variant=8: 特殊地面覆盖物，忽略
-                        pass
                     else:
+                        # 其他类型，如果有碰撞则作为 WALL
                         if collision > 0:
                             self.grid[(gx, gy)] = TileType.WALL
                             self.static_obstacles.add((gx, gy))
@@ -797,6 +849,9 @@ class GameMap:
     ):
         """创建默认墙壁边界
 
+        注意：边界墙只添加到 self.grid，不添加到 self.static_obstacles
+        static_obstacles 只包含游戏中的实际障碍物（岩石、TNT、便便等）
+
         Args:
             door_positions: 门的位置集合，用于跳过门位置的墙壁创建
         """
@@ -809,11 +864,8 @@ class GameMap:
             self.grid[(0, gy)] = TileType.WALL
             self.grid[(self.width - 1, gy)] = TileType.WALL
 
-        # 添加静态障碍物
-        for gx in range(self.width):
-            for gy in range(self.height):
-                if self.grid.get((gx, gy)) == TileType.WALL:
-                    self.static_obstacles.add((gx, gy))
+        # 注意：不再将边界墙添加到 static_obstacles
+        # static_obstacles 只包含来自 ROOM_LAYOUT 的实际游戏障碍物
 
     def add_dynamic_obstacle(
         self,

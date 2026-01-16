@@ -526,18 +526,16 @@ if room_info:
 {
     "grid": {
         "0": {
-            "type": 1000,
+            "type": 2,
             "variant": 0,
-            "variant_name": "NORMAL",
             "state": 0,
             "collision": 1,
             "x": 64,
             "y": 64
         },
         "1": {
-            "type": 1000,
-            "variant": 1,
-            "variant_name": "TINTED",
+            "type": 3,
+            "variant": 0,
             "state": 0,
             "collision": 1,
             "x": 128,
@@ -558,48 +556,58 @@ if room_info:
 }
 ```
 
-**障碍物类型 (GridEntityType)**:
-| GridEntityType | 名称 | 说明 | TileType映射 |
-|---------------|------|------|-------------|
-| 2 | GRID_ROCK | 普通岩石 | WALL |
-| 3 | GRID_ROCKB | 可炸岩石 (方块) | WALL |
-| 4 | GRID_ROCKT | 染色岩石 (秘密房) | WALL |
-| 7 | GRID_PIT | 坑/洞 | VOID |
+**字段说明**:
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `grid` | object | 网格实体字典，key 为 grid_index，value 包含类型、变体、状态、碰撞和坐标 |
+| `doors` | object | 门字典，key 为门槽位 |
+| `grid_size` | int | 网格总数 |
+| `width` | int | 网格宽度 |
+| `height` | int | 网格高度 |
+
+**grid 字段说明**:
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `type` | int | GridEntityType ID (0-27) |
+| `variant` | int | 变体ID (0-255) |
+| `state` | int | 状态值 |
+| `collision` | int | 碰撞类型 (GridCollision) |
+| `x` | float | 世界坐标 X |
+| `y` | float | 世界坐标 Y |
+
+**GridEntityType 枚举 (0-27)**:
+> **设计原则**: Lua 端只负责采集所有 GridEntityType 枚举的原始数据，Python 端负责分类逻辑。
+
+| type | 名称 | 说明 | Python TileType 映射 |
+|------|------|------|---------------------|
+| 0 | GRID_NULL | 空 | 忽略 |
+| 1 | GRID_DECORATION | 装饰物 | 忽略 |
+| 2 | GRID_ROCK | 岩石 | WALL |
+| 3 | GRID_ROCKB | 方块岩石 | WALL |
+| 4 | GRID_ROCKT | 染色岩 | WALL |
+| 5 | GRID_ROCK_BOMB | 炸弹岩 | WALL |
+| 6 | GRID_ROCK_ALT | 罐子/蘑菇/骷髅 | WALL |
+| 7 | GRID_PIT | 坑 | VOID |
 | 8 | GRID_SPIKES | 尖刺 | HAZARD |
 | 9 | GRID_SPIKES_ONOFF | 开关尖刺 | HAZARD |
 | 10 | GRID_SPIDERWEB | 蜘蛛网 | HAZARD |
-| 11 | GRID_LOCK | 锁块 (钥匙块) | WALL |
+| 11 | GRID_LOCK | 锁块 | WALL |
+| 12 | GRID_TNT | TNT | WALL |
+| 13 | GRID_FIREPLACE | 火盆 | **不发送** (已弃用，改用 ENTITY_EFFECT) |
+| 14 | GRID_POOP | 大便 | WALL |
 | 15 | GRID_WALL | 墙 | WALL |
+| 16 | GRID_DOOR | 门 | **不发送** (由 doors 处理) |
 | 17 | GRID_TRAPDOOR | 陷阱门 | SPECIAL |
 | 18 | GRID_STAIRS | 楼梯 | SPECIAL |
 | 19 | GRID_GRAVITY | 重力区域 | SPECIAL |
+| 20 | GRID_PRESSURE_PLATE | 按钮 | SPECIAL |
 | 21 | GRID_STATUE | 雕像 | WALL |
-| 22 | GRID_ROCK_SS | 超级染色岩 | WALL |
+| 22 | GRID_ROCK_SS | 超染岩 | WALL |
 | 23 | GRID_TELEPORTER | 传送门 | SPECIAL |
 | 24 | GRID_PILLAR | 柱子 | WALL |
-| 25 | GRID_ROCK_SPIKED | 尖刺岩石 | WALL |
-| 26 | GRID_ROCK_ALT2 | 染色骷髅 (Rep+) | WALL |
-| 27 | GRID_ROCK_GOLD | 聚宝岩 (Rep+) | WALL |
-
-**可破坏物类型 (DESTRUCTIBLES)**:
-| GridEntityType | 名称 | 说明 |
-|---------------|------|------|
-| 5 | GRID_ROCK_BOMB | 炸弹岩石 |
-| 6 | GRID_ROCK_ALT | 罐子/蘑菇/骷髅 |
-| 12 | GRID_TNT | TNT |
-| 14 | GRID_POOP | 便便 |
-
-**按钮类型 (BUTTONS)**:
-| GridEntityType | 名称 | 说明 |
-|---------------|------|------|
-| 20 | GRID_PRESSURE_PLATE | 按钮 |
-
-**未处理类型**:
-| GridEntityType | 名称 | 说明 |
-|---------------|------|------|
-| 0 | GRID_NULL | 空 (无需处理) |
-| 1 | GRID_DECORATION | 装饰 (预留未来处理) |
-| 13 | GRID_FIREPLACE | 火盆 (已废弃) |
+| 25 | GRID_ROCK_SPIKED | 尖刺岩 | WALL |
+| 26 | GRID_ROCK_ALT2 | 染色骷髅 | WALL |
+| 27 | GRID_ROCK_GOLD | 聚宝岩 | WALL |
 
 **门数据 (ROOM_LAYOUT.doors)**:
 | 字段 | 说明 |
@@ -608,6 +616,8 @@ if room_info:
 | target_room_type | 目标房间类型 |
 | is_open | 是否开启 |
 | is_locked | 是否锁定 |
+| x | 门世界坐标 X |
+| y | 门世界坐标 Y |
 
 **门槽位 (DoorSlot)**:
 | 值 | 说明 |
@@ -622,96 +632,35 @@ if room_info:
 ```python
 layout = bridge.get_channel("ROOM_LAYOUT")
 if layout:
-    # 获取所有障碍物
-    grid = layout["grid"]
-    for idx, tile in grid.items():
-        tile_x = tile["x"]
-        tile_y = tile["y"]
-        tile_type = tile["type"]
-        variant_name = tile["variant_name"]
-        collision = tile["collision"]
-    
+    # 获取所有障碍物（从 static_obstacles）
+    # Python 端 environment.py 已将 type 2,3,4,5,6,11,12,14,15,21,22,24,25,26,27 映射到 WALL
+    # 并存储在 game_map.static_obstacles 中
+
+    # 从 raw_layout.grid 获取按钮 (type=20)
+    buttons = []
+    for idx, tile in layout.get("grid", {}).items():
+        if tile["type"] == 20:  # GRID_PRESSURE_PLATE
+            buttons.append({
+                "grid_index": int(idx),
+                "x": tile["x"],
+                "y": tile["y"],
+                "variant": tile["variant"],
+                "state": tile["state"],
+            })
+
     # 获取门信息
     doors = layout["doors"]
     for slot, door in doors.items():
         if door["is_open"] and not door["is_locked"]:
             print(f"门 {slot} 开启，通向房间 {door['target_room']}")
-    
-    # 构建碰撞地图用于寻路
-    collision_map = {}
-    for idx, tile in grid.items():
-        if tile["collision"] > 0:  # 有碰撞
-            collision_map[(tile["x"], tile["y"])] = True
-    
-    # 检查某位置是否有障碍
-    def has_obstacle(x, y):
-        for idx, tile in grid.items():
-            if tile["x"] == x and tile["y"] == y:
-                return tile["collision"] > 0
-        return False
+
+    # 构建碰撞地图用于寻路 (使用 static_obstacles)
+    # game_map.static_obstacles 包含所有 WALL 类型的 (gx, gy) 坐标
 ```
 
 ---
 
-### 9. BUTTONS - 按钮（中频）
-
-**采集频率**: LOW
-
-**JSON 结构**:
-```json
-{
-    "0": {
-        "type": 18,
-        "variant": 0,
-        "variant_name": "NORMAL",
-        "state": 0,
-        "is_pressed": false,
-        "x": 320,
-        "y": 400,
-        "distance": 100.5
-    },
-    "1": {
-        "type": 18,
-        "variant": 2,
-        "variant_name": "RED",
-        "state": 1000,
-        "is_pressed": true,
-        "x": 400,
-        "y": 400,
-        "distance": 180.2
-    }
-}
-```
-
-**按钮类型**:
-| Variant | 名称 | 说明 |
-|---------|------|------|
-| 0 | NORMAL | 普通按钮 |
-| 1 | SILVER | 银按钮 |
-| 2 | RED | 击杀按钮 |
-| 3 | YELLOW | 铁轨按钮 |
-| 4 | BROWN | 事件按钮 |
-| 5 | ARENA | 竞技场按钮 |
-| 6 | ARENA_BOSS | 竞技场Boss按钮 |
-| 7 | ARENA_NIGHTMARE | 竞技场噩梦按钮 |
-
-**使用示例**:
-```python
-buttons = bridge.get_channel("BUTTONS")
-for idx, btn in buttons.items():
-    x, y = btn["x"], btn["y"]
-    is_pressed = btn["is_pressed"]
-    btn_type = btn["variant_name"]
-    dist = btn["distance"]
-
-# 检查是否有未按下的按钮在附近
-nearby_unpressed = [b for b in buttons.values() 
-                   if not b["is_pressed"] and b["distance"] < 200]
-```
-
----
-
-### 10. BOMBS - 炸弹（中频）
+### 9. BOMBS - 炸弹（中频）
 
 **采集频率**: LOW
 
@@ -782,7 +731,7 @@ print(f"最近炸弹: {nearest_bomb['variant_name']}, 距离: {nearest_bomb['dis
 
 ---
 
-### 11. INTERACTABLES - 可互动实体（中频）
+### 10. INTERACTABLES - 可互动实体（中频）
 
 **采集频率**: LOW
 
@@ -853,7 +802,7 @@ beggars = [e for e in interactables if "BEGGAR" in e["variant_name"]]
 
 ---
 
-### 12. PICKUPS - 可拾取物（中频）
+### 11. PICKUPS - 可拾取物（中频）
 
 **采集频率**: LOW
 
@@ -907,7 +856,7 @@ sorted_pickups = sorted(pickups, key=lambda p:
 
 ---
 
-### 13. FIRE_HAZARDS - 火焰危险物（中频）
+### 12. FIRE_HAZARDS - 火焰危险物（中频）
 
 **采集频率**: LOW
 
@@ -965,70 +914,6 @@ shooting_fires = [f for f in fires if f["is_shooting"]]
 for fire in shooting_fires:
     print(f"警告: {fire['fireplace_type']} 火堆正在发射泪弹!")
     # 可以计算泪弹来袭方向
-```
-
----
-
-### 14. DESTRUCTIBLES - 可破坏障碍物（中频）
-
-**采集频率**: LOW
-
-**JSON 结构**:
-```json
-[
-    {
-        "grid_index": 10,
-        "type": 12,
-        "name": "tnt",
-        "pos": {"x": 300, "y": 300},
-        "state": 0,
-        "distance": 50.0,
-        "variant": 0,
-        "variant_name": "NORMAL"
-    }
-]
-```
-
-**可破坏物类型**:
-| Type | 名称 | 说明 |
-|------|------|------|
-| 12 | TNT | TNT炸药 |
-| 14 | POOP | 大便 |
-
-**大便变种**:
-| Variant | 名称 | 说明 |
-|---------|------|------|
-| 0 | NORMAL | 普通大便 |
-| 1 | CORN | 玉米大便 |
-| 2 | RED | 红大便 |
-| 3 | GOLD | 金大便 |
-| 4 | RAINBOW | 彩虹大便 |
-| 5 | BLACK | 黑大便 |
-| 6 | HOLY | 白大便 |
-| 7 | GIANT | 巨型大便 |
-| 8 | CHARMING | 友好大便 |
-
-**使用示例**:
-```python
-destructibles = bridge.get_channel("DESTRUCTIBLES")
-for obj in destructibles:
-    obj_type = obj["name"]
-    variant_name = obj.get("variant_name", "")
-    x, y = obj["pos"]["x"], obj["pos"]["y"]
-    state = obj["state"]
-    dist = obj["distance"]
-
-# 找出附近的TNT
-nearby_tnt = [d for d in destructibles 
-             if d["name"] == "tnt" and d["distance"] < 200]
-for tnt in nearby_tnt:
-    print(f"警告: 附近有TNT! 距离: {tnt['distance']:.1f}")
-
-# 找出大便
-poops = [d for d in destructibles if d["name"] == "poop"]
-for poop in poops:
-    variant = poop["variant_name"]
-    # 可以选择是否打碎
 ```
 
 ---
@@ -1218,8 +1103,6 @@ projectiles = data.get_projectiles()
 enemy_projs = data.get_enemy_projectiles()
 pickups = data.get_pickups()
 fires = data.get_fire_hazards()
-destructibles = data.get_destructibles()
-buttons = data.get_buttons()
 bombs = data.get_bombs()
 interactables = data.get_interactables()
 ```
@@ -1315,8 +1198,7 @@ interactables = data.get_interactables()
             "grid_size": 91
         },
         "PICKUPS": [],
-        "FIRE_HAZARDS": [],
-        "DESTRUCTIBLES": []
+        "FIRE_HAZARDS": []
     }
 }
 ```

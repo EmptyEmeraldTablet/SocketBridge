@@ -837,35 +837,6 @@ class DataProcessor:
                 self.current_state.player_stats[player_idx] = stats
 
         # ============================================================
-        # 解析BUTTONS（按钮）
-        # 格式: {"0": {"type": 18, "variant_name": "NORMAL", ...}, ...}
-        # ============================================================
-        buttons_data = payload.get("BUTTONS") or payload.get("buttons")
-        if buttons_data is not None and isinstance(buttons_data, dict):
-            self.current_state.mark_channel_updated("BUTTONS", self.current_state.frame)
-            for btn_idx_str, bdata in buttons_data.items():
-                if not isinstance(bdata, dict):
-                    continue
-                try:
-                    btn_idx = int(btn_idx_str)
-                except ValueError:
-                    continue
-
-                pos = self.parser.parse_vector2d(bdata.get("pos"))
-                btn = ButtonData(
-                    button_id=btn_idx,
-                    position=pos,
-                )
-                btn.button_type = bdata.get("type", 0)
-                btn.variant = bdata.get("variant", 0)
-                btn.variant_name = bdata.get("variant_name", "NORMAL")
-                btn.state = bdata.get("state", 0)
-                btn.is_pressed = bdata.get("is_pressed", False)
-                btn.distance = bdata.get("distance", 0.0)
-                btn.last_seen_frame = self.current_state.frame
-                self.current_state.buttons[btn_idx] = btn
-
-        # ============================================================
         # 解析FIRE_HAZARDS（火焰危险物）
         # 格式: [{"id": 60, "type": "FIREPLACE", ...}, ...]
         # ============================================================
@@ -987,42 +958,6 @@ class DataProcessor:
                 bomb.is_player_bomb = True
                 bomb.last_seen_frame = self.current_state.frame
                 self.current_state.bombs[bomb_id] = bomb
-
-        # ============================================================
-        # 解析DESTRUCTIBLES（可破坏物）
-        # 格式: [{"id": 70, "type": 9, "variant": 0, ...}, ...]
-        # ============================================================
-        destructibles_data = payload.get("DESTRUCTIBLES") or payload.get(
-            "destructibles"
-        )
-        logger.debug(
-            f"[DataProcessor] DESTRUCTIBLES channel - data: {destructibles_data is not None}"
-        )
-        if destructibles_data is not None:
-            logger.debug(
-                f"[DataProcessor] DESTRUCTIBLES data type: {type(destructibles_data)}, count: {len(destructibles_data) if isinstance(destructibles_data, list) else 'N/A'}"
-            )
-        if destructibles_data is not None and isinstance(destructibles_data, list):
-            self.current_state.mark_channel_updated(
-                "DESTRUCTIBLES", self.current_state.frame
-            )
-            for ddata in destructibles_data:
-                if not isinstance(ddata, dict):
-                    continue
-                obj_id = ddata.get("id")
-                if obj_id is None:
-                    continue
-
-                pos = self.parser.parse_vector2d(ddata.get("pos"))
-                destructible = DestructibleData(
-                    obj_id=obj_id,
-                    position=pos,
-                )
-                destructible.obj_type = ddata.get("type", 0)
-                destructible.variant = ddata.get("variant", 0)
-                destructible.hp = ddata.get("hp", ddata.get("health", 1))
-                destructible.last_seen_frame = self.current_state.frame
-                self.current_state.obstacles[obj_id] = destructible
 
         # ============================================================
         # 清理过期实体（状态保持的一部分）

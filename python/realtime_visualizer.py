@@ -132,23 +132,27 @@ class RoomCoordinatePrinter:
             gx, gy = self.world_to_grid(pickup.position)
             coords["pickups"].append((gx, gy))
 
-        # 障碍物 - 从两个来源获取：
-        # 1. game_state.obstacles (DESTRUCTIBLES通道: TNT, POOP等)
-        # 2. game_map.static_obstacles (ROOM_LAYOUT通道: 石头等)
+        # 障碍物 - 从 game_map.static_obstacles 获取
+        # ROOM_LAYOUT 通道现在包含所有 GridEntityType，Python 端负责分类
+        # static_obstacles 包含所有 WALL 类型的障碍物（石头、TNT、POOP 等）
         obstacle_coords = set()
-        for obs_id, obs in game_state.obstacles.items():
-            gx, gy = self.world_to_grid(obs.position)
-            obstacle_coords.add((gx, gy))
-        # 从 static_obstacles 添加石头坐标
         if hasattr(game_map, "static_obstacles"):
             for gx, gy in game_map.static_obstacles:
                 obstacle_coords.add((gx, gy))
         coords["obstacles"] = list(obstacle_coords)
 
-        # 按钮
-        for btn_id, btn in game_state.buttons.items():
-            gx, gy = self.world_to_grid(btn.position)
-            coords["buttons"].append((gx, gy))
+        # 按钮 - 从 ROOM_LAYOUT.grid 获取 (type=20: PRESSURE_PLATE)
+        buttons_coords = set()
+        raw_layout = game_state.raw_room_layout
+        if raw_layout and "grid" in raw_layout:
+            for idx_str, tile_data in raw_layout["grid"].items():
+                if tile_data.get("type") == 20:  # PRESSURE_PLATE
+                    tile_x = tile_data.get("x", 0)
+                    tile_y = tile_data.get("y", 0)
+                    gx = int(tile_x / game_map.grid_size)
+                    gy = int(tile_y / game_map.grid_size)
+                    buttons_coords.add((gx, gy))
+        coords["buttons"] = list(buttons_coords)
 
         # 火焰危险物
         for fire_id, fire in game_state.fire_hazards.items():
