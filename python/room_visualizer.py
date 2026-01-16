@@ -86,11 +86,17 @@ class RoomVisualizer:
         self.config = config or VisualizerConfig()
         self.last_frame_str = ""
         self.grid_size = 40.0  # 默认网格大小
+        self.top_left: Tuple[float, float] = (0.0, 0.0)  # top_left 偏移
 
     def world_to_grid(self, pos: Vector2D) -> Tuple[int, int]:
-        """将世界坐标转换为网格坐标"""
-        gx = int(pos.x / self.grid_size)
-        gy = int(pos.y / self.grid_size)
+        """将世界坐标转换为网格坐标
+
+        Args:
+            pos: 世界坐标
+            top_left: top_left 偏移，默认为 (0, 0)
+        """
+        gx = int((pos.x - self.top_left[0]) / self.grid_size)
+        gy = int((pos.y - self.top_left[1]) / self.grid_size)
         return (gx, gy)
 
     def grid_to_world_center(self, gx: int, gy: int) -> Vector2D:
@@ -178,6 +184,7 @@ class RoomVisualizer:
             ASCII字符串表示
         """
         self.grid_size = game_map.grid_size
+        self.top_left = game_map.top_left
 
         # 创建网格显示缓存
         display_grid: List[List[str]] = []

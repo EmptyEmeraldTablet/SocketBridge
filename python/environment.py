@@ -171,6 +171,10 @@ class GameMap:
         # DoorData: direction (0-7), type, target_room, is_open
         self.doors: List[DoorData] = []
 
+        # top_left 偏移（墙壁内边界左上角坐标，用于坐标转换）
+        # 世界坐标 → 网格坐标: gx = int((world_x - top_left_x) / grid_size)
+        self.top_left: Tuple[float, float] = (0.0, 0.0)
+
         # 房间实体注册表 (EntityType -> List[RoomEntity])
         # 用于存储: FIRE_HAZARDS, BUTTONS, DESTRUCTIBLES, INTERACTABLES, PICKUPS, etc.
         self.entities: Dict[EntityType, List[RoomEntity]] = {
@@ -325,6 +329,9 @@ class GameMap:
             if isinstance(tl, tuple) and len(tl) == 2:
                 top_left_x = tl[0]
                 top_left_y = tl[1]
+
+        # 存储 top_left 偏移供后续坐标转换使用
+        self.top_left = (top_left_x, top_left_y)
 
         if isinstance(grid_data, dict):
             # grid是字典格式: {"0": {"x": 64, "y": 64, "type": 1000, "collision": 1}, ...}
@@ -1032,19 +1039,23 @@ class GameMap:
         - 使用 15px 边距更准确（20px 可能过于保守）
 
         Args:
-            position: 像素坐标
+            position: 世界坐标（包含墙壁）
             margin: 边距（默认 15px）
         """
         # DEBUG: Use configurable margin based on analysis findings
         effective_margin = getattr(self, "_bounds_margin", margin)
 
+        # 将世界坐标转换为像素坐标（减去 top_left 偏移）
+        pixel_x = position.x - self.top_left[0]
+        pixel_y = position.y - self.top_left[1]
+
         # 首先检查像素边界
         if not (
-            effective_margin <= position.x <= self.pixel_width - effective_margin
-            and effective_margin <= position.y <= self.pixel_height - effective_margin
+            effective_margin <= pixel_x <= self.pixel_width - effective_margin
+            and effective_margin <= pixel_y <= self.pixel_height - effective_margin
         ):
             logger.debug(
-                f"[GameMap] is_in_bounds=False: pos={position}, margin={effective_margin}, "
+                f"[GameMap] is_in_bounds=False: pos={position}, pixel=({pixel_x}, {pixel_y}), margin={effective_margin}, "
                 f"bounds=({effective_margin}, {self.pixel_width - effective_margin}) x "
                 f"({effective_margin}, {self.pixel_height - effective_margin})"
             )
@@ -1055,7 +1066,7 @@ class GameMap:
             return True
 
         # 检查是否是虚空区域（L型房间的缺口）
-        grid_x, grid_y = self._get_grid_coords(position)
+        grid_x, grid_y = self._get_grid_coords(position, self.top_left)
         if (grid_x, grid_y) in self.void_tiles:
             logger.debug(
                 f"[GameMap] is_in_bounds=False: VOID tile at ({grid_x}, {grid_y})"
@@ -1064,15 +1075,25 @@ class GameMap:
 
         return True
 
-    def _get_grid_coords(self, position: Vector2D) -> Tuple[int, int]:
-        """获取位置对应的网格坐标"""
-        gx = int(position.x / self.grid_size)
-        gy = int(position.y / self.grid_size)
+    def _get_grid_coords(
+        self, position: Vector2D, top_left: Tuple[float, float] = (0.0, 0.0)
+    ) -> Tuple[int, int]:
+        """获取位置对应的网格坐标
+
+        世界坐标 → 网格坐标: gx = int((world_x - top_left_x) / grid_size)
+        需要减去 top_left 偏移才能得到正确的网格坐标。
+
+        Args:
+            position: 像素坐标（世界坐标）
+            top_left: top_left 偏移 (top_left_x, top_left_y)，默认为 (0, 0)
+        """
+        gx = int((position.x - top_left[0]) / self.grid_size)
+        gy = int((position.y - top_left[1]) / self.grid_size)
         return (gx, gy)
 
     def _has_static_obstacle(self, position: Vector2D, margin: float) -> bool:
         """检查静态障碍物"""
-        gx, gy = self._get_grid_coords(position)
+        gx, gy = self._get_grid_coords(position, self.top_left)
 
         # 检查中心点
         if self.grid.get((gx, gy)) == TileType.WALL:
@@ -1087,8 +1108,8 @@ class GameMap:
         ]
 
         for x, y in points_to_check:
-            check_gx = int(x / self.grid_size)
-            check_gy = int(y / self.grid_size)
+            check_gx = int((x - self.top_left[0]) / self.grid_size)
+            check_gy = int((y - self.top_left[1]) / self.grid_size)
             if self.grid.get((check_gx, check_gy)) == TileType.WALL:
                 return True
 

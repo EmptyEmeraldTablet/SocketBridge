@@ -151,8 +151,9 @@ class RoomCoordinatePrinter:
                 if tile_data.get("type") == 20:  # PRESSURE_PLATE
                     tile_x = tile_data.get("x", 0)
                     tile_y = tile_data.get("y", 0)
-                    gx = int(tile_x / game_map.grid_size)
-                    gy = int(tile_y / game_map.grid_size)
+                    # 按钮是世界坐标，需要减去 top_left 偏移后再除以 grid_size
+                    gx = int((tile_x - self.top_left_x) / game_map.grid_size)
+                    gy = int((tile_y - self.top_left_y) / game_map.grid_size)
                     buttons_coords.add((gx, gy))
         coords["buttons"] = list(buttons_coords)
 
