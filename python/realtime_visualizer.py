@@ -133,12 +133,14 @@ class RoomCoordinatePrinter:
             coords["pickups"].append((gx, gy))
 
         # 障碍物 - 从 game_map.static_obstacles 获取
-        # ROOM_LAYOUT 通道现在包含所有 GridEntityType，Python 端负责分类
-        # static_obstacles 包含所有 WALL 类型的障碍物（石头、TNT、POOP 等）
+        # static_obstacles 包含所有 WALL 类型的障碍物（包括边界墙）
+        # 但边界墙不需要在可视化中显示（默认存在，不影响游戏逻辑）
         obstacle_coords = set()
         if hasattr(game_map, "static_obstacles"):
             for gx, gy in game_map.static_obstacles:
-                obstacle_coords.add((gx, gy))
+                # 排除边界墙 (gx=0 或 gx=width-1 或 gy=0 或 gy=height-1)
+                if 0 < gx < game_map.width - 1 and 0 < gy < game_map.height - 1:
+                    obstacle_coords.add((gx, gy))
         coords["obstacles"] = list(obstacle_coords)
 
         # 按钮 - 从 ROOM_LAYOUT.grid 获取 (type=20: PRESSURE_PLATE)
