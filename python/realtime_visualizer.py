@@ -142,6 +142,13 @@ class RoomCoordinatePrinter:
         # 但边界墙不需要在可视化中显示（默认存在，不影响游戏逻辑）
         obstacle_coords = set()
         if hasattr(game_map, "static_obstacles"):
+            # DEBUG: Log raw static_obstacles
+            if logger.isEnabledFor(logging.DEBUG):
+                raw_obstacles = sorted(game_map.static_obstacles)
+                logger.debug(
+                    f"[Visualizer] Raw static_obstacles ({len(raw_obstacles)}): {raw_obstacles[:10]}..."
+                )
+
             for gx, gy in game_map.static_obstacles:
                 # 排除边界墙 (gx=0 或 gx=width-1 或 gy=0 或 gy=height-1)
                 if 0 < gx < game_map.width - 1 and 0 < gy < game_map.height - 1:
@@ -151,6 +158,19 @@ class RoomCoordinatePrinter:
         # 按钮 - 从 ROOM_LAYOUT.grid 获取 (type=20: PRESSURE_PLATE)
         buttons_coords = set()
         raw_layout = game_state.raw_room_layout
+        # DEBUG: Log raw_layout
+        if logger.isEnabledFor(logging.DEBUG) and raw_layout:
+            grid = raw_layout.get("grid", {})
+            if isinstance(grid, dict):
+                tile_types = {}
+                for k, v in grid.items():
+                    if isinstance(v, dict):
+                        t = v.get("type", "unknown")
+                        tile_types[t] = tile_types.get(t, 0) + 1
+                logger.debug(f"[Visualizer] ROOM_LAYOUT.grid tile types: {tile_types}")
+                logger.debug(
+                    f"[Visualizer] ROOM_LAYOUT.grid sample: {list(grid.items())[:5]}"
+                )
         if raw_layout and "grid" in raw_layout:
             for idx_str, tile_data in raw_layout["grid"].items():
                 if tile_data.get("type") == 20:  # PRESSURE_PLATE
