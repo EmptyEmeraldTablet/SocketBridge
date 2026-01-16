@@ -250,7 +250,11 @@ class RoomCoordinatePrinter:
 
 
 def build_game_map(game_state: GameStateData) -> Tuple[GameMap, GameStateData]:
-    """从游戏状态构建地图"""
+    """从游戏状态构建地图
+
+    关键：raw_room_layout 可能包含旧房间的数据（当消息不包含 ROOM_LAYOUT 时）
+    需要检测房间变化并清除旧数据
+    """
     room_info = game_state.room_info
     layout = game_state.raw_room_layout
 
@@ -261,9 +265,41 @@ def build_game_map(game_state: GameStateData) -> Tuple[GameMap, GameStateData]:
             width=room_info.grid_width,
             height=room_info.grid_height,
         )
+
+        # 检测房间变化：当前消息是否有 ROOM_LAYOUT？
+        # 如果当前消息不包含 ROOM_LAYOUT，说明 layout 可能来自之前的房间
+        # 需要验证 layout 是否有效（属于当前房间）
+        has_current_layout = False
         if layout:
+            # 检查当前消息是否包含 ROOM_LAYOUT
+            # 可以通过检查 layout 的完整性来判断
+            if isinstance(layout, dict):
+                has_required_fields = (
+                    ("grid" in layout or "doors" in layout)
+                    and "width" in layout
+                    and "height" in layout
+                )
+                if has_required_fields:
+                    # 有完整的 layout 数据，尝试判断是否属于当前房间
+                    # 如果 layout 有房间标识，验证它
+                    layout_room = layout.get("room_index")
+                    if layout_room is not None:
+                        # Mod 发送了 room_index，验证匹配
+                        has_current_layout = layout_room == room_info.room_index
+                    else:
+                        # Mod 没有发送 room_index，保守处理：
+                        # 只有当 layout 的尺寸与当前房间匹配时才使用
+                        layout_width = layout.get("width", 0)
+                        layout_height = layout.get("height", 0)
+                        has_current_layout = (
+                            layout_width == room_info.grid_width
+                            and layout_height == room_info.grid_height
+                        )
+
+        if layout and has_current_layout:
             game_map.update_from_room_layout(room_info, layout, grid_size)
         else:
+            # Layout 无效或不属于当前房间，使用简化的房间信息
             game_map.update_from_room_info(room_info)
     else:
         game_map = GameMap(grid_size=40.0, width=13, height=7)

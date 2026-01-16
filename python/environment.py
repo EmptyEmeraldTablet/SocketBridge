@@ -1534,9 +1534,29 @@ class EnvironmentModel:
             and self.game_map.grid_size == 40.0
         )
 
+        # 验证 room_layout 是否属于当前房间
+        # 如果 room_layout 存在但房间已变化，可能包含旧房间的数据
+        layout_is_valid = True
+        if room_changed and room_layout:
+            # 检查 layout 的房间尺寸是否与当前房间匹配
+            layout_width = room_layout.get("width", 0)
+            layout_height = room_layout.get("height", 0)
+            if layout_width > 0 and layout_height > 0:
+                # 如果尺寸不匹配，说明是旧房间的数据
+                if (
+                    layout_width != room_info.grid_width
+                    or layout_height != room_info.grid_height
+                ):
+                    layout_is_valid = False
+                    logger.debug(
+                        f"[Environment] Layout dimensions ({layout_width}x{layout_height}) "
+                        f"don't match room {room_info.room_index} ({room_info.grid_width}x{room_info.grid_height}), "
+                        f"ignoring stale layout"
+                    )
+
         if room_changed or first_layout:
             self.current_room_index = room_info.room_index if room_info else -1
-            if room_layout:
+            if room_layout and layout_is_valid:
                 # Extract grid_size from layout data (135 or 252 in replay data)
                 layout_grid_size = room_layout.get("grid_size", 40.0)
                 self.game_map.update_from_room_layout(
