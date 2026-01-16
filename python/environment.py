@@ -316,8 +316,19 @@ class GameMap:
         tile_count = len(grid_data) if isinstance(grid_data, dict) else 0
         logger.debug(f"[GameMap] Parsing {tile_count} grid tiles from ROOM_LAYOUT")
 
+        # 获取 top_left 偏移（墙壁内边界左上角坐标）
+        # 用于将世界坐标转换为网格坐标
+        top_left_x = 0.0
+        top_left_y = 0.0
+        if room_info and room_info.top_left:
+            tl = room_info.top_left
+            if isinstance(tl, tuple) and len(tl) == 2:
+                top_left_x = tl[0]
+                top_left_y = tl[1]
+
         if isinstance(grid_data, dict):
             # grid是字典格式: {"0": {"x": 64, "y": 64, "type": 1000, "collision": 1}, ...}
+            # x, y 是世界坐标，需要减去 top_left 偏移后再除以 grid_size
             wall_count = 0
             for idx_str, tile_data in grid_data.items():
                 tile_x = tile_data.get("x", 0)
@@ -326,10 +337,10 @@ class GameMap:
                 tile_type = tile_data.get("type", 0)
                 variant = tile_data.get("variant", 0)
 
-                # 转换为网格坐标（使用实际游戏 grid_size=40）
-                # 录制数据中的 grid_size=135 是中间值，不应用于坐标转换
-                gx = int(tile_x / ACTUAL_GRID_SIZE)
-                gy = int(tile_y / ACTUAL_GRID_SIZE)
+                # 转换为网格坐标
+                # 世界坐标 → 网格坐标: gx = int((world_x - top_left_x) / grid_size)
+                gx = int((tile_x - top_left_x) / ACTUAL_GRID_SIZE)
+                gy = int((tile_y - top_left_y) / ACTUAL_GRID_SIZE)
 
                 # 检查是否在有效范围内
                 if 0 <= gx < self.width and 0 <= gy < self.height:
@@ -367,7 +378,7 @@ class GameMap:
                     if tile_type == 0:
                         # NULL，忽略
                         pass
-                    elif tile_type == 1 :
+                    elif tile_type == 1:
                         # DECORATION : 特殊地面覆盖物，暂时忽略
                         pass
                     elif tile_type == 7 and collision > 0:
