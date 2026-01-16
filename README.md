@@ -600,7 +600,7 @@ bridge.start()
 {
   "room_type": 1,
   "room_shape": 1,
-  "room_idx": 42,
+  "room_index": 42,
   "stage": 1,
   "stage_type": 0,
   "difficulty": 0,

@@ -775,7 +775,7 @@ CollectorRegistry:register("ROOM_INFO", {
         return {
             room_type = room:GetType(),
             room_shape = room:GetRoomShape(),
-            room_idx = level:GetCurrentRoomIndex(),
+            room_index = level:GetCurrentRoomIndex(),
             stage = level:GetStage(),
             stage_type = level:GetStageType(),
             difficulty = Game().Difficulty,
