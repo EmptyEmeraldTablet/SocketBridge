@@ -175,8 +175,8 @@ class RoomCoordinatePrinter:
         lines = []
 
         frame = game_state.frame or 0
-        room_index = game_state.room_index or -1
-        lines.append(f"[Frame:{frame:06d} Room:{room_index:03d}]")
+        room_idx = game_state.room_index or -1
+        lines.append(f"[Frame:{frame:06d} Room:{room_idx:03d}]")
 
         # 按类型输出坐标（只显示非空类型）
         type_names = {

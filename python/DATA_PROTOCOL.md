@@ -459,7 +459,7 @@ for laser in lasers:
 {
     "room_type": 2,
     "room_shape": 1,
-    "room_index": 5,
+    "room_idx": 5,
     "stage": 2,
     "stage_type": 0,
     "difficulty": 0,
@@ -480,7 +480,7 @@ for laser in lasers:
 |-----|------|------|
 | `room_type` | int | 房间类型 |
 | `room_shape` | int | 房间形状 |
-| `room_index` | int | 房间索引 |
+| `room_idx` | int | 房间索引 |
 | `stage` | int | 关卡层级 |
 | `stage_type` | int | 关卡类型 |
 | `difficulty` | int | 难度 |
@@ -501,7 +501,7 @@ if room_info:
     is_clear = room_info["is_clear"]
     enemy_count = room_info["enemy_count"]
     stage = room_info["stage"]
-    room_index = room_info["room_index"]
+    room_idx = room_info["room_idx"]
     grid_width = room_info["grid_width"]
     grid_height = room_info["grid_height"]
     
@@ -961,8 +961,8 @@ def on_player_damage(event):
 
 @bridge.on("event:ROOM_ENTER")
 def on_room_enter(event):
-    room_index = event.data["room_index"]
-    print(f"进入房间 {room_index}")
+    room_idx = event.data["room_index"]
+    print(f"进入房间 {room_idx}")
 
 @bridge.on("event:NPC_DEATH")
 def on_npc_death(event):
@@ -1185,7 +1185,7 @@ interactables = data.get_interactables()
         "ROOM_INFO": {
             "room_type": 2,
             "room_shape": 1,
-            "room_index": 5,
+            "room_idx": 5,
             "stage": 2,
             "is_clear": false,
             "grid_width": 13,
