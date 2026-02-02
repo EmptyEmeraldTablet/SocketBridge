@@ -5,13 +5,15 @@ Phase 3 Services Test - 服务层测试
 """
 
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/home/yolo_dev/newGym/SocketBridge")
+# 兼容 Windows 和 Linux
+sys.path.insert(0, str(Path(__file__).parent))
 
-from python.services.monitor import DataQualityMonitor, ProblemSource
-from python.services.processor import DataProcessor
-from python.services.facade import SocketBridgeFacade, BridgeConfig
-from python.channels.base import ChannelRegistry
+from services.monitor import DataQualityMonitor, ProblemSource
+from services.processor import DataProcessor
+from services.facade import SocketBridgeFacade, BridgeConfig
+from channels.base import ChannelRegistry
 
 
 def test_monitor():
