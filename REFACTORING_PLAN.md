@@ -1,8 +1,156 @@
 # SocketBridge 重构规划文档
 
-> 版本: 1.2
+> 版本: 1.3
 > 日期: 2026-02-02
-> 状态: Phase 4 完成 ✅
+> 状态: **Phase 0-4 完成** ✅ | Phase 5 搁置（上层应用适配）
+
+---
+
+## 重构完成总结
+
+### 工作范围
+
+本次重构 **Phase 0-4** 已全部完成，主要成果：
+
+1. **协议时序扩展 (Phase 0)**: v2.1 协议，通道级时序信息
+2. **基础设施 (Phase 1)**: Pydantic schema、通道框架、已知问题注册表
+3. **通道迁移 (Phase 2)**: 12 个数据通道全部迁移到新架构
+4. **服务层 (Phase 3)**: DataProcessor、QualityMonitor、SocketBridgeFacade
+5. **清理文档 (Phase 4)**: models.py 拆分、迁移指南、坐标公式修复
+
+### 关键修复
+
+| 问题 | 状态 |
+|------|------|
+| 坐标转换公式偏移问题 | ✅ 修复 |
+| Pydantic 验证负数字段 | ✅ 修复 |
+| 房间布局网格解析 | ✅ 验证正确 |
+| 隐藏门检测 | ✅ 正常工作 |
+
+### Phase 5 搁置说明
+
+由于上层应用 (`apps/`、`ai_combat_system/`) 的可靠性依赖底层数据正确性，在底层完善之前进行适配是无意义的。现在底层已修复，但上层应用适配工作量大且非核心目标，故搁置。
+
+---
+
+## 项目文件分类
+
+### 核心文件（本次重构成果，需保留）
+
+```
+python/
+├── core/                      # ✅ 新架构核心层
+│   ├── connection/            # 连接适配器 (BridgeAdapter)
+│   ├── protocol/              # 协议 schema、时序
+│   └── validation/            # 已知问题注册表
+├── channels/                  # ✅ 数据通道层
+│   ├── base.py               # 通道抽象基类
+│   ├── player.py             # 玩家相关通道
+│   ├── room.py               # 房间相关通道
+│   ├── entities.py           # 实体通道
+│   └── hazards.py            # 危险物通道
+├── services/                  # ✅ 服务层
+│   ├── facade.py             # 统一 API 入口
+│   ├── processor.py          # 数据处理器
+│   └── monitor.py            # 质量监控
+├── models/                    # ✅ 拆分后的模型层
+│   ├── base.py               # 基础类型
+│   ├── entities.py           # 实体数据类
+│   └── state.py              # 状态管理
+├── tests/                     # ✅ 测试用例 (91 passed)
+├── isaac_bridge.py           # ✅ 网络层（保留）
+├── data_processor.py         # ✅ 旧数据处理（兼容层）
+├── data_replay_system.py     # ✅ 录制回放系统（保留）
+├── data_validator.py         # ✅ 数据验证工具
+├── environment.py            # ✅ 游戏地图环境（已修复坐标）
+├── models.py                 # ✅ 兼容层（重导出拆分后的模块）
+└── realtime_visualizer.py    # ✅ 实时可视化（已修复坐标）
+```
+
+### 本次新增工具（调试验证用）
+
+```
+python/apps/
+├── room_layout_visualizer.py  # ✅ 房间布局字符可视化
+└── terrain_validator.py       # ✅ 地形数据验证器
+
+docs/
+└── TERRAIN_VALIDATION.md      # ✅ 地形验证文档
+```
+
+### 待定文件（上层应用，Phase 5 搁置）
+
+这些文件依赖底层数据，暂不适配，保持现状：
+
+```
+python/apps/                   # ⏸️ 上层应用（搁置）
+├── adaptive_system.py        # AI 自适应系统
+├── advanced_control.py       # 高级控制
+├── behavior_tree.py          # 行为树
+├── danger_system.py          # 危险评估
+├── dynamic_strategy.py       # 动态策略
+├── evaluation_system.py      # 评估系统
+├── example_ai.py             # AI 示例
+├── game_tracker.py           # 游戏追踪
+├── kiting_ai.py              # 风筝 AI
+├── orchestrator_enhanced.py  # 编排器
+├── pathfinding.py            # 寻路
+├── smart_aiming.py           # 智能瞄准
+├── socket_ai_agent.py        # AI Agent
+├── state_machine.py          # 状态机
+├── strategy_system.py        # 策略系统
+├── threat_analysis.py        # 威胁分析
+├── room_visualizer.py        # 房间可视化（已修复坐标）
+├── console.py                # 控制台
+├── basic_controllers.py      # 基础控制器
+└── data_recorder.py          # 数据录制
+
+python/ai_combat_system/       # ⏸️ AI 战斗系统（搁置）
+├── analysis/                 # 分析模块
+├── control/                  # 控制模块
+├── decision/                 # 决策模块
+├── evaluation/               # 评估模块
+├── orchestrator/             # 编排模块
+├── perception/               # 感知模块
+└── planning/                 # 规划模块
+```
+
+### 可归档文件（Legacy/历史遗留）
+
+这些文件已过时或不再需要，可移至归档目录：
+
+```
+python/legacy/                 # 📦 已归档
+├── advanced_ai_example.py    # 旧 AI 示例
+├── game_space.py             # 旧游戏空间
+├── visualize_space.py        # 旧可视化
+├── QUICKSTART.md             # 旧快速开始
+├── QUICKSTART_TRACKING.md    # 旧追踪文档
+└── TRACKING_SYSTEM.md        # 旧追踪系统文档
+
+python/apps/                   # 📦 可归档的测试/分析脚本
+├── analyze_rooms_detailed.py # 房间分析（一次性）
+├── extract_room_data.py      # 数据提取（一次性）
+├── room_corner_collector.py  # 角落收集（一次性）
+├── room_data_analyzer_v2.py  # 房间分析 v2（一次性）
+├── room_geometry_analyzer.py # 几何分析（一次性）
+├── debug_isaac_bridge.py     # 调试脚本
+├── debug_record.py           # 调试录制
+├── test_*.py                 # 各种测试脚本（10+个）
+└── data_replay_examples.py   # 回放示例
+```
+
+### 可删除文件（临时/重复）
+
+```
+python/
+├── test_data_channels.py      # 临时测试（已有 tests/）
+├── test_phase2_channels.py    # 阶段测试（已完成）
+├── test_phase3_services.py    # 阶段测试（已完成）
+├── test_timing_protocol.py    # 时序测试（已完成）
+└── python/                    # 空目录或重复
+    └── recordings/            # 可能重复
+```
 
 ---
 
@@ -1866,40 +2014,40 @@ else:
 - 至少一个通道完成迁移
 - 时序信息可访问
 
-### Phase 2: 通道迁移（2-3 周）
+### Phase 2: 通道迁移（2-3 周）✅ 已完成
 
 **目标**: 将所有数据通道迁移到新架构
 
-| 任务 | 预估时间 | 优先级 |
-|-----|---------|-------|
-| 迁移玩家相关通道 (STATS, HEALTH, INVENTORY) | 2 天 | P0 |
-| 迁移房间相关通道 (ROOM_INFO, ROOM_LAYOUT) | 2 天 | P0 |
-| 迁移实体通道 (ENEMIES, PROJECTILES, PICKUPS) | 3 天 | P0 |
-| 迁移危险物通道 (BOMBS, FIRE_HAZARDS) | 1 天 | P1 |
-| 迁移 INTERACTABLES, BUTTONS | 1 天 | P1 |
-| 编写集成测试 | 2 天 | P1 |
+| 任务 | 预估时间 | 优先级 | 状态 |
+|-----|---------|-------|------|
+| 迁移玩家相关通道 (STATS, HEALTH, INVENTORY) | 2 天 | P0 | ✅ |
+| 迁移房间相关通道 (ROOM_INFO, ROOM_LAYOUT) | 2 天 | P0 | ✅ |
+| 迁移实体通道 (ENEMIES, PROJECTILES, PICKUPS) | 3 天 | P0 | ✅ |
+| 迁移危险物通道 (BOMBS, FIRE_HAZARDS) | 1 天 | P1 | ✅ |
+| 迁移 INTERACTABLES, BUTTONS | 1 天 | P1 | ✅ |
+| 编写集成测试 | 2 天 | P1 | ✅ |
 
 **验收标准**:
-- 所有通道完成迁移
-- 集成测试通过
-- 验证与原逻辑一致
+- 所有通道完成迁移 ✅
+- 集成测试通过 ✅
+- 验证与原逻辑一致 ✅
 
-### Phase 3: 服务层与监控（1-2 周）
+### Phase 3: 服务层与监控（1-2 周）✅ 已完成
 
 **目标**: 实现数据质量监控和服务层
 
-| 任务 | 预估时间 | 优先级 |
-|-----|---------|-------|
-| 实现 `services/monitor.py` | 2 天 | P0 |
-| 实现 `services/processor.py` 整合所有通道 | 2 天 | P0 |
-| 实现 `services/facade.py` 简化 API | 2 天 | P1 |
-| 集成监控到主流程 | 1 天 | P1 |
-| 质量报告功能 | 1 天 | P2 |
+| 任务 | 预估时间 | 优先级 | 状态 |
+|-----|---------|-------|------|
+| 实现 `services/monitor.py` | 2 天 | P0 | ✅ |
+| 实现 `services/processor.py` 整合所有通道 | 2 天 | P0 | ✅ |
+| 实现 `services/facade.py` 简化 API | 2 天 | P1 | ✅ |
+| 集成监控到主流程 | 1 天 | P1 | ✅ |
+| 质量报告功能 | 1 天 | P2 | ✅ |
 
 **验收标准**:
-- 监控系统实时运行
-- 能区分游戏端和 Python 端问题
-- 提供质量报告
+- 监控系统实时运行 ✅
+- 能区分游戏端和 Python 端问题 ✅
+- 提供质量报告 ✅
 
 ### Phase 4: 清理与文档（1 周）
 
@@ -1918,15 +2066,21 @@ else:
 - 迁移指南可用 ✅
 - CI 通过 ✅
 
-### Phase 5: 上层应用适配（持续）
+### Phase 5: 上层应用适配（搁置）⏸️
 
-**目标**: 逐步将 `apps/` 下的应用迁移到新 API
+**状态**: 搁置 - 底层已修复，但上层应用适配非核心目标
 
-| 任务 | 预估时间 | 优先级 |
-|-----|---------|-------|
-| 选择 2-3 个核心应用作为试点 | 3 天 | P1 |
-| 收集反馈，迭代 Facade API | 持续 | P2 |
-| 编写最佳实践文档 | 1 天 | P2 |
+**搁置原因**:
+1. 上层应用可靠性依赖底层数据正确性
+2. 底层修复前进行适配无意义
+3. 现在底层已完善，但适配工作量大
+4. 核心目标已达成，可根据需要后续推进
+
+| 任务 | 预估时间 | 优先级 | 状态 |
+|-----|---------|-------|------|
+| 选择 2-3 个核心应用作为试点 | 3 天 | P1 | ⏸️ 搁置 |
+| 收集反馈，迭代 Facade API | 持续 | P2 | ⏸️ 搁置 |
+| 编写最佳实践文档 | 1 天 | P2 | ⏸️ 搁置 |
 
 ---
 
@@ -1984,6 +2138,7 @@ uv pip install pydantic typing-extensions
 | 2026-02-02 | 1.1 | Phase 0 完成：时序协议 v2.1 实现，TimingMonitor 和 TimingAwareStateManager 完成 |
 | 2026-02-02 | 1.1 | Phase 1 完成：Pydantic schema、已知问题注册表、通道框架、73个测试用例全部通过 |
 | 2026-02-02 | 1.2 | Phase 4 完成：models.py 拆分为模块（base.py, entities.py, state.py），创建迁移指南 MIGRATION_GUIDE.md，更新 README.md |
+| 2026-02-02 | 1.3 | **重构基本完成**：Phase 0-4 全部完成，Phase 5 搁置。修复坐标转换公式、Pydantic 负数验证问题。91 个测试通过。创建地形验证工具。整理项目文件分类。 |
 
 ---
 
