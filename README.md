@@ -132,6 +132,7 @@ python apps/recorder.py --auto
 ```
 
 #### 3. 启动游戏
+在steam的游戏启动项中添加 --luadebug
 
 启动《以撒的结合：重生》，模组会自动连接到 Python 服务器（默认 127.0.0.1:9527）。
 
