@@ -8,6 +8,25 @@ from .base import (
 from .player import (
     PlayerPositionChannel,
     PlayerPositionChannelData,
+    PlayerStatsChannel,
+    PlayerHealthChannel,
+    PlayerInventoryChannel,
+)
+from .room import (
+    RoomInfoChannel,
+    RoomLayoutChannel,
+)
+from .entities import (
+    EnemiesChannel,
+    ProjectilesChannel,
+    PickupsChannel,
+)
+from .danger import (
+    BombsChannel,
+    FireHazardsChannel,
+)
+from .interactables import (
+    InteractablesChannel,
 )
 
 __all__ = [
@@ -16,4 +35,15 @@ __all__ = [
     "ChannelRegistry",
     "PlayerPositionChannel",
     "PlayerPositionChannelData",
+    "PlayerStatsChannel",
+    "PlayerHealthChannel",
+    "PlayerInventoryChannel",
+    "RoomInfoChannel",
+    "RoomLayoutChannel",
+    "EnemiesChannel",
+    "ProjectilesChannel",
+    "PickupsChannel",
+    "BombsChannel",
+    "FireHazardsChannel",
+    "InteractablesChannel",
 ]
