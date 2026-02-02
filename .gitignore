@@ -44,6 +44,7 @@ config.local.*
 python/analysis_reference/
 python/analyzed_rooms/
 python/room_data/
+python/recordings/
 reference_from_2026.1.11/
 *.analysis.json
 *.analysis.txt
