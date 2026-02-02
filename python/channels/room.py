@@ -7,9 +7,14 @@ Room Channels - 房间信息与布局通道
 from typing import Dict, Any, Optional, List
 import logging
 
-from .base import DataChannel, ChannelConfig, ChannelRegistry
-from ..core.protocol.schema import RoomInfoData, RoomLayoutData
-from ..core.validation.known_issues import ValidationIssue, IssueSeverity
+try:
+    from channels.base import DataChannel, ChannelConfig, ChannelRegistry
+    from core.protocol.schema import RoomInfoData, RoomLayoutData
+    from core.validation.known_issues import ValidationIssue, IssueSeverity
+except ImportError:
+    from .base import DataChannel, ChannelConfig, ChannelRegistry
+    from ..core.protocol.schema import RoomInfoData, RoomLayoutData
+    from ..core.validation.known_issues import ValidationIssue, IssueSeverity
 
 logger = logging.getLogger(__name__)
 

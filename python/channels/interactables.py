@@ -7,9 +7,14 @@ Interactables Channel - 可互动实体通道
 from typing import Dict, Any, Optional, List
 import logging
 
-from .base import DataChannel, ChannelConfig, ChannelRegistry
-from ..core.protocol.schema import InteractableData
-from ..core.validation.known_issues import ValidationIssue, IssueSeverity
+try:
+    from channels.base import DataChannel, ChannelConfig, ChannelRegistry
+    from core.protocol.schema import InteractableData
+    from core.validation.known_issues import ValidationIssue, IssueSeverity
+except ImportError:
+    from .base import DataChannel, ChannelConfig, ChannelRegistry
+    from ..core.protocol.schema import InteractableData
+    from ..core.validation.known_issues import ValidationIssue, IssueSeverity
 
 logger = logging.getLogger(__name__)
 

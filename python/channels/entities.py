@@ -7,9 +7,14 @@ Entity Channels - 敌人、投射物、可拾取物通道
 from typing import Dict, Any, Optional, List
 import logging
 
-from .base import DataChannel, ChannelConfig, ChannelRegistry
-from ..core.protocol.schema import EnemyData, ProjectilesData, PickupData
-from ..core.validation.known_issues import ValidationIssue, IssueSeverity
+try:
+    from channels.base import DataChannel, ChannelConfig, ChannelRegistry
+    from core.protocol.schema import EnemyData, ProjectilesData, PickupData, ProjectileData, LaserData
+    from core.validation.known_issues import ValidationIssue, IssueSeverity
+except ImportError:
+    from .base import DataChannel, ChannelConfig, ChannelRegistry
+    from ..core.protocol.schema import EnemyData, ProjectilesData, PickupData, ProjectileData, LaserData
+    from ..core.validation.known_issues import ValidationIssue, IssueSeverity
 
 logger = logging.getLogger(__name__)
 
@@ -118,20 +123,14 @@ class ProjectilesChannel(DataChannel):
             if isinstance(raw_data, dict):
                 for proj in raw_data.get("enemy_projectiles", []):
                     if proj is not None:
-                        from ..core.protocol.schema import ProjectileData
-
                         enemy_projectiles.append(ProjectileData(**proj))
 
                 for tear in raw_data.get("player_tears", []):
                     if tear is not None:
-                        from ..core.protocol.schema import ProjectileData
-
                         player_tears.append(ProjectileData(**tear))
 
                 for laser in raw_data.get("lasers", []):
                     if laser is not None:
-                        from ..core.protocol.schema import LaserData
-
                         lasers.append(LaserData(**laser))
 
             return ProjectilesData(

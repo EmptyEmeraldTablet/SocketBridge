@@ -11,11 +11,11 @@ import logging
 
 try:
     from channels.base import DataChannel, ChannelConfig, ChannelRegistry
-    from core.protocol.schema import PlayerPositionData, Vector2DSchema
+    from core.protocol.schema import PlayerPositionData, Vector2DSchema, PlayerStatsData, PlayerHealthData, PlayerInventoryData
     from core.validation.known_issues import ValidationIssue, IssueSeverity
 except ImportError:
     from .base import DataChannel, ChannelConfig, ChannelRegistry
-    from ..core.protocol.schema import PlayerPositionData, Vector2DSchema
+    from ..core.protocol.schema import PlayerPositionData, Vector2DSchema, PlayerStatsData, PlayerHealthData, PlayerInventoryData
     from ..core.validation.known_issues import ValidationIssue, IssueSeverity
 
 logger = logging.getLogger(__name__)
@@ -187,8 +187,6 @@ class PlayerStatsChannel(DataChannel):
 
     def parse(self, raw_data: Dict[str, Any], frame: int):
         """解析原始数据"""
-        from ..core.protocol.schema import PlayerStatsData
-
         try:
             stats = {}
             for idx_str, stats_raw in raw_data.items():
@@ -219,8 +217,6 @@ class PlayerHealthChannel(DataChannel):
 
     def parse(self, raw_data: Dict[str, Any], frame: int):
         """解析原始数据"""
-        from ..core.protocol.schema import PlayerHealthData
-
         try:
             health = {}
             for idx_str, health_raw in raw_data.items():
@@ -250,8 +246,6 @@ class PlayerInventoryChannel(DataChannel):
 
     def parse(self, raw_data: Dict[str, Any], frame: int):
         """解析原始数据"""
-        from ..core.protocol.schema import PlayerInventoryData
-
         try:
             inventory = {}
             for idx_str, inv_raw in raw_data.items():
