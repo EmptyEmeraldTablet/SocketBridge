@@ -369,6 +369,41 @@ function Protocol.createDataMessage(data, channels)
     return msg
 end
 
+function Protocol.createFullStateMessage(fullState, channels)
+    State.messageSeq = State.messageSeq + 1
+
+    local channelMeta = {}
+    for _, channelName in ipairs(channels or {}) do
+        local meta = State.channelLastCollect[channelName]
+        if meta then
+            channelMeta[channelName] = {
+                collect_frame = meta.collect_frame,
+                collect_time = meta.collect_time,
+                interval = meta.interval,
+                stale_frames = State.frameCounter - meta.collect_frame,
+            }
+        end
+    end
+
+    local msg = {
+        version = Protocol.VERSION,
+        type = Protocol.MessageType.FULL_STATE,
+        timestamp = Isaac.GetTime(),
+        frame = State.frameCounter,
+
+        -- 时序字段 (v2.1)
+        seq = State.messageSeq,
+        game_time = Isaac.GetTime(),
+        prev_frame = State.prevFrameSent or 0,
+        channel_meta = channelMeta,
+
+        payload = fullState,
+    }
+
+    State.prevFrameSent = State.frameCounter
+    return msg
+end
+
 function Protocol.createEventMessage(eventType, eventData)
     return {
         version = Protocol.VERSION,
@@ -503,13 +538,15 @@ end
 
 function CollectorRegistry:forceCollectAll()
     local results = {}
+    local channels = {}
     for name, _ in pairs(self.collectors) do
         local data, meta = self:collect(name, true)
         if data ~= nil then
             results[name] = data
+            table.insert(channels, name)
         end
     end
-    return results
+    return results, channels
 end
 
 function CollectorRegistry:getCached(name)
@@ -1206,13 +1243,8 @@ CommandHandler.register("SET_INTERVAL", function(params)
 end)
 
 CommandHandler.register("GET_FULL_STATE", function(params)
-    local fullState = CollectorRegistry:forceCollectAll()
-    Network.send({
-        version = Protocol.VERSION,
-        type = Protocol.MessageType.FULL_STATE,
-        frame = State.frameCounter,
-        payload = fullState
-    })
+    local fullState, channels = CollectorRegistry:forceCollectAll()
+    Network.send(Protocol.createFullStateMessage(fullState, channels))
     return { success = true }
 end)
 
@@ -1506,13 +1538,8 @@ mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, continued)
     
     -- 发送完整初始状态
     if State.connected then
-        local fullState = CollectorRegistry:forceCollectAll()
-        Network.send({
-            version = Protocol.VERSION,
-            type = Protocol.MessageType.FULL_STATE,
-            frame = State.frameCounter,
-            payload = fullState
-        })
+        local fullState, channels = CollectorRegistry:forceCollectAll()
+        Network.send(Protocol.createFullStateMessage(fullState, channels))
     end
 end)
 
