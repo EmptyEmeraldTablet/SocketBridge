@@ -1,3 +1,19 @@
 """Validation Module - 数据验证层"""
 
-__all__ = []
+from .known_issues import (
+    KnownIssue,
+    KnownIssueRegistry,
+    ValidationIssue,
+    IssueSeverity,
+    IssueSource,
+    DynamicAnomalyDetector,
+)
+
+__all__ = [
+    "KnownIssue",
+    "KnownIssueRegistry",
+    "ValidationIssue",
+    "IssueSeverity",
+    "IssueSource",
+    "DynamicAnomalyDetector",
+]
