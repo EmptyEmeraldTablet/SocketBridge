@@ -1,8 +1,8 @@
 # SocketBridge 重构规划文档
 
-> 版本: 1.4
+> 版本: 1.5
 > 日期: 2026-02-02
-> 状态: **Phase 0-4 完成** ✅ | **Replay 模块重构完成** ✅ | Phase 5 搁置
+> 状态: **Phase 0-4 完成** ✅ | **Replay 模块重构完成** ✅ | **录制工具完成** ✅ | Phase 5 搁置
 
 ---
 
@@ -39,6 +39,7 @@
 | `core/replay/recorder.py` | DataRecorder 录制器 |
 | `core/replay/replayer.py` | DataReplayer 回放器、LuaSimulator |
 | `core/replay/session.py` | SessionManager 会话管理 |
+| `apps/recorder.py` | **完整的 CLI 录制工具** |
 | `tests/test_replay.py` | 20 个单元测试 |
 
 已归档旧实现：
@@ -46,6 +47,32 @@
 - `archive/deprecated/data_replay_system.py`
 - `archive/deprecated/realtime_visualizer.py`
 - `archive/deprecated/data_recorder.py`
+
+已清理旧录制数据：
+- `recordings/session_20260112_*` (旧格式，不兼容新架构)
+
+### 录制工具使用方法
+
+```bash
+# 启动录制器（等待游戏连接）
+python apps/recorder.py
+
+# 自动录制模式（游戏开始时自动开始录制）
+python apps/recorder.py --auto
+
+# 列出现有录制
+python apps/recorder.py --list
+
+# 清理旧录制（保留最新 5 个）
+python apps/recorder.py --cleanup --keep 5
+```
+
+快捷键（录制过程中）:
+- `r` - 开始/停止录制
+- `p` - 暂停/恢复录制
+- `s` - 显示当前状态
+- `l` - 列出所有会话
+- `q` - 退出
 
 ### Phase 5 搁置说明
 
@@ -102,6 +129,7 @@ python/archive/deprecated/     # 📦 已废弃的旧实现
 
 ```
 python/apps/
+├── recorder.py                # ✅ 游戏数据录制工具 (CLI)
 ├── room_layout_visualizer.py  # ✅ 房间布局字符可视化
 └── terrain_validator.py       # ✅ 地形数据验证器
 

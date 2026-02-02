@@ -27,6 +27,10 @@ import threading
 import time
 from datetime import datetime
 from typing import Optional
+from pathlib import Path
+
+# 添加父目录到路径
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # 导入 IsaacBridge 作为 TCP 服务器
 from isaac_bridge import IsaacBridge, MessageType
