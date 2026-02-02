@@ -4,7 +4,10 @@ from collections import deque
 import time
 import logging
 
-from core.protocol.timing import ChannelTimingInfo, MessageTimingInfo
+try:
+    from core.protocol.timing import ChannelTimingInfo, MessageTimingInfo
+except ImportError:
+    from python.core.protocol.timing import ChannelTimingInfo, MessageTimingInfo
 
 logger = logging.getLogger(__name__)
 
