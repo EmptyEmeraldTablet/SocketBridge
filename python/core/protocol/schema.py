@@ -353,8 +353,7 @@ class DataMessageSchema(BaseModel):
     payload: Dict[str, Any] = Field(default_factory=dict, description="数据负载")
     channels: List[str] = Field(default_factory=list, description="通道列表")
 
-    class Config:
-        extra = "allow"  # 允许额外字段（向后兼容）
+    model_config = {"extra": "allow"}  # 允许额外字段（向后兼容）
 
 
 class EventMessageSchema(BaseModel):

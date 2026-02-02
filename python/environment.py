@@ -8,7 +8,7 @@ SocketBridge 环境建模层
 - 可通行性判断
 - 空间查询功能
 
-适配录制数据的房间格式。
+适配新架构（core/, channels/, services/, models/）。
 """
 
 import math
@@ -17,13 +17,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 import logging
 
-from models import (
-    Vector2D,
-    RoomInfo,
-    EnemyData,
-    ProjectileData,
-    DoorData,
-)
+# 使用新架构的 models 子模块
+from models.base import Vector2D
+from models.entities import RoomInfo, EnemyData, ProjectileData, DoorData
 
 logger = logging.getLogger("Environment")
 
