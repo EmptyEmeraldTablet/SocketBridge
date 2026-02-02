@@ -4,7 +4,7 @@ from collections import deque
 import time
 import logging
 
-from ..core.protocol.timing import ChannelTimingInfo, MessageTimingInfo
+from core.protocol.timing import ChannelTimingInfo, MessageTimingInfo
 
 logger = logging.getLogger(__name__)
 
