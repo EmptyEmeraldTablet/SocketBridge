@@ -505,6 +505,9 @@ class IsaacBridge:
         frame = msg.get("frame", 0)
         room_index = msg.get("room_index", -1)
 
+        # 触发原始消息回调 (用于时序分析等需要完整原始数据的场景)
+        self._trigger_handlers("raw_message", msg)
+
         if msg_type == MessageType.DATA.value:
             payload = msg.get("payload", {})
             channels = msg.get("channels", [])
