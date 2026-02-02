@@ -24,7 +24,45 @@ SocketBridge 使用四种基本消息类型进行通信：
 | EVENT | `"EVENT"` | 游戏事件通知 |
 | COMMAND | `"CMD"` | 命令执行结果 |
 
-### 消息结构
+### v2.1 消息结构（时序扩展）
+
+**v2.1** 在 v2.0 基础上新增时序字段，解决数据时序问题：
+
+```json
+{
+    "version": "2.1",
+    "type": "DATA",
+    "timestamp": 123456789000,
+    "frame": 123,
+    "room_index": 5,
+
+    "seq": 456,                    // 消息序列号
+    "game_time": 123456789000,     // 游戏内时间戳
+    "prev_frame": 122,             // 上一条消息帧号
+    "channel_meta": {              // 各通道采集元数据
+        "PLAYER_POSITION": {
+            "collect_frame": 123,  // 数据采集帧号
+            "collect_time": 123456789000,
+            "interval": "HIGH",    // 采集频率
+            "stale_frames": 0      // 数据过期帧数
+        },
+        "PLAYER_STATS": {
+            "collect_frame": 120,
+            "collect_time": 123456780000,
+            "interval": "LOW",
+            "stale_frames": 3
+        }
+    },
+
+    "payload": {
+        "PLAYER_POSITION": {...},
+        "ENEMIES": [...]
+    },
+    "channels": ["PLAYER_POSITION", "ENEMIES"]
+}
+```
+
+### v2.0 消息结构（兼容）
 
 ```json
 {
@@ -39,6 +77,19 @@ SocketBridge 使用四种基本消息类型进行通信：
     "channels": ["PLAYER_POSITION", "ENEMIES"]
 }
 ```
+
+### v2.1 时序字段说明
+
+| 字段 | 类型 | 版本 | 说明 |
+|-----|------|------|------|
+| `seq` | int | v2.1 | 消息序列号，递增 |
+| `game_time` | int | v2.1 | 游戏内时间戳（毫秒） |
+| `prev_frame` | int | v2.1 | 上一条消息的帧号 |
+| `channel_meta` | object | v2.1 | 各通道采集元数据 |
+| `channel_meta.*.collect_frame` | int | v2.1 | 该通道数据采集时的帧号 |
+| `channel_meta.*.collect_time` | int | v2.1 | 该通道数据采集时的时间戳 |
+| `channel_meta.*.interval` | string | v2.1 | 采集频率（HIGH/MEDIUM/LOW/RARE/ON_CHANGE） |
+| `channel_meta.*.stale_frames` | int | v2.1 | 数据过期帧数（当前帧 - 采集帧） |
 
 ---
 
@@ -1271,6 +1322,108 @@ interactables = data.get_interactables()
     "result": {"success": true, "mode": "AUTO"}
 }
 ```
+
+---
+
+## v2.1 时序协议使用指南
+
+### 为什么需要时序字段
+
+在高频数据采集中，不同通道以不同频率采集数据：
+- PLAYER_POSITION: 每帧采集
+- ENEMIES: 每帧采集
+- PLAYER_STATS: 每30帧采集
+- ROOM_INFO: 每30帧采集
+
+这导致数据到达 Python 端时存在时序不一致问题。v2.1 通过以下机制解决：
+
+1. **消息序列号 (`seq`)**: 检测消息丢失和乱序
+2. **帧号 (`frame`)**: 标识游戏帧，便于同步
+3. **通道元数据 (`channel_meta`)**: 记录每个通道的实际采集时刻
+4. **过期检测 (`stale_frames`)**: 识别过期数据
+
+### Python 端时序监控示例
+
+```python
+from core.protocol.timing import TimingMonitor, MessageTimingInfo
+
+monitor = TimingMonitor()
+
+def on_data_message(msg):
+    # 解析时序信息
+    timing = MessageTimingInfo.from_message(msg)
+
+    # 检测时序问题
+    issues = monitor.check_message(timing)
+
+    for issue in issues:
+        if issue.severity == "error":
+            print(f"🚨 [ERROR] {issue.issue_type.value}: {issue.details}")
+        elif issue.severity == "warning":
+            print(f"⚠️  [WARNING] {issue.issue_type.value}: {issue.details}")
+
+    # 获取统计
+    stats = monitor.get_stats()
+    print(f"问题率: {stats['issue_rate']:.2%}")
+```
+
+### 使用时机感知状态管理器
+
+```python
+from models.state import TimingAwareStateManager
+
+state_manager = TimingAwareStateManager()
+
+def process_data_message(msg):
+    timing = MessageTimingInfo.from_message(msg)
+
+    # 更新各通道状态
+    for channel_name, channel_timing in timing.channel_meta.items():
+        channel_data = msg.get("payload", {}).get(channel_name)
+        if channel_data:
+            state_manager.update_channel(
+                channel_name,
+                channel_data,
+                channel_timing,
+                timing.frame
+            )
+
+    # 检查通道是否新鲜
+    if state_manager.is_channel_fresh("PLAYER_STATS", max_stale_frames=10):
+        stats = state_manager.get_channel_data("PLAYER_STATS")
+        # 使用数据...
+    else:
+        print("PLAYER_STATS 数据已过期")
+
+    # 获取同步快照
+    snapshot = state_manager.get_synchronized_snapshot(
+        ["PLAYER_POSITION", "ENEMIES"],
+        max_frame_diff=1  # 帧差不超过1
+    )
+    if snapshot:
+        # 数据同步，可以使用...
+        pass
+```
+
+### 采集频率配置
+
+| 频率 | 帧间隔 | 适用场景 |
+|-----|-------|---------|
+| HIGH | 1 | 玩家位置、敌人、投射物 |
+| MEDIUM | 5 | 快速变化的战斗数据 |
+| LOW | 30 | 玩家属性、房间信息 |
+| RARE | 90 | 物品栏、被动道具 |
+| ON_CHANGE | 变化时 | 房间布局、门状态 |
+
+### 时序问题检测
+
+| 问题类型 | 检测条件 | 严重程度 |
+|---------|---------|---------|
+| `FRAME_GAP` | 帧号跳跃 > 5 | warning |
+| `FRAME_JUMP` | 帧号跳跃 > 30 | error |
+| `OUT_OF_ORDER` | 帧号回退或 seq 乱序 | error |
+| `STALE_DATA` | stale_frames > 阈值 | info |
+| `CHANNEL_DESYNC` | 高频通道帧差 > 1 | warning |
 
 ---
 
