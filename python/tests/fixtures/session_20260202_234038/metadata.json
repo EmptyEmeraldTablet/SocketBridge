@@ -1,0 +1,19 @@
+{
+  "session_id": "session_20260202_234038",
+  "start_time": 1770046838.5156114,
+  "start_timestamp": "2026-02-02 23:40:38",
+  "end_time": 1770047026.3055751,
+  "host": "127.0.0.1",
+  "port": 9527,
+  "total_frames": 4989,
+  "total_events": 0,
+  "total_messages": 4989,
+  "duration": 187.789963722229,
+  "protocol_version": "2.1",
+  "metadata": {
+    "trigger": "CONNECTED",
+    "address": "('127.0.0.1', 4268)",
+    "host": "127.0.0.1",
+    "port": 9527
+  }
+}
