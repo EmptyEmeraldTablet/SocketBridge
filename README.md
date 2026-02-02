@@ -2,7 +2,8 @@
 
 > **版本**: 2.1  
 > **更新日期**: 2026年2月3日  
-> **状态**: 核心功能完成 ✅
+> **状态**: 核心功能完成 ✅  
+> **English**: [README_EN.md](README_EN.md)
 
 ---
 
@@ -1055,6 +1056,7 @@ v2.1 新增特性：
 
 ## 相关文档
 
+- [README_EN.md](README_EN.md) - English version
 - [REFACTORING_PLAN.md](REFACTORING_PLAN.md) - 重构计划与进度
 - [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) - v2.1 迁移指南
 - [KNOWN_GAME_ISSUES.md](KNOWN_GAME_ISSUES.md) - 已知游戏问题
