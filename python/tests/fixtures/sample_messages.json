@@ -1,0 +1,254 @@
+{
+  "data_message_v21": {
+    "version": "2.1",
+    "type": "DATA",
+    "timestamp": 1234567890,
+    "frame": 100,
+    "room_index": 5,
+    "seq": 50,
+    "game_time": 12345,
+    "prev_frame": 99,
+    "channel_meta": {
+      "PLAYER_POSITION": {
+        "collect_frame": 100,
+        "collect_time": 12345,
+        "interval": "HIGH",
+        "stale_frames": 0
+      },
+      "ENEMIES": {
+        "collect_frame": 100,
+        "collect_time": 12345,
+        "interval": "HIGH",
+        "stale_frames": 0
+      },
+      "PLAYER_STATS": {
+        "collect_frame": 90,
+        "collect_time": 12000,
+        "interval": "LOW",
+        "stale_frames": 10
+      }
+    },
+    "payload": {
+      "PLAYER_POSITION": {
+        "1": {
+          "pos": {"x": 320.5, "y": 280.3},
+          "vel": {"x": 1.5, "y": -0.5},
+          "move_dir": 2,
+          "fire_dir": 0,
+          "head_dir": 2,
+          "aim_dir": {"x": 1.0, "y": 0.0}
+        }
+      },
+      "ENEMIES": [
+        {
+          "id": 1,
+          "type": 10,
+          "variant": 0,
+          "subtype": 0,
+          "pos": {"x": 400.0, "y": 300.0},
+          "vel": {"x": 0.0, "y": 0.0},
+          "hp": 15.0,
+          "max_hp": 15.0,
+          "is_boss": false,
+          "is_champion": false,
+          "state": 8,
+          "collision_radius": 13.0,
+          "distance": 82.5
+        }
+      ],
+      "PLAYER_STATS": {
+        "1": {
+          "player_type": 0,
+          "damage": 3.5,
+          "speed": 1.0,
+          "tears": 10.0,
+          "range": 350.0,
+          "tear_range": 350.0,
+          "shot_speed": 1.0,
+          "luck": 0,
+          "tear_height": -23.5,
+          "tear_falling_speed": 0.0,
+          "can_fly": false,
+          "size": 10.0,
+          "sprite_scale": 1.0
+        }
+      }
+    },
+    "channels": ["PLAYER_POSITION", "ENEMIES", "PLAYER_STATS"]
+  },
+  "data_message_v20": {
+    "version": "2.0",
+    "type": "DATA",
+    "timestamp": 1234567890,
+    "frame": 100,
+    "room_index": 5,
+    "payload": {
+      "PLAYER_POSITION": {
+        "1": {
+          "pos": {"x": 320.5, "y": 280.3},
+          "vel": {"x": 0.0, "y": 0.0},
+          "move_dir": 0,
+          "fire_dir": -1,
+          "head_dir": 0,
+          "aim_dir": {"x": 0.0, "y": 0.0}
+        }
+      }
+    },
+    "channels": ["PLAYER_POSITION"]
+  },
+  "full_state_message": {
+    "version": "2.1",
+    "type": "FULL",
+    "timestamp": 1234567890,
+    "frame": 0,
+    "room_index": 0,
+    "seq": 1,
+    "game_time": 100,
+    "prev_frame": 0,
+    "channel_meta": {},
+    "payload": {
+      "PLAYER_POSITION": {
+        "1": {
+          "pos": {"x": 320.0, "y": 280.0},
+          "vel": {"x": 0.0, "y": 0.0},
+          "move_dir": 0,
+          "fire_dir": -1,
+          "head_dir": 0,
+          "aim_dir": {"x": 0.0, "y": 0.0}
+        }
+      },
+      "ROOM_INFO": {
+        "room_type": 1,
+        "room_shape": 1,
+        "room_idx": 0,
+        "stage": 1,
+        "stage_type": 0,
+        "difficulty": 0,
+        "is_clear": false,
+        "is_first_visit": true,
+        "grid_width": 15,
+        "grid_height": 9,
+        "top_left": {"x": 60.0, "y": 140.0},
+        "bottom_right": {"x": 580.0, "y": 420.0},
+        "has_boss": false,
+        "enemy_count": 3
+      }
+    }
+  },
+  "event_message": {
+    "version": "2.0",
+    "type": "EVENT",
+    "timestamp": 1234567890,
+    "frame": 150,
+    "event": "PLAYER_DAMAGE",
+    "data": {
+      "damage": 1.0,
+      "source": "enemy",
+      "enemy_type": 10
+    }
+  },
+  "player_position_samples": {
+    "valid_single_player": {
+      "1": {
+        "pos": {"x": 320.5, "y": 280.3},
+        "vel": {"x": 1.5, "y": -0.5},
+        "move_dir": 2,
+        "fire_dir": 0,
+        "head_dir": 2,
+        "aim_dir": {"x": 1.0, "y": 0.0}
+      }
+    },
+    "aim_dir_zero": {
+      "1": {
+        "pos": {"x": 320.5, "y": 280.3},
+        "vel": {"x": 0.0, "y": 0.0},
+        "move_dir": 0,
+        "fire_dir": -1,
+        "head_dir": 0,
+        "aim_dir": {"x": 0.0, "y": 0.0}
+      }
+    },
+    "multi_player": {
+      "1": {
+        "pos": {"x": 320.5, "y": 280.3},
+        "vel": {"x": 0.0, "y": 0.0},
+        "move_dir": 0,
+        "fire_dir": 0,
+        "head_dir": 0,
+        "aim_dir": {"x": 1.0, "y": 0.0}
+      },
+      "2": {
+        "pos": {"x": 350.0, "y": 300.0},
+        "vel": {"x": 0.0, "y": 0.0},
+        "move_dir": 0,
+        "fire_dir": 0,
+        "head_dir": 0,
+        "aim_dir": {"x": -1.0, "y": 0.0}
+      }
+    }
+  },
+  "enemy_samples": {
+    "normal_enemy": {
+      "id": 1,
+      "type": 10,
+      "variant": 0,
+      "subtype": 0,
+      "pos": {"x": 400.0, "y": 300.0},
+      "vel": {"x": 0.0, "y": 0.0},
+      "hp": 15.0,
+      "max_hp": 15.0,
+      "is_boss": false,
+      "is_champion": false,
+      "state": 8,
+      "collision_radius": 13.0,
+      "distance": 82.5
+    },
+    "boss_enemy": {
+      "id": 2,
+      "type": 45,
+      "variant": 0,
+      "subtype": 0,
+      "pos": {"x": 320.0, "y": 200.0},
+      "vel": {"x": 0.0, "y": 0.0},
+      "hp": 250.0,
+      "max_hp": 250.0,
+      "is_boss": true,
+      "is_champion": false,
+      "state": 4,
+      "collision_radius": 30.0,
+      "distance": 80.0
+    },
+    "negative_hp_enemy": {
+      "id": 3,
+      "type": 10,
+      "variant": 0,
+      "subtype": 0,
+      "pos": {"x": 400.0, "y": 300.0},
+      "vel": {"x": 0.0, "y": 0.0},
+      "hp": -5.0,
+      "max_hp": 15.0,
+      "is_boss": false,
+      "is_champion": false,
+      "state": 8,
+      "collision_radius": 13.0,
+      "distance": 82.5
+    }
+  },
+  "room_info_sample": {
+    "room_type": 1,
+    "room_shape": 1,
+    "room_idx": 5,
+    "stage": 2,
+    "stage_type": 0,
+    "difficulty": 0,
+    "is_clear": true,
+    "is_first_visit": false,
+    "grid_width": 15,
+    "grid_height": 9,
+    "top_left": {"x": 60.0, "y": 140.0},
+    "bottom_right": {"x": 580.0, "y": 420.0},
+    "has_boss": false,
+    "enemy_count": 0,
+    "room_variant": 0
+  }
+}

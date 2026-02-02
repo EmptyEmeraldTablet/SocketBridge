@@ -1,8 +1,8 @@
 # SocketBridge 重构规划文档
 
-> 版本: 1.0  
+> 版本: 1.1  
 > 日期: 2026-02-02  
-> 状态: 规划阶段
+> 状态: Phase 1 完成 ✅
 
 ---
 
@@ -1795,20 +1795,20 @@ python/
 
 ## 5. 实施路线图
 
-### Phase 0: 协议时序扩展（优先，1 周）
+### Phase 0: 协议时序扩展（优先，1 周）✅ 已完成
 
 **目标**: 解决数据时序问题，为后续重构奠定基础
 
-| 任务 | 预估时间 | 优先级 |
-|-----|---------|-------|
-| **Lua 端**：扩展 Protocol 添加时序字段 | 1 天 | P0 |
-| **Lua 端**：CollectorRegistry 记录采集帧号 | 0.5 天 | P0 |
-| **Lua 端**：添加消息序列号机制 | 0.5 天 | P0 |
-| **Python 端**：创建 `core/protocol/timing.py` | 1 天 | P0 |
-| **Python 端**：实现 TimingMonitor | 1 天 | P0 |
-| **Python 端**：实现 TimingAwareStateManager | 1.5 天 | P0 |
-| 编写时序相关测试 | 1 天 | P1 |
-| 更新 DATA_PROTOCOL.md 文档 | 0.5 天 | P1 |
+| 任务 | 预估时间 | 优先级 | 状态 |
+|-----|---------|-------|------|
+| **Lua 端**：扩展 Protocol 添加时序字段 | 1 天 | P0 | ✅ |
+| **Lua 端**：CollectorRegistry 记录采集帧号 | 0.5 天 | P0 | ✅ |
+| **Lua 端**：添加消息序列号机制 | 0.5 天 | P0 | ✅ |
+| **Python 端**：创建 `core/protocol/timing.py` | 1 天 | P0 | ✅ |
+| **Python 端**：实现 TimingMonitor | 1 天 | P0 | ✅ |
+| **Python 端**：实现 TimingAwareStateManager | 1.5 天 | P0 | ✅ |
+| 编写时序相关测试 | 1 天 | P1 | ✅ |
+| 更新 DATA_PROTOCOL.md 文档 | 0.5 天 | P1 | 待定 |
 
 **验收标准**:
 - 协议版本升级到 v2.1
@@ -1847,18 +1847,18 @@ else:
     # 数据过期，使用缓存或跳过
 ```
 
-### Phase 1: 基础设施（1-2 周）
+### Phase 1: 基础设施（1-2 周）✅ 已完成
 
 **目标**: 建立核心基础设施，不破坏现有功能
 
-| 任务 | 预估时间 | 优先级 |
-|-----|---------|-------|
-| 创建 `core/protocol/schema.py`，定义核心 Pydantic 模式 | 2 天 | P0 |
-| 创建 `core/validation/known_issues.py`，迁移已知问题 | 1 天 | P0 |
-| 创建 `channels/base.py`，实现通道注册机制 | 1 天 | P0 |
-| 实现 PLAYER_POSITION 通道作为模板 | 1 天 | P0 |
-| 集成 Phase 0 的时序模块 | 1 天 | P0 |
-| 编写基础测试 | 2 天 | P1 |
+| 任务 | 预估时间 | 优先级 | 状态 |
+|-----|---------|-------|------|
+| 创建 `core/protocol/schema.py`，定义核心 Pydantic 模式 | 2 天 | P0 | ✅ |
+| 创建 `core/validation/known_issues.py`，迁移已知问题 | 1 天 | P0 | ✅ |
+| 创建 `channels/base.py`，实现通道注册机制 | 1 天 | P0 | ✅ |
+| 实现 PLAYER_POSITION 通道作为模板 | 1 天 | P0 | ✅ |
+| 集成 Phase 0 的时序模块 | 1 天 | P0 | ✅ |
+| 编写基础测试 | 2 天 | P1 | ✅ |
 
 **验收标准**:
 - 新模块可独立运行
@@ -1981,6 +1981,8 @@ uv pip install pydantic typing-extensions
 | 日期 | 版本 | 变更内容 |
 |-----|------|---------|
 | 2026-02-02 | 1.0 | 初始版本 |
+| 2026-02-02 | 1.1 | Phase 0 完成：时序协议 v2.1 实现，TimingMonitor 和 TimingAwareStateManager 完成 |
+| 2026-02-02 | 1.1 | Phase 1 完成：Pydantic schema、已知问题注册表、通道框架、73个测试用例全部通过 |
 
 ---
 

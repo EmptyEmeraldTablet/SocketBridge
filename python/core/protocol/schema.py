@@ -34,10 +34,10 @@ class MessageType(str, Enum):
 class ChannelMeta(BaseModel):
     """通道采集元数据"""
 
-    channel: str = Field(..., description="通道名称")
+    channel: str = Field(default="", description="通道名称")
     collect_frame: int = Field(..., ge=0, description="数据采集帧号")
     collect_time: int = Field(..., ge=0, description="数据采集时间戳")
-    interval: CollectInterval = Field(..., description="采集频率")
+    interval: str = Field(..., description="采集频率")
     stale_frames: int = Field(default=0, ge=0, description="数据过期帧数")
 
 
@@ -83,17 +83,19 @@ class PlayerStatsData(BaseModel):
     range: float = Field(default=300.0, ge=0, description="射程")
     tear_range: float = Field(default=300.0, ge=0, description="射程（别名）")
     shot_speed: float = Field(default=1.0, ge=0, description="射击速度")
-    luck: int = Field(default=0, ge=0, le=10, description="幸运值")
+    luck: int = Field(default=0, description="幸运值")
     tear_height: float = Field(default=0.0, description="眼泪高度")
     tear_falling_speed: float = Field(default=0.0, description="眼泪下落速度")
     can_fly: bool = Field(default=False, description="能否飞行")
     size: float = Field(default=10.0, ge=0, description="大小")
     sprite_scale: float = Field(default=1.0, ge=0, description="精灵缩放")
 
-    @field_validator("luck")
+    @field_validator("luck", mode="before")
     @classmethod
-    def validate_luck(cls, v: float) -> int:
-        return int(v) if v is not None else 0
+    def validate_luck(cls, v) -> int:
+        if v is None:
+            return 0
+        return int(v)
 
 
 class PlayerHealthData(BaseModel):
