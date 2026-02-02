@@ -43,7 +43,12 @@ local State = {
     socket = nil,
     frameCounter = 0,
     currentRoomIndex = -1,
-    
+
+    -- 时序扩展字段 (v2.1)
+    messageSeq = 0,
+    prevFrameSent = 0,
+    channelLastCollect = {},
+
     -- 控制模式
     -- 模式选项:
     --   "MANUAL"      - 手动控制
@@ -318,7 +323,7 @@ end
 -- 协议层
 -- ============================================================================
 local Protocol = {
-    VERSION = "2.0",
+    VERSION = "2.1",
     MessageType = {
         DATA = "DATA",
         FULL_STATE = "FULL",
@@ -328,15 +333,40 @@ local Protocol = {
 }
 
 function Protocol.createDataMessage(data, channels)
-    return {
+    State.messageSeq = State.messageSeq + 1
+
+    local channelMeta = {}
+    for _, channelName in ipairs(channels) do
+        local meta = State.channelLastCollect[channelName]
+        if meta then
+            channelMeta[channelName] = {
+                collect_frame = meta.collect_frame,
+                collect_time = meta.collect_time,
+                interval = meta.interval,
+                stale_frames = State.frameCounter - meta.collect_frame,
+            }
+        end
+    end
+
+    local msg = {
         version = Protocol.VERSION,
         type = Protocol.MessageType.DATA,
         timestamp = Isaac.GetTime(),
         frame = State.frameCounter,
         room_index = State.currentRoomIndex,
+
+        -- 时序字段 (v2.1)
+        seq = State.messageSeq,
+        game_time = Isaac.GetTime(),
+        prev_frame = State.prevFrameSent or 0,
+        channel_meta = channelMeta,
+
         payload = data,
         channels = channels
     }
+
+    State.prevFrameSent = State.frameCounter
+    return msg
 end
 
 function Protocol.createEventMessage(eventType, eventData)
@@ -423,50 +453,58 @@ end
 
 function CollectorRegistry:collect(name, forceCollect)
     local collector = self.collectors[name]
-    if not collector then return nil end
-    
+    if not collector then return nil, nil end
+
     if not forceCollect and not self:shouldCollect(name) then
-        return nil
+        return nil, nil
     end
-    
+
     local success, data = pcall(collector.collect)
     if not success or data == nil then
-        return nil
+        return nil, nil
     end
-    
+
     -- ON_CHANGE 变化检测
     if collector.interval == "ON_CHANGE" and not forceCollect then
         local hashFunc = collector.hash or simpleHash
         local newHash = hashFunc(data)
         if self.changeHashes[name] == newHash then
-            return nil
+            return nil, nil
         end
         self.changeHashes[name] = newHash
     end
-    
+
     self.cache[name] = data
-    return data
+
+    local collectMeta = {
+        collect_frame = State.frameCounter,
+        collect_time = Isaac.GetTime(),
+        interval = collector.interval,
+    }
+    State.channelLastCollect[name] = collectMeta
+
+    return data, collectMeta
 end
 
 function CollectorRegistry:collectAll()
     local results = {}
     local collectedChannels = {}
-    
+
     for name, _ in pairs(self.collectors) do
-        local data = self:collect(name, false)
+        local data, meta = self:collect(name, false)
         if data ~= nil then
             results[name] = data
             table.insert(collectedChannels, name)
         end
     end
-    
+
     return results, collectedChannels
 end
 
 function CollectorRegistry:forceCollectAll()
     local results = {}
     for name, _ in pairs(self.collectors) do
-        local data = self:collect(name, true)
+        local data, meta = self:collect(name, true)
         if data ~= nil then
             results[name] = data
         end
@@ -1451,6 +1489,9 @@ end)
 mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, continued)
     State.frameCounter = 0
     State.currentRoomIndex = -1
+    State.messageSeq = 0
+    State.prevFrameSent = 0
+    State.channelLastCollect = {}
     InputExecutor.reset()
     
     -- 重置所有收集器缓存
