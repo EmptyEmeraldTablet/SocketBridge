@@ -93,10 +93,14 @@ class RoomVisualizer:
 
         基于 ROOM_GEOMETRY_BY_SESSION.md 的坐标系统：
         - top_left 是墙壁内边界左上角坐标
-        - 公式: gx = floor((x - top_left_x) / 40) + 1
+        - 需要偏移 40 像素以包含边界墙
+        - 公式: gx = floor((x - (top_left_x - 40)) / 40)
         """
-        gx = int((pos.x - self.top_left[0]) / self.grid_size) + 1
-        gy = int((pos.y - self.top_left[1]) / self.grid_size) + 1
+        # 调整 top_left 以包含边界墙
+        adjusted_tl_x = self.top_left[0] - self.grid_size
+        adjusted_tl_y = self.top_left[1] - self.grid_size
+        gx = int((pos.x - adjusted_tl_x) / self.grid_size)
+        gy = int((pos.y - adjusted_tl_y) / self.grid_size)
         return (gx, gy)
 
     def grid_to_world_center(self, gx: int, gy: int) -> Vector2D:

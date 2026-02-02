@@ -322,22 +322,25 @@ class GameMap:
 
         # 获取 top_left 偏移（墙壁内边界左上角坐标）
         # 用于将世界坐标转换为网格坐标
+        # 注意：top_left 是可行走区域的左上角（即格子 (1,1) 的左上角）
+        # 但网格数据包含边界墙（从格子 (0,0) 开始）
+        # 所以需要将 top_left 向左上偏移一格（40像素）
         top_left_x = 0.0
         top_left_y = 0.0
         if room_info and room_info.top_left:
             tl = room_info.top_left
             if isinstance(tl, tuple) and len(tl) == 2:
-                top_left_x = tl[0]
-                top_left_y = tl[1]
+                top_left_x = tl[0] - ACTUAL_GRID_SIZE  # 偏移以包含边界墙
+                top_left_y = tl[1] - ACTUAL_GRID_SIZE  # 偏移以包含边界墙
 
-        # 存储 top_left 偏移供后续坐标转换使用
+        # 存储 top_left 偏移供后续坐标转换使用（已调整）
         self.top_left = (top_left_x, top_left_y)
 
         if isinstance(grid_data, dict):
             # grid是字典格式: {"0": {"x": 64, "y": 64, "type": 1000, "collision": 1}, ...}
             # x, y 是世界坐标，需要转换为网格坐标
-            # 公式: gx = floor((x - top_left_x) / 40) + 1
-            # 来源: python/analyzed_rooms/ROOM_GEOMETRY_BY_SESSION.md
+            # 公式: gx = floor((x - adjusted_top_left_x) / 40)
+            # 注意: top_left 已经在上面调整过，直接使用即可
             wall_count = 0
             for idx_str, tile_data in grid_data.items():
                 tile_x = tile_data.get("x", 0)
@@ -346,9 +349,9 @@ class GameMap:
                 tile_type = tile_data.get("type", 0)
                 variant = tile_data.get("variant", 0)
 
-                # 转换为网格坐标
-                gx = int((tile_x - top_left_x) / ACTUAL_GRID_SIZE) + 1
-                gy = int((tile_y - top_left_y) / ACTUAL_GRID_SIZE) + 1
+                # 转换为网格坐标（top_left 已调整，无需 +1）
+                gx = int((tile_x - top_left_x) / ACTUAL_GRID_SIZE)
+                gy = int((tile_y - top_left_y) / ACTUAL_GRID_SIZE)
 
                 # 检查是否在有效范围内 (0 <= gx < width, 0 <= gy < height)
                 if 0 <= gx < self.width and 0 <= gy < self.height:
@@ -512,9 +515,9 @@ class GameMap:
                 try:
                     door_x = door_info.get("x", 0)
                     door_y = door_info.get("y", 0)
-                    # 门坐标转换：使用相同的公式
-                    gx = int((door_x - top_left_x) / ACTUAL_GRID_SIZE) + 1
-                    gy = int((door_y - top_left_y) / ACTUAL_GRID_SIZE) + 1
+                    # 门坐标转换：使用相同的公式（top_left 已调整）
+                    gx = int((door_x - top_left_x) / ACTUAL_GRID_SIZE)
+                    gy = int((door_y - top_left_y) / ACTUAL_GRID_SIZE)
                     door_positions.add((gx, gy))
                 except (ValueError, TypeError):
                     pass

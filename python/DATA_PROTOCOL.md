@@ -621,8 +621,8 @@ if room_info:
 |-----|------|------|
 | `type` | int | GridEntityType ID (0-27) |
 | `variant` | int | 变体ID (0-255) |
-| `state` | int | 状态值 |
-| `collision` | int | 碰撞类型 (GridCollision) |
+| `state` | int | 状态值 ，障碍物是否被破坏的判断依据|
+| `collision` | int | 碰撞类型 (GridCollision)，障碍物能否通过的判断依据 |
 | `x` | float | 世界坐标 X |
 | `y` | float | 世界坐标 Y |
 

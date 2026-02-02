@@ -71,20 +71,25 @@ class RoomCoordinatePrinter:
         - 房间整体世界坐标 = (top_left_x - 40, top_left_y - 40)
 
         对于任意点 (x, y)，对应的格点坐标：
-        gx = floor((x - top_left_x) / 40) + 1
-        gy = floor((y - top_left_y) / 40) + 1
+        adjusted_top_left = top_left - 40  # 偏移以包含边界墙
+        gx = floor((x - adjusted_top_left_x) / 40)
+        gy = floor((y - adjusted_top_left_y) / 40)
 
         验证：玩家靠近左上角时，中心坐标约为 (75, 155)，top_left = (60, 140)
-        gx = floor((75 - 60) / 40) + 1 = 0 + 1 = 1
-        gy = floor((155 - 140) / 40) + 1 = 0 + 1 = 1
+        adjusted = (20, 100)
+        gx = floor((75 - 20) / 40) = 1
+        gy = floor((155 - 100) / 40) = 1
         结果：(1, 1) ✅
 
         房间范围：
         - 15×9 房间: gx ∈ [0, 14], gy ∈ [0, 8]
         - 可移动区域: gx ∈ [1, 13], gy ∈ [1, 7]
         """
-        grid_x = int((pos.x - self.top_left_x) / self.grid_size) + 1
-        grid_y = int((pos.y - self.top_left_y) / self.grid_size) + 1
+        # 调整 top_left 以包含边界墙
+        adjusted_tl_x = self.top_left_x - self.grid_size
+        adjusted_tl_y = self.top_left_y - self.grid_size
+        grid_x = int((pos.x - adjusted_tl_x) / self.grid_size)
+        grid_y = int((pos.y - adjusted_tl_y) / self.grid_size)
         return (grid_x, grid_y)
 
     def set_top_left(self, top_left: Tuple[float, float]):
