@@ -163,10 +163,10 @@ class EnemyData(BaseModel):
     max_hp: float = Field(..., ge=0, description="最大生命值")
     is_boss: bool = Field(default=False, description="是否Boss")
     is_champion: bool = Field(default=False, description="是否冠军")
-    state: int = Field(default=0, ge=0, description="状态")
-    state_frame: int = Field(default=0, ge=0, description="状态帧")
+    state: int = Field(default=0, description="状态，-1表示无效")
+    state_frame: int = Field(default=0, description="状态帧，-1表示无效")
     projectile_cooldown: int = Field(default=0, ge=0, description="投射物冷却")
-    projectile_delay: int = Field(default=0, ge=0, description="投射物延迟")
+    projectile_delay: int = Field(default=-1, description="投射物延迟，-1表示无效")
     collision_radius: float = Field(default=10.0, ge=0, description="碰撞半径")
     distance: float = Field(default=0.0, ge=0, description="距离玩家")
     target_pos: Vector2DSchema = Field(
@@ -220,7 +220,7 @@ class RoomInfoData(BaseModel):
 
     room_type: int = Field(..., ge=0, description="房间类型")
     room_shape: int = Field(..., ge=0, description="房间形状")
-    room_idx: int = Field(..., ge=0, description="房间索引")
+    room_idx: int = Field(..., description="房间索引，负数表示特殊房间")
     stage: int = Field(..., ge=0, description="关卡")
     stage_type: int = Field(default=0, ge=0, description="关卡类型")
     difficulty: int = Field(default=0, ge=0, description="难度")
@@ -249,8 +249,8 @@ class GridEntityData(BaseModel):
 class DoorData(BaseModel):
     """门数据"""
 
-    target_room: int = Field(..., ge=0, description="目标房间")
-    target_room_type: int = Field(default=0, ge=0, description="目标房间类型")
+    target_room: int = Field(..., description="目标房间，负数表示无效/不存在")
+    target_room_type: int = Field(default=0, description="目标房间类型，负数表示无效")
     is_open: bool = Field(default=False, description="是否打开")
     is_locked: bool = Field(default=False, description="是否锁定")
     x: float = Field(..., description="世界坐标X")
@@ -276,7 +276,7 @@ class PickupData(BaseModel):
     variant: int = Field(default=0, ge=0, description="变种")
     sub_type: int = Field(default=0, ge=0, description="子类型")
     pos: Vector2DSchema = Field(..., description="位置")
-    price: int = Field(default=0, ge=0, description="价格")
+    price: int = Field(default=0, description="价格，负数表示需要扣减红心（恶魔房交易）")
     shop_item_id: int = Field(default=-1, ge=-1, description="商店物品ID")
     wait: int = Field(default=0, ge=0, description="等待时间")
 

@@ -86,17 +86,29 @@ class PlayerPositionChannel(DataChannel[PlayerPositionChannelData]):
     )
 
     def parse(
-        self, raw_data: Dict[str, Any], frame: int
+        self, raw_data, frame: int
     ) -> Optional[PlayerPositionChannelData]:
-        """解析原始数据为结构化数据"""
+        """解析原始数据为结构化数据
+        
+        支持两种格式:
+        - 列表格式: [{...}, {...}] (实际游戏数据)
+        - 字典格式: {"1": {...}, "2": {...}} (文档格式)
+        """
         try:
             players = {}
+            
+            # 统一转换为 (idx, data) 迭代器
+            if isinstance(raw_data, list):
+                items = enumerate(raw_data, start=1)  # 索引从1开始
+            elif isinstance(raw_data, dict):
+                items = ((int(k) if k.isdigit() else int(k), v) for k, v in raw_data.items())
+            else:
+                logger.warning(f"PLAYER_POSITION: unexpected data type {type(raw_data)}")
+                return None
 
-            for idx_str, player_raw in raw_data.items():
-                if player_raw is None:
+            for idx, player_raw in items:
+                if player_raw is None or not isinstance(player_raw, dict):
                     continue
-
-                idx = int(idx_str) if idx_str.isdigit() else int(idx_str)
 
                 pos_data = player_raw.get("pos", {"x": 0, "y": 0})
                 vel_data = player_raw.get("vel", {"x": 0, "y": 0})
@@ -185,13 +197,26 @@ class PlayerStatsChannel(DataChannel):
         validation_enabled=True,
     )
 
-    def parse(self, raw_data: Dict[str, Any], frame: int):
-        """解析原始数据"""
+    def parse(self, raw_data, frame: int):
+        """解析原始数据
+        
+        支持列表或字典格式
+        """
         try:
             stats = {}
-            for idx_str, stats_raw in raw_data.items():
-                idx = int(idx_str) if idx_str.isdigit() else int(idx_str)
-
+            
+            # 统一转换
+            if isinstance(raw_data, list):
+                items = enumerate(raw_data, start=1)
+            elif isinstance(raw_data, dict):
+                items = ((int(k) if k.isdigit() else int(k), v) for k, v in raw_data.items())
+            else:
+                logger.warning(f"PLAYER_STATS: unexpected data type {type(raw_data)}")
+                return None
+            
+            for idx, stats_raw in items:
+                if stats_raw is None or not isinstance(stats_raw, dict):
+                    continue
                 stats[idx] = PlayerStatsData(**stats_raw)
             return stats
         except Exception as e:
@@ -215,12 +240,26 @@ class PlayerHealthChannel(DataChannel):
         validation_enabled=True,
     )
 
-    def parse(self, raw_data: Dict[str, Any], frame: int):
-        """解析原始数据"""
+    def parse(self, raw_data, frame: int):
+        """解析原始数据
+        
+        支持列表或字典格式
+        """
         try:
             health = {}
-            for idx_str, health_raw in raw_data.items():
-                idx = int(idx_str) if idx_str.isdigit() else int(idx_str)
+            
+            # 统一转换
+            if isinstance(raw_data, list):
+                items = enumerate(raw_data, start=1)
+            elif isinstance(raw_data, dict):
+                items = ((int(k) if k.isdigit() else int(k), v) for k, v in raw_data.items())
+            else:
+                logger.warning(f"PLAYER_HEALTH: unexpected data type {type(raw_data)}")
+                return None
+            
+            for idx, health_raw in items:
+                if health_raw is None or not isinstance(health_raw, dict):
+                    continue
                 health[idx] = PlayerHealthData(**health_raw)
             return health
         except Exception as e:
@@ -244,12 +283,26 @@ class PlayerInventoryChannel(DataChannel):
         validation_enabled=True,
     )
 
-    def parse(self, raw_data: Dict[str, Any], frame: int):
-        """解析原始数据"""
+    def parse(self, raw_data, frame: int):
+        """解析原始数据
+        
+        支持列表或字典格式
+        """
         try:
             inventory = {}
-            for idx_str, inv_raw in raw_data.items():
-                idx = int(idx_str) if idx_str.isdigit() else int(idx_str)
+            
+            # 统一转换
+            if isinstance(raw_data, list):
+                items = enumerate(raw_data, start=1)
+            elif isinstance(raw_data, dict):
+                items = ((int(k) if k.isdigit() else int(k), v) for k, v in raw_data.items())
+            else:
+                logger.warning(f"PLAYER_INVENTORY: unexpected data type {type(raw_data)}")
+                return None
+            
+            for idx, inv_raw in items:
+                if inv_raw is None or not isinstance(inv_raw, dict):
+                    continue
                 inventory[idx] = PlayerInventoryData(**inv_raw)
             return inventory
         except Exception as e:
