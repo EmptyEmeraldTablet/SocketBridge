@@ -43,8 +43,6 @@ SocketBridge/
 ├── metadata.xml                # 模组元数据
 ├── README.md                   # 本文档
 ├── REFACTORING_PLAN.md         # 重构计划文档
-├── MIGRATION_GUIDE.md          # v2.1 迁移指南
-├── KNOWN_GAME_ISSUES.md        # 已知游戏问题
 │
 └── python/                     # Python 端代码
     ├── isaac_bridge.py         # 核心网络桥接库
@@ -95,7 +93,7 @@ SocketBridge/
 
 ### 环境要求
 
-- 《以撒的结合：重生》游戏（Repentance DLC）
+- 《以撒的结合：重生》游戏（Repentance DLC）/ Repentance+ IS OK
 - Python 3.8+
 - 依赖包：
 
