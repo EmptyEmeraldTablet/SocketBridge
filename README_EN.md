@@ -2,7 +2,8 @@
 
 > **Version**: 2.1  
 > **Last Updated**: February 3, 2026  
-> **Status**: Core Features Complete ✅
+> **Status**: Core Features Complete ✅  
+> **中文版**: [README.md](README.md)
 
 ---
 
@@ -15,6 +16,8 @@
 5. [New Channel Registration Process](#new-channel-registration-process)
 6. [FAQ](#faq)
 7. [Architecture Reference](#architecture-reference)
+8. [Related Documents](#related-documents)
+9. [License](#license)
 
 ---
 
@@ -35,43 +38,120 @@
 | **Timing Awareness** | v2.1 protocol supports channel-level timing information, solving data synchronization issues |
 | **Quality Monitoring** | Automatic detection of game-side and Python-side issues |
 
+### Applications & Limitations
+
+#### ✅ What This Project Can Do
+
+| Application Domain | Specific Uses | Technical Implementation |
+|-------------------|---------------|-------------------------|
+| **Game AI Development** | Auto-play, intelligent movement, auto-shooting, enemy avoidance | Real-time position data + control command sending |
+| **Game Mechanics Research** | Damage calculations, enemy behavior patterns, room generation rules | Complete entity data collection & analysis |
+| **Data Analytics** | Progress tracking, death cause statistics, item effect analysis | Event system + data recording/playback |
+| **Automated Testing** | Mod compatibility testing, game balance verification, performance testing | Repeatable recording/playback mechanism |
+| **Visualization Tools** | Room layout display, entity trajectory tracking, real-time data monitoring | Real-time data streams + graphics rendering |
+| **Learning & Research** | Game development learning, network programming practice, data processing algorithms | Complete open-source code architecture |
+
+#### ❌ What This Project Cannot Do
+
+| Limitation Category | Specific Limitations | Reason | Impact Scope |
+|--------------------|---------------------|--------|---------------|
+| **Deep Item System Analysis** | Cannot access hidden item attributes, trigger conditions, synergy effects | Incomplete official API | Item recommendation systems, Build optimization AI |
+| **Complete Game State Restoration** | Cannot save/load complete game states, cannot implement game saves | Game engine limitations | State rollback, A/B testing |
+| **Ultra High Real-time Applications** | Frame-perfect control, zero-latency response | Inherent network communication delay (5-20ms) | High-frequency operation AI, TAS recording |
+| **Commercial Applications** | Cheats, hacking tools, commercial AI assistants | Violates game ToS + project license restrictions | Any profit-oriented applications |
+| **Complete Game Reverse Engineering** | Full game internal algorithms, complete hidden mechanics analysis | Limited to exposed API data only | Perfect simulation, algorithm reproduction |
+
+#### 🎯 Recommended Use Cases
+
+**Most Suitable Project Types:**
+- 🤖 **Learning AI**: AI assistants trained on game data (path planning, danger recognition)
+- 📊 **Data Science Projects**: Game behavior analysis, statistical modeling, visualization research
+- 🛠️ **Development Tools**: Mod development assistance, game content creation tools
+- 📚 **Educational Projects**: Game development teaching, network programming practice, data processing learning
+
+**Use Cases Requiring Careful Consideration:**
+- ⚡ **High Real-time Requirements**: Need to evaluate if network latency is acceptable
+- 🎮 **Complex Game Strategies**: Limited by the depth of information accessible via API
+- 🔒 **Commercial Applications**: Must ensure compliance with game ToS and project license
+
+### Known Limitations
+
+Due to the incomplete official Modding API of The Binding of Isaac and technical limitations, this project **cannot collect all game data**:
+
+| Limitation Type | Description |
+|----------------|-------------|
+| **Item System** | Item effects and trigger conditions are unclear via API, limiting `PLAYER_INVENTORY` channel functionality |
+| **Passive Item Effects** | Cannot accurately obtain real-time passive item effects (stacking, synergy effects) |
+| **Partial Entity Attributes** | Some entity special attributes cannot be accessed via API |
+| **Internal State Machines** | Enemy/Boss internal AI states are not directly accessible |
+| **Hidden Room Mechanics** | Some hidden mechanism logic is not public |
+| **Network Latency** | Socket communication has inherent delays, high-frequency data may be lost |
+
+> ⚠️ **Note**: Some channels (such as `PLAYER_INVENTORY`, `INTERACTABLES`) while designed in the architecture, may have incomplete functionality or not fully implemented due to the above API limitations. See [docs/archivedDoc/KNOWN_GAME_ISSUES.md](docs/archivedDoc/KNOWN_GAME_ISSUES.md) for details.
+
 ### Directory Structure
 
 ```
 SocketBridge/
 ├── main.lua                    # Game mod main file (Lua)
 ├── metadata.xml                # Mod metadata
-├── README.md                   # This document (Chinese)
-├── README_EN.md                # English version
+├── README.md                   # Chinese version
+├── README_EN.md                # This document (English)
 ├── REFACTORING_PLAN.md         # Refactoring plan document
+├── LICENCE                     # License
+├── .gitignore                  # Git ignore file
+│
+├── docs/                       # Documentation directory
+│   ├── archivedDoc/            # Archived documents
+│   │   └── KNOWN_GAME_ISSUES.md # Known game issues
+│   ├── reference_from_2026.1.11/ # Historical reference
+│   ├── ROOM_GEOMETRY_FIX.md    # Room geometry fix docs
+│   └── TERRAIN_VALIDATION.md   # Terrain validation docs
 │
 └── python/                     # Python-side code
     ├── isaac_bridge.py         # Core network bridging library
     ├── environment.py          # Game map environment modeling
     ├── models.py               # Compatibility layer (re-export)
+    ├── requirements.txt        # Python dependencies
+    ├── CONSOLE_COMMANDS.md     # Console commands documentation
+    ├── DATA_PROTOCOL.md        # Data protocol documentation
     │
     ├── models/                 # Data model layer
+    │   ├── __init__.py
     │   ├── base.py             # Base types (Vector2D, EntityType)
     │   ├── entities.py         # Entity data classes
     │   └── state.py            # State management
     │
     ├── channels/               # Data channel layer
+    │   ├── __init__.py
     │   ├── base.py             # DataChannel base class, ChannelRegistry
     │   ├── player.py           # Player-related channels
     │   ├── room.py             # Room-related channels
     │   ├── entities.py         # Entity channels
-    │   └── hazards.py          # Hazard channels
+    │   ├── danger.py           # Danger object channels
+    │   └── interactables.py    # Interactable entity channels
     │
     ├── services/               # Service layer
+    │   ├── __init__.py
     │   ├── facade.py           # Unified API facade
     │   ├── processor.py        # Data processing service
-    │   └── monitor.py          # Quality monitoring service
+    │   ├── monitor.py          # Quality monitoring service
+    │   └── entity_state.py     # Entity state management
     │
     ├── core/                   # Core layer
+    │   ├── __init__.py
     │   ├── connection/         # Connection adapters
+    │   │   ├── __init__.py
+    │   │   └── adapter.py      # Connection adapter
     │   ├── protocol/           # Protocol handling
+    │   │   ├── __init__.py
+    │   │   ├── schema.py       # Pydantic data models
+    │   │   └── timing.py       # Timing processing
     │   ├── validation/         # Data validation
+    │   │   ├── __init__.py
+    │   │   └── known_issues.py # Known issues handling
     │   └── replay/             # Recording and playback system
+    │       ├── __init__.py
     │       ├── message.py      # RawMessage v2.1
     │       ├── recorder.py     # Data recorder
     │       ├── replayer.py     # Data playback
@@ -84,8 +164,24 @@ SocketBridge/
     │   ├── room_layout_visualizer.py  # Room layout visualizer
     │   └── terrain_validator.py       # Terrain data validator
     │
-    ├── tests/                  # Test cases (111+ tests)
-    └── recordings/             # Recording data directory
+    ├── tests/                  # Test cases (20+ tests)
+    │   ├── __init__.py
+    │   ├── test_adapter.py     # Connection adapter tests
+    │   ├── test_channels.py    # Channel tests
+    │   ├── test_entity_state.py # Entity state tests
+    │   ├── test_live_connection.py # Live connection tests
+    │   ├── test_replay.py      # Replay tests
+    │   ├── test_schema.py      # Schema validation tests
+    │   ├── test_timing.py      # Timing tests
+    │   ├── test_validation.py  # Validation tests
+    │   └── fixtures/           # Test fixtures
+    │       ├── __init__.py
+    │       ├── README.md       # Test data documentation
+    │       ├── sample_messages.json # Sample messages
+    │       └── session_20260202_234038/ # Test session data
+    │
+    ├── recordings/             # Recording data directory (runtime)
+    └── archive/                # Archived code
 ```
 
 ---
@@ -132,6 +228,14 @@ python apps/recorder.py --auto
 ```
 
 #### 3. Start Game
+
+> ⚠️ **Important: You must add the `--luadebug` launch parameter**
+>
+> In Steam: Right-click the game → Properties → General → Launch Options, add:
+> ```
+> --luadebug
+> ```
+> **Without this parameter, Lua's Socket network module cannot be loaded, resulting in complete communication failure between the game and Python!**
 
 Launch The Binding of Isaac: Repentance, the mod will automatically connect to the Python server (default 127.0.0.1:9527).
 
@@ -883,7 +987,27 @@ class SocketBridgeFacade:
 
 ## FAQ
 
-### Q1: Game cannot connect to Python server
+### Q1: Game completely unable to communicate with Python / Socket module loading failed
+
+**Cause:**
+Missing `--luadebug` parameter in Steam launch options.
+
+**Explanation:**
+The Binding of Isaac disables Lua's Socket network module by default (for security reasons). It must be explicitly enabled via the `--luadebug` parameter, otherwise the mod's network communication functionality is completely non-functional.
+
+**Solution:**
+1. Right-click The Binding of Isaac: Repentance in Steam
+2. Select "Properties" → "General" → "Launch Options"
+3. Add `--luadebug`
+4. Restart the game
+
+**Verification:**
+- After game startup, Python side should show `✓ Game connected!`
+- If Python side continues to show waiting for connection, `--luadebug` is not effective
+
+---
+
+### Q2: Game cannot connect to Python server
 
 **Causes:**
 - Python server not started
@@ -907,7 +1031,7 @@ local PORT = 9527
 # Wait about 5 minutes for connection to be released, then try again
 ```
 
-### Q2: ModuleNotFoundError: No module named 'xxx'
+### Q3: ModuleNotFoundError: No module named 'xxx'
 
 **Cause:**
 Working directory incorrect or Python path issue.
@@ -922,7 +1046,7 @@ python apps/xxx.py
 python -m apps.xxx
 ```
 
-### Q3: Recorded event count is 0
+### Q4: Recorded event count is 0
 
 **Cause:**
 Old version uses unsupported wildcard `event:*`.
@@ -930,7 +1054,7 @@ Old version uses unsupported wildcard `event:*`.
 **Solution:**
 Update to latest version of `recorder.py`, use `@bridge.on("event")` to listen to all events.
 
-### Q4: Room layout displays incorrectly
+### Q5: Room layout displays incorrectly
 
 **Cause:**
 Coordinate conversion formula issue (fixed in v2.1).
@@ -944,7 +1068,7 @@ grid_x = int((world_x - adjusted_tl.x) / GRID_SIZE)
 grid_y = int((world_y - adjusted_tl.y) / GRID_SIZE)
 ```
 
-### Q5: Pydantic validation error
+### Q6: Pydantic validation error
 
 **Cause:**
 Pydantic configuration changes during v2.0 to v2.1 migration.
@@ -960,7 +1084,7 @@ class Config:
 model_config = {"extra": "allow"}
 ```
 
-### Q6: How to view raw Lua data?
+### Q7: How to view raw Lua data?
 
 **Method 1:** Use terrain validator
 ```bash
@@ -974,13 +1098,13 @@ def on_message(msg):
     print(json.dumps(msg.payload, indent=2))
 ```
 
-### Q7: How to switch AI/manual mode in game?
+### Q8: How to switch AI/manual mode in game?
 
 Press **F3** key in game:
 - AI mode: Python controls character movement and shooting
 - Manual mode: Player controls normally
 
-### Q8: Where are recording files stored?
+### Q9: Where are recording files stored?
 
 Stored in `python/recordings/` directory by default:
 ```
@@ -1059,9 +1183,11 @@ v2.1 new features:
 
 - [README.md](README.md) - Chinese version
 - [REFACTORING_PLAN.md](REFACTORING_PLAN.md) - Refactoring plan and progress
-- [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) - v2.1 migration guide
-- [KNOWN_GAME_ISSUES.md](KNOWN_GAME_ISSUES.md) - Known game issues
+- [docs/archivedDoc/KNOWN_GAME_ISSUES.md](docs/archivedDoc/KNOWN_GAME_ISSUES.md) - Known game issues
 - [python/DATA_PROTOCOL.md](python/DATA_PROTOCOL.md) - Detailed data protocol documentation
+- [python/CONSOLE_COMMANDS.md](python/CONSOLE_COMMANDS.md) - Console commands reference
+- [docs/TERRAIN_VALIDATION.md](docs/TERRAIN_VALIDATION.md) - Terrain validation documentation
+- [docs/ROOM_GEOMETRY_FIX.md](docs/ROOM_GEOMETRY_FIX.md) - Room geometry fix documentation
 
 ---
 
@@ -1072,4 +1198,5 @@ This project is for learning and research purposes only.
 ---
 
 **Last Updated:** February 3, 2026  
+**Version:** 2.1  
 **Version:** 2.1

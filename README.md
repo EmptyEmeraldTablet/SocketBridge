@@ -16,6 +16,8 @@
 5. [新通道注册流程](#新通道注册流程)
 6. [常见问题与解答](#常见问题与解答)
 7. [架构参考](#架构参考)
+8. [相关文档](#相关文档)
+9. [许可证](#许可证)
 
 ---
 
@@ -36,6 +38,57 @@
 | **时序感知** | v2.1 协议支持通道级时序信息，解决数据同步问题 |
 | **质量监控** | 自动检测游戏端和 Python 端问题 |
 
+### 应用场景与限制
+
+#### ✅ 本项目能够实现的功能
+
+| 应用领域 | 具体应用 | 技术实现 |
+|---------|---------|----------|
+| **游戏 AI 开发** | 自动游戏、智能走位、自动射击、敌人回避 | 实时位置数据 + 控制指令发送 |
+| **游戏机制研究** | 伤害计算、敌人行为模式、房间生成规律 | 完整的实体数据采集与分析 |
+| **数据统计分析** | 游戏进度追踪、死亡原因统计、道具效果分析 | 事件系统 + 数据录制回放 |
+| **自动化测试** | 模组兼容性测试、游戏平衡性验证、性能测试 | 可重复的录制回放机制 |
+| **可视化工具** | 房间布局显示、实体轨迹追踪、实时数据监控 | 实时数据流 + 图形渲染 |
+| **学习研究** | 游戏开发学习、网络编程实践、数据处理算法 | 完整的开源代码架构 |
+
+#### ❌ 本项目无法实现的功能
+
+| 限制类别 | 具体限制 | 原因 | 影响范围 |
+|---------|---------|------|----------|
+| **道具系统深度分析** | 无法获取道具的隐藏属性、触发条件、协同效果 | 官方 API 不完善 | 道具推荐系统、Build 优化 AI |
+| **完整游戏状态还原** | 无法保存/加载完整游戏状态，无法实现游戏存档 | 游戏引擎限制 | 状态回溯、A/B 测试 |
+| **实时性要求极高的应用** | 帧级精确控制、零延迟响应 | 网络通信固有延迟 (5-20ms) | 高频操作类 AI、TAS 录制 |
+| **商业化应用** | 外挂、作弊工具、商业 AI 助手 | 违反游戏 ToS + 项目许可证限制 | 任何盈利性应用 |
+| **完整的游戏逆向工程** | 游戏内部算法、隐藏机制完全解析 | 仅能采集暴露的 API 数据 | 完美仿真、算法复现 |
+
+#### 🎯 推荐使用场景
+
+**最适合的项目类型：**
+- 🤖 **学习型 AI**：基于游戏数据训练的 AI 助手（如路径规划、危险识别）
+- 📊 **数据科学项目**：游戏行为分析、统计建模、可视化研究
+- 🛠️ **开发工具**：模组开发辅助、游戏内容创建工具
+- 📚 **教育项目**：游戏开发教学、网络编程实践、数据处理学习
+
+**需要谨慎考虑的场景：**
+- ⚡ **高实时性要求**：需要评估网络延迟是否可接受
+- 🎮 **复杂游戏策略**：受限于 API 能获取的信息深度
+- 🔒 **商业应用**：需要确保符合游戏服务条款和项目许可证
+
+### 已知限制
+
+由于《以撒的结合》官方 Modding API 的不完善以及技术限制，本项目**无法采集到游戏的所有数据**：
+
+| 限制类型 | 说明 |
+|---------|------|
+| **道具系统** | 道具效果、触发条件等 API 不明确，`PLAYER_INVENTORY` 通道功能受限 |
+| **被动道具效果** | 无法准确获取被动道具的实时效果（如叠加、协同效果） |
+| **部分实体属性** | 某些实体的特殊属性无法通过 API 获取 |
+| **内部状态机** | 敌人/Boss 的内部 AI 状态无法直接访问 |
+| **隐藏房间机制** | 部分隐藏机制的判定逻辑不公开 |
+| **网络延迟** | Socket 通信存在固有延迟，高频数据可能丢失 |
+
+> ⚠️ **注意**：部分通道（如 `PLAYER_INVENTORY`、`INTERACTABLES`）虽然在架构中有设计，但由于上述 API 限制，实际功能可能不完整或未完全实现。详见 [docs/archivedDoc/KNOWN_GAME_ISSUES.md](docs/archivedDoc/KNOWN_GAME_ISSUES.md)。
+
 ### 目录结构
 
 ```
@@ -43,35 +96,62 @@ SocketBridge/
 ├── main.lua                    # 游戏模组主文件（Lua）
 ├── metadata.xml                # 模组元数据
 ├── README.md                   # 本文档
+├── README_EN.md                # 英文文档
 ├── REFACTORING_PLAN.md         # 重构计划文档
+├── LICENCE                     # 许可证
+├── .gitignore                  # Git 忽略文件
+│
+├── docs/                       # 文档目录
+│   ├── archivedDoc/            # 归档文档
+│   │   └── KNOWN_GAME_ISSUES.md # 已知游戏问题
+│   ├── reference_from_2026.1.11/ # 历史参考文档
+│   ├── ROOM_GEOMETRY_FIX.md    # 房间几何修复文档
+│   └── TERRAIN_VALIDATION.md   # 地形验证文档
 │
 └── python/                     # Python 端代码
     ├── isaac_bridge.py         # 核心网络桥接库
     ├── environment.py          # 游戏地图环境建模
     ├── models.py               # 兼容层（重导出）
+    ├── requirements.txt        # Python 依赖列表
+    ├── CONSOLE_COMMANDS.md     # 控制台命令文档
+    ├── DATA_PROTOCOL.md        # 数据协议文档
     │
     ├── models/                 # 数据模型层
+    │   ├── __init__.py
     │   ├── base.py             # 基础类型 (Vector2D, EntityType)
     │   ├── entities.py         # 实体数据类
     │   └── state.py            # 状态管理
     │
     ├── channels/               # 数据通道层
+    │   ├── __init__.py
     │   ├── base.py             # DataChannel 基类, ChannelRegistry
     │   ├── player.py           # 玩家相关通道
     │   ├── room.py             # 房间相关通道
     │   ├── entities.py         # 实体通道
-    │   └── hazards.py          # 危险物通道
+    │   ├── danger.py           # 危险物通道
+    │   └── interactables.py    # 可互动实体通道
     │
     ├── services/               # 服务层
+    │   ├── __init__.py
     │   ├── facade.py           # 统一 API 门面
     │   ├── processor.py        # 数据处理服务
-    │   └── monitor.py          # 质量监控服务
+    │   ├── monitor.py          # 质量监控服务
+    │   └── entity_state.py     # 实体状态管理
     │
     ├── core/                   # 核心层
+    │   ├── __init__.py
     │   ├── connection/         # 连接适配器
+    │   │   ├── __init__.py
+    │   │   └── adapter.py      # 连接适配器
     │   ├── protocol/           # 协议处理
+    │   │   ├── __init__.py
+    │   │   ├── schema.py       # Pydantic 数据模式
+    │   │   └── timing.py       # 时序处理
     │   ├── validation/         # 数据验证
+    │   │   ├── __init__.py
+    │   │   └── known_issues.py # 已知问题处理
     │   └── replay/             # 录制回放系统
+    │       ├── __init__.py
     │       ├── message.py      # RawMessage v2.1
     │       ├── recorder.py     # 数据录制器
     │       ├── replayer.py     # 数据回放器
@@ -84,8 +164,24 @@ SocketBridge/
     │   ├── room_layout_visualizer.py  # 房间布局可视化
     │   └── terrain_validator.py       # 地形数据验证器
     │
-    ├── tests/                  # 测试用例 (111+ tests)
-    └── recordings/             # 录制数据目录
+    ├── tests/                  # 测试用例 (20+ tests)
+    │   ├── __init__.py
+    │   ├── test_adapter.py     # 连接适配器测试
+    │   ├── test_channels.py    # 通道测试
+    │   ├── test_entity_state.py # 实体状态测试
+    │   ├── test_live_connection.py # 实时连接测试
+    │   ├── test_replay.py      # 回放测试
+    │   ├── test_schema.py      # 模式验证测试
+    │   ├── test_timing.py      # 时序测试
+    │   ├── test_validation.py  # 验证测试
+    │   └── fixtures/           # 测试固件
+    │       ├── __init__.py
+    │       ├── README.md       # 测试数据说明
+    │       ├── sample_messages.json # 样例消息
+    │       └── session_20260202_234038/ # 测试会话数据
+    │
+    ├── recordings/             # 录制数据目录 (运行时)
+    └── archive/                # 归档代码
 ```
 
 ---
@@ -132,7 +228,14 @@ python apps/recorder.py --auto
 ```
 
 #### 3. 启动游戏
-在steam的游戏启动项中添加 --luadebug
+
+> ⚠️ **重要：必须添加 `--luadebug` 启动参数**
+>
+> 在 Steam 中右键游戏 → 属性 → 通用 → 启动选项，添加：
+> ```
+> --luadebug
+> ```
+> **如果不添加此参数，Lua 的 Socket 网络模块将无法加载，导致游戏与 Python 端完全无法通信！**
 
 启动《以撒的结合：重生》，模组会自动连接到 Python 服务器（默认 127.0.0.1:9527）。
 
@@ -882,7 +985,27 @@ class SocketBridgeFacade:
 
 ## 常见问题与解答
 
-### Q1: 游戏无法连接到 Python 服务器
+### Q1: 游戏完全无法与 Python 通信 / Socket 模块加载失败
+
+**原因：**
+未在 Steam 启动选项中添加 `--luadebug` 参数。
+
+**说明：**
+《以撒的结合》默认禁用 Lua 的 Socket 网络模块（出于安全考虑）。必须通过 `--luadebug` 参数显式启用，否则模组的网络通信功能完全无法工作。
+
+**解决方案：**
+1. 在 Steam 中右键《以撒的结合：重生》
+2. 选择「属性」→「通用」→「启动选项」
+3. 添加 `--luadebug`
+4. 重启游戏
+
+**验证方法：**
+- 游戏启动后，Python 端应显示 `✓ 游戏已连接!`
+- 如果 Python 端一直显示等待连接，说明 `--luadebug` 未生效
+
+---
+
+### Q2: 游戏无法连接到 Python 服务器
 
 **原因：**
 - Python 服务器未启动
@@ -907,7 +1030,7 @@ local PORT = 9527
 
 ```
 
-### Q2: ModuleNotFoundError: No module named 'xxx'
+### Q3: ModuleNotFoundError: No module named 'xxx'
 
 **原因：** 
 工作目录不正确或 Python 路径问题。
@@ -922,7 +1045,7 @@ python apps/xxx.py
 python -m apps.xxx
 ```
 
-### Q3: 录制的事件数为 0
+### Q4: 录制的事件数为 0
 
 **原因：**
 旧版本使用了不支持的通配符 `event:*`。
@@ -930,7 +1053,7 @@ python -m apps.xxx
 **解决方案：**
 更新到最新版本的 `recorder.py`，使用 `@bridge.on("event")` 监听所有事件。
 
-### Q4: 房间布局显示不正确
+### Q5: 房间布局显示不正确
 
 **原因：**
 坐标转换公式问题（已在 v2.1 修复）。
@@ -944,7 +1067,7 @@ grid_x = int((world_x - adjusted_tl.x) / GRID_SIZE)
 grid_y = int((world_y - adjusted_tl.y) / GRID_SIZE)
 ```
 
-### Q5: Pydantic 验证错误
+### Q6: Pydantic 验证错误
 
 **原因：**
 v2.0 到 v2.1 迁移时 Pydantic 配置变化。
@@ -960,7 +1083,7 @@ class Config:
 model_config = {"extra": "allow"}
 ```
 
-### Q6: 如何查看原始 Lua 数据？
+### Q7: 如何查看原始 Lua 数据？
 
 **方法 1:** 使用地形验证器
 ```bash
@@ -974,13 +1097,13 @@ def on_message(msg):
     print(json.dumps(msg.payload, indent=2))
 ```
 
-### Q7: 如何在游戏中切换 AI/手动模式？
+### Q8: 如何在游戏中切换 AI/手动模式？
 
 在游戏中按 **F3** 键切换。
 - AI 模式：Python 控制角色移动和射击
 - 手动模式：玩家正常控制
 
-### Q8: 录制文件存储在哪里？
+### Q9: 录制文件存储在哪里？
 
 默认存储在 `python/recordings/` 目录：
 ```
@@ -1043,6 +1166,67 @@ recordings/
 | `PICKUPS` | LOW | 4 | 拾取物 |
 | `INTERACTABLES` | LOW | 4 | 可互动实体 |
 
+### 通道新架构集成状态
+
+> ⚠️ **设计说明**  
+> 当前的通道设计沿用自早期版本，部分设计并不合理（如通道划分粒度、数据结构、采集频率配置等）。未来计划适配新架构对通道进行重新设计，包括：
+> - 重新评估通道划分逻辑（按实体类型 vs 按功能场景）
+> - 统一数据结构规范（ID 字段、坐标系、时间戳等）
+> - 优化采集频率与状态管理的配合
+> - 完善 `GRID_ENTITIES` 等缺失通道
+> 
+> 在此之前，下表仅反映现有通道对新架构各层的集成程度，不代表最终设计。
+
+下表说明各通道对新架构各层的集成程度：
+
+| 通道 | Channel 类 | Pydantic Schema | 验证 | Facade 方法 | 实体状态管理 |
+|------|-----------|-----------------|------|-------------|-------------|
+| `PLAYER_POSITION` | ✅ 完整 | ✅ `PlayerPositionData` | ✅ | ✅ `get_player_position()` | ❌ 不适用 |
+| `PLAYER_STATS` | ✅ 完整 | ✅ `PlayerStatsData` | ✅ | ✅ `get_player_stats()` | ❌ 不适用 |
+| `PLAYER_HEALTH` | ✅ 完整 | ✅ `PlayerHealthData` | ✅ | ⚠️ 通用方法 | ❌ 不适用 |
+| `PLAYER_INVENTORY` | ✅ 完整 | ✅ `PlayerInventoryData` | ✅ | ⚠️ 通用方法 | ❌ 不适用 |
+| `ENEMIES` | ✅ 完整 | ✅ `EnemyData` | ✅ | ✅ `get_enemies()` | ✅ `get_enemies_stateful()` |
+| `PROJECTILES` | ✅ 完整 | ✅ `ProjectilesData` | ✅ | ⚠️ 通用方法 | ✅ `get_projectiles_stateful()` |
+| `ROOM_INFO` | ✅ 完整 | ✅ `RoomInfoData` | ✅ | ✅ `get_room_info()` | ❌ 不适用 |
+| `ROOM_LAYOUT` | ✅ 完整 | ✅ `RoomLayoutData` | ✅ | ⚠️ 通用方法 | ❌ 不适用 |
+| `BOMBS` | ✅ 完整 | ✅ `BombData` | ✅ | ⚠️ 通用方法 | ✅ `get_bombs_stateful()` |
+| `FIRE_HAZARDS` | ✅ 完整 | ✅ `FireHazardData` | ✅ | ⚠️ 通用方法 | ❌ 未集成 |
+| `PICKUPS` | ✅ 完整 | ✅ `PickupData` | ✅ | ⚠️ 通用方法 | ✅ `get_pickups_stateful()` |
+| `INTERACTABLES` | ✅ 完整 | ✅ `InteractableData` | ✅ | ⚠️ 通用方法 | ❌ 未集成 |
+| `GRID_ENTITIES` | ❌ 未实现 | ❌ | ❌ | ❌ | ✅ 状态管理已准备 |
+
+#### 图例说明
+
+- **Channel 类**: 在 `channels/` 目录下的通道类实现
+- **Pydantic Schema**: 在 `core/protocol/schema.py` 中的数据模式定义
+- **验证**: 通道的 `validate()` 方法实现
+- **Facade 方法**: `SocketBridgeFacade` 中的专用访问方法
+  - ✅ 有专用方法（如 `get_player_position()`）
+  - ⚠️ 使用通用方法（`get_channel()` / `get_data()`）
+- **实体状态管理**: `GameEntityState` 中的跨帧状态保持
+  - ✅ 已集成（有 `get_xxx_stateful()` 方法）
+  - ❌ 不适用（非实体类数据，如玩家状态、房间信息）
+  - ❌ 未集成（应集成但尚未实现）
+
+#### 待完善项
+
+1. **`GRID_ENTITIES` 通道**
+   - 状态管理层已准备好 (`grid_entities` 管理器)
+   - 需要实现 Channel 类和 Pydantic Schema
+   - Lua 端需要添加对应采集器
+
+2. **`FIRE_HAZARDS` 实体状态集成**
+   - Channel 类已完整
+   - 需要添加到 `GameEntityState` 和 `SocketBridgeFacade`
+
+3. **`INTERACTABLES` 实体状态集成**
+   - Channel 类已完整
+   - 可选：根据需要决定是否需要跨帧状态保持
+
+4. **Facade 专用方法**
+   - 部分通道使用通用 `get_channel()` / `get_data()` 访问
+   - 可根据使用频率添加专用便捷方法
+
 ### 协议版本
 
 当前版本：**v2.1**
@@ -1059,9 +1243,11 @@ v2.1 新增特性：
 
 - [README_EN.md](README_EN.md) - English version
 - [REFACTORING_PLAN.md](REFACTORING_PLAN.md) - 重构计划与进度
-- [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) - v2.1 迁移指南
-- [KNOWN_GAME_ISSUES.md](KNOWN_GAME_ISSUES.md) - 已知游戏问题
+- [docs/archivedDoc/KNOWN_GAME_ISSUES.md](docs/archivedDoc/KNOWN_GAME_ISSUES.md) - 已知游戏问题
 - [python/DATA_PROTOCOL.md](python/DATA_PROTOCOL.md) - 数据协议详细文档
+- [python/CONSOLE_COMMANDS.md](python/CONSOLE_COMMANDS.md) - 控制台命令参考
+- [docs/TERRAIN_VALIDATION.md](docs/TERRAIN_VALIDATION.md) - 地形验证文档
+- [docs/ROOM_GEOMETRY_FIX.md](docs/ROOM_GEOMETRY_FIX.md) - 房间几何修复文档
 
 ---
 
@@ -1072,4 +1258,5 @@ v2.1 新增特性：
 ---
 
 **最后更新：** 2026年2月3日  
+**版本：** 2.1  
 **版本：** 2.1
