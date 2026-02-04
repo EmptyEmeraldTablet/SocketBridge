@@ -1,7 +1,7 @@
 # SocketBridge Project Documentation
 
 > **Version**: 2.1  
-> **Last Updated**: February 3, 2026  
+> **Last Updated**: February 4, 2026  
 > **Status**: Core Features Complete ✅  
 > **中文版**: [README.md](README.md)
 
@@ -16,8 +16,9 @@
 5. [New Channel Registration Process](#new-channel-registration-process)
 6. [FAQ](#faq)
 7. [Architecture Reference](#architecture-reference)
-8. [Related Documents](#related-documents)
-9. [License](#license)
+8. [Future Plans](#future-plans)
+9. [Related Documents](#related-documents)
+10. [License](#license)
 
 ---
 
@@ -1179,6 +1180,46 @@ v2.1 new features:
 
 ---
 
+## Future Plans
+
+This project is under continuous optimization. Future plans reference the mature implementation of EID (External Item Descriptions) mod to further improve data collection capabilities.
+
+### Near-term Plans (Phase 6)
+
+| Task | Priority | Description |
+|------|----------|-------------|
+| **Entity Search Optimization** | 🔴 High | Use `FindInRadius` instead of full traversal, reduce CPU overhead by 50%+ |
+| **Player Items Channel** | 🔴 High | New `PLAYER_ITEMS_DETAILED` channel for active/passive items, cards, pills |
+| **Event-driven Collection** | 🟡 Medium | Use game callbacks instead of polling, reduce unnecessary data transfer |
+| **Pill Effect Recognition** | 🟡 Medium | Get pill effect ID and identification status |
+| **Transformation Tracking** | 🟢 Low | New `PLAYER_TRANSFORMATIONS` channel |
+
+### Mid-term Plans (Phase 7)
+
+| Task | Description |
+|------|-------------|
+| **Conditional Data Filters** | Dynamically filter/transform data based on game state |
+| **Data Modifier Chain** | Reference EID's DescModifiers implementation |
+| **Smart Caching Mechanism** | Reduce duplicate calculations, optimize performance |
+
+### Long-term Goals (Phase 8)
+
+| Task | Description |
+|------|-------------|
+| **RNG Prediction System** | Reference EID's Xorshift implementation for random item effect prediction |
+| **Bag of Crafting Integration** | Recipe calculation for Tainted Cain |
+| **REPENTOGON Support** | Leverage extended API for more data access |
+
+### Compatibility Promise
+
+- ✅ **Backward Compatible**: New features use new channel names, existing APIs unchanged
+- ✅ **Fields Only Added**: Existing data structures remain unchanged
+- ✅ **Staged Releases**: v2.1.x → v2.2.0 → v2.3.0 → v3.0.0
+
+> 📚 See [REFACTORING_PLAN.md](REFACTORING_PLAN.md) for detailed plans
+
+---
+
 ## Related Documents
 
 - [README.md](README.md) - Chinese version
@@ -1197,6 +1238,5 @@ This project is for learning and research purposes only.
 
 ---
 
-**Last Updated:** February 3, 2026  
-**Version:** 2.1  
+**Last Updated:** February 4, 2026  
 **Version:** 2.1

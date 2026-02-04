@@ -722,7 +722,607 @@ ItemType.ITEM_TRINKET  = 2   -- 饰品
 
 ---
 
-### 3. 渲染循环与实体检测
+### 3. 条件描述系统 (eid_conditionals.lua)
+
+#### 条件系统概述
+
+条件描述系统动态根据玩家持有的物品、角色、游戏模式等因素修改描述。
+
+#### 3.1 数据结构
+
+```lua
+-- 条件存储表
+EID.DescriptionConditions = {
+    {
+        Items = {"5.100", ...},        -- 目标物品ID列表
+        Condition = function(),        -- 条件函数或物品ID
+        TextKey = "descriptionKey",    -- 本地化文本键
+        Options = {                    -- 选项
+            locTable = "tableName",    -- 本地化表名
+            replaceColor = "ColorName",-- 颜色替换
+            noFallback = false,        -- 是否禁用回退
+            uniqueID = "identifier",   -- 唯一ID
+            layer = 1,                 -- 优先级层级
+            useResult = true           -- 是否使用结果
+        }
+    }
+}
+
+-- 需要定期检查的道具列表
+EID.collectiblesToCheck = {
+    [CollectibleType.COLLECTIBLE_VOID] = true,
+    ["5.300.41"] = true,  -- 黑符文
+    [356] = true          -- 车电池
+}
+
+-- 跟踪协同玩家
+EID.DifferentEffectPlayers = {}
+```
+
+#### 3.2 添加条件的方法
+
+```lua
+-- 物品条件：当玩家拥有 requiredItem 时应用
+EID:AddItemConditional(targetItems, requiredItem, textKey, options)
+-- 示例: Tarot Cloth 增强卡牌
+EID:AddItemConditional("5.300", 451, nil, {
+    locTable = "tarotClothBuffs",
+    replaceColor = "ColorShinyPurple"
+})
+
+-- 玩家条件：特定角色时修改描述
+EID:AddPlayerConditional(targetItems, playerType, textKey, options, appendText)
+
+-- 协同条件：两件物品的交互效果
+EID:AddSynergyConditional(itemA, itemB, textKeyA, textKeyB, options)
+
+-- 泛用条件：基于任意函数的条件
+EID:AddConditional(targetItems, conditionFunction, textKey, options)
+
+-- 贪婪模式条件：游戏模式检测
+EID:AddConditional(itemID, EID.IsGreedMode, "No Effect (Greed)")
+```
+
+#### 3.3 条件检查实现
+
+```lua
+-- 玩家是否拥有物品的检查
+function EID:CheckForCarBattery()
+    -- 检查玩家是否拥有车电池并返回相应结果
+    for _, player in ipairs(EID.coopAllPlayers) do
+        if player:HasCollectible(356) then return true end
+    end
+    return false
+end
+
+-- 贪婪模式检测
+function EID:IsGreedMode()
+    return game:IsGreedMode()
+end
+
+-- 角色特定检查
+function EID:CheckForBFFS()
+    -- 检查是否为特定熟悉家角色
+    local closestPlayer = EID.player
+    return closestPlayer and closestPlayer:GetPlayerType() == 13  -- Lilith
+end
+```
+
+---
+
+### 4. RNG 预测系统 (eid_itemprediction.lua)
+
+#### 4.1 Xorshift RNG 实现
+
+```lua
+-- XOR 变换表 (来自 Xorshift 论文)
+local xortable = {
+[0]={ 1, 3,10},{ 1, 5,16},{ 1, 5,19},
+     -- ... 更多变换参数
+}
+
+-- RNG 推进函数
+function EID:RNGNext(rngNum, shift1, shift2, shift3)
+    -- 支持两种调用方式:
+    -- 1. 直接传入位移值: RNGNext(seed, 5, 9, 7)
+    -- 2. 使用 xortable 索引: RNGNext(seed, 35)
+    
+    if shift1 and not shift2 then
+        shift3 = xortable[shift1][3]
+        shift2 = xortable[shift1][2]
+        shift1 = xortable[shift1][1]
+    end
+    
+    rngNum = rngNum ~ ((rngNum >> (shift1 or 5)) & 4294967295)
+    rngNum = rngNum ~ ((rngNum << (shift2 or 9)) & 4294967295)
+    rngNum = rngNum ~ ((rngNum >> (shift3 or 7)) & 4294967295)
+    return rngNum >> 0
+end
+
+-- 种子转浮点数 [0, 1)
+function EID:SeedToFloat(seed)
+    local multi = 2.3283061589829401E-10  -- 2^-32 的近似值
+    return seed * multi
+end
+```
+
+#### 4.2 预测物品效果
+
+**D Infinity 预测：**
+```lua
+-- D Infinity 允许的骰子列表
+local dinfinityList = { [0] = 105, 166, 284, ... }  -- AB+
+-- Repentance: { [0] = 476, 284, 105, 609, ... }
+
+function EID:CurrentDInfinity(rng, player)
+    if not EID.isRepentance then
+        rng = EID:RNGNext(rng, 0x1, 0x9, 0x1D)
+        return dinfinityList[rng % 7]
+    else
+        local playerID = EID:getPlayerID(player, true)
+        return dinfinityList[EID.DInfinityState[playerID]] or 476
+    end
+end
+```
+
+**Metronome 预测：**
+```lua
+-- 被禁止的物品及其重新掷骰子概率
+local metronomeBlacklist = {
+    [488] = 1,      -- Metronome (总是重新掷)
+    [475] = 1,      -- Plan C
+    [628] = 0.85,   -- Death Certificate (85% 重新掷)
+    [622] = 0.75    -- Genesis (75% 重新掷)
+}
+
+function EID:MetronomePrediction(rng)
+    local numCollectibles = EID:GetMaxCollectibleID()
+    local rerollChance = 0
+    if EID.isRepentance then
+        rng = EID:RNGNext(rng)
+        rerollChance = rng
+    end
+    
+    local attempts = 15  -- 最多尝试15次
+    while attempts > 0 do
+        attempts = attempts - 1
+        rng = EID:RNGNext(rng)
+        local sel = rng % numCollectibles + 1
+        
+        if EID.itemConfig:GetCollectible(sel) ~= nil then
+            if metronomeBlacklist[sel] then
+                -- 检查重新掷骰子概率
+                if metronomeBlacklist[sel] < 1 then
+                    rerollChance = EID:RNGNext(rerollChance, 0x02, 0x0F, 0x11)
+                    local rerollFloat = EID:SeedToFloat(rerollChance)
+                    if rerollFloat < 1 - metronomeBlacklist[sel] then
+                        return sel
+                    end
+                end
+            else
+                return sel
+            end
+        end
+    end
+    return 488  -- 失败时默认返回 Metronome
+end
+```
+
+**Sanguine Bond 预测：**
+```lua
+-- 结果分布: 15% 硬币, 48% 伤害, 58% 红心, 63% 道具, 65% 利维坦, 100% 无
+local sanguineResults = { 
+    { 0.15, 3 }, { 0.48, 2 }, { 0.58, 4 }, 
+    { 0.63, 5 }, { 0.65, 6 }, { 1, 1 }
+}
+
+function EID:trimSanguineDesc(spikes, descObj)
+    if not spikes then return "" end
+    
+    local cheatResult = nil
+    if spikes and EID.Config["PredictionSanguineBond"] then
+        local spikeSeed = spikes:GetRNG():GetSeed()
+        spikeSeed = EID:RNGNext(spikeSeed, 5, 9, 7)
+        spikeSeed = EID:RNGNext(spikeSeed, 0x01, 0x05, 0x13)
+        local nextFloat = EID:SeedToFloat(spikeSeed)
+        
+        -- 查找结果
+        for _, v in ipairs(sanguineResults) do
+            if nextFloat < v[1] then 
+                cheatResult = v[2] 
+                break 
+            end
+        end
+    end
+    
+    -- 生成描述，高亮下一个结果
+    local resultsDesc = ""
+    local lineCount = 0
+    for w in string.gmatch(descObj.Description, "([^#;]+)") do
+        if string.find(w, "%%") then
+            lineCount = lineCount + 1
+            if cheatResult == lineCount then 
+                resultsDesc = resultsDesc .. "{{ColorBagComplete}}" 
+            end
+            resultsDesc = resultsDesc .. w .. "#"
+        end
+    end
+    return resultsDesc
+end
+```
+
+**Teleport 目标预测：**
+```lua
+function EID:Teleport1Prediction(rng)
+    local level = game:GetLevel()
+    local currentRoomIndex = level:GetCurrentRoomDesc().SafeGridIndex
+    local possibleRooms = {}
+    
+    -- 遍历所有房间获取可能的目标
+    for i = 0, level:GetRoomCount() - 1 do
+        local roomDesc = level:GetRoomByIdx(i)
+        -- 检查房间类型、是否可到达等条件
+        if roomDesc and roomDesc.SafeGridIndex ~= currentRoomIndex then
+            table.insert(possibleRooms, {
+                Index = roomDesc.SafeGridIndex,
+                Type = roomDesc.Data.Type
+            })
+        end
+    end
+    
+    -- 根据 RNG 计算目标房间
+    rng = EID:RNGNext(rng)
+    local selectedRoom = possibleRooms[rng % #possibleRooms + 1]
+    
+    return selectedRoom
+end
+```
+
+---
+
+### 5. Bag of Crafting 系统 (eid_bagofcrafting.lua)
+
+#### 5.1 配方数据获取
+
+```lua
+-- 固定配方 (来自 XML 数据)
+EID.XMLRecipes = {
+    ["29,29,29,29,29,29,29,29"] = 36,   -- 8个蓝苍蝇 -> Eye of Belial
+    ["8,8,8,8,8,8,8,8"] = 177,          -- 8个钥匙 -> Oh! Canada
+    -- ... 更多配方
+}
+
+-- 物品池数据 (ID -> {itemID, weight})
+EID.XMLItemPools = {
+    [1] = {{1, 1.0}, {2, 1.0}, ...},    -- Treasure Room 池
+    [2] = {{21, 1.0}, {33, 1.0}, ...},  -- Shop 池
+    -- ... 其他池
+}
+
+-- 拾取物与配方材料的映射
+EID.BoC.PickupIDLookup = {
+    ["100.1"] = {1},   -- Red Heart -> Penny
+    ["100.2"] = {2},   -- Blue Heart -> Bomb
+    -- ... 更多映射
+}
+
+-- 配方材料的权重值
+EID.BoC.PickupValues = {
+    [1] = 1,    -- Penny 权重
+    [2] = 1,    -- Bomb 权重
+    -- ...
+}
+```
+
+#### 5.2 配方模拟
+
+```lua
+function EID:simulateBagOfCrafting(componentsTable)
+    local components = componentsTable
+    local compTotalWeight = 0
+    local compCounts = {}
+    
+    -- 1. 统计各材料数量和总权重
+    for i = 1, #EID.BoC.ComponentShifts do
+        compCounts[i] = 0
+    end
+    for _, compId in ipairs(components) do
+        if (_ > 8) then break end
+        compCounts[compId + 1] = compCounts[compId + 1] + 1
+        compTotalWeight = compTotalWeight + EID.BoC.PickupValues[compId + 1]
+    end
+    
+    -- 2. 计算物品池权重
+    local poolWeights = {
+        {idx = 0, weight = 1, totalWeight = 0},           -- 默认宝藏池
+        {idx = 1, weight = 2, totalWeight = 0},           -- 商店池
+        {idx = 3, weight = compCounts[4] * 10, ...},      -- Devil Pool
+        {idx = 4, weight = compCounts[5] * 10, ...},      -- Angel Pool
+        -- ... 更多池
+    }
+    
+    -- 3. 计算品质权重
+    local qualityWeights = {[0] = 0, 0, 0, 0, 0}
+    
+    -- 返回可能的配方结果及其概率
+    return {
+        Results = {
+            {ItemID = 36, Quality = 3, Probability = 0.05},
+            {ItemID = 45, Quality = 2, Probability = 0.15},
+            -- ...
+        }
+    }
+end
+```
+
+---
+
+### 6. 模块化描述系统 (eid_modular_descriptions.lua)
+
+#### 6.1 模块行为定义
+
+```lua
+-- 模块行为表，定义每个统计模块的显示方式
+EID.ModuleBehaviors = {
+    -- 玩家属性模块
+    ["Tears"] = {
+        Priority = 9980,          -- 显示优先级 (越高越先显示)
+        Arrow = true,             -- 显示上/下箭头
+        Icon = "{{Tears}}",       -- 图标
+        IsMultiplier = false      -- 是否为倍数 (x vs +)
+    },
+    ["Damage"] = {
+        Priority = 9880,
+        Arrow = true,
+        Icon = "{{Damage}}"
+    },
+    ["TearsMultiplier"] = {
+        Priority = 9990,
+        Arrow = true,
+        Icon = "{{Tears}}",
+        IsMultiplier = true      -- 使用 x 而不是 +/-
+    },
+    ["Speed"] = {
+        Priority = 9790,
+        Arrow = true,
+        Icon = "{{Speed}}"
+    },
+    -- 生命值相关
+    ["RedHeart"] = {
+        Priority = 8990,
+        Arrow = true,
+        Icon = "{{Heart}}"
+    },
+    ["SoulHeart"] = {
+        Priority = 8960,
+        Icon = "{{SoulHeart}}"
+    },
+    -- 掉落物相关
+    ["Spawns"] = {
+        Priority = 5500,
+        HideSign = true,
+        Icon = {
+            RandomHeart = "{{UnknownHeart}}",
+            RedHeart = "{{Heart}}",
+            SoulHeart = "{{SoulHeart}}",
+            -- ... 各种掉落物的图标
+        }
+    }
+}
+
+-- 物品数据定义 (在 descriptions/*/item_data.lua)
+EID.ItemData = {
+    ["5.100.1"] = {              -- Sad Onion
+        Tears = 0.7              -- +0.7 眼泪
+    },
+    ["5.100.2"] = {              -- Spoon Bender
+        TearsMultiplier = 1.35   -- x1.35 眼泪倍数
+    }
+}
+```
+
+#### 6.2 生成过程
+
+```lua
+function EID:GenerateModularDescription(itemID)
+    local itemData = EID.ItemData["5.100."..itemID]
+    if not itemData then return "" end
+    
+    local description = ""
+    local modules = {}
+    
+    -- 1. 收集所有非零的模块
+    for moduleName, value in pairs(itemData) do
+        if value ~= 0 and value ~= false then
+            table.insert(modules, {
+                Name = moduleName,
+                Value = value,
+                Behavior = EID.ModuleBehaviors[moduleName]
+            })
+        end
+    end
+    
+    -- 2. 按优先级排序
+    table.sort(modules, function(a, b)
+        return (a.Behavior.Priority or 0) > (b.Behavior.Priority or 0)
+    end)
+    
+    -- 3. 生成每个模块的描述
+    for _, module in ipairs(modules) do
+        local behavior = module.Behavior
+        local text = ""
+        
+        -- 显示箭头
+        if behavior.Arrow then
+            if (module.Value > 0 and not behavior.InvertArrow) or
+               (module.Value < 0 and behavior.InvertArrow) then
+                text = "↑ "
+            else
+                text = "↓ "
+            end
+        end
+        
+        -- 显示图标
+        if behavior.Icon then
+            text = text .. behavior.Icon .. " "
+        end
+        
+        -- 显示值
+        if not behavior.HideSign then
+            if module.Value > 0 then text = text .. "+" end
+        end
+        
+        if behavior.IsMultiplier then
+            text = text .. string.format("x%.2g", module.Value)
+        else
+            text = text .. string.format("%.4g", module.Value)
+        end
+        
+        description = description .. text .. "#"
+    end
+    
+    return description
+end
+```
+
+---
+
+### 7. 描述修改器系统 (eid_modifiers.lua)
+
+#### 7.1 修改器注册
+
+```lua
+-- 修改器表
+EID.DescModifiers = {
+    {
+        Name = "Void Callback",
+        condition = function(descObj) 
+            return descObj.ObjSubType == 477  -- Void
+        end,
+        callback = function(descObj)
+            return VoidCallback(descObj, false)
+        end,
+        Layer = 1
+    }
+}
+
+-- 需要检查的物品列表
+EID.collectiblesToCheck = {
+    [CollectibleType.COLLECTIBLE_VOID] = true,
+    [CollectibleType.COLLECTIBLE_BOOK_OF_VIRTUES] = true,
+    [CollectibleType.COLLECTIBLE_SPINDOWN_DICE] = true
+}
+```
+
+#### 7.2 Void 效果计算
+
+```lua
+function EID:VoidRoomCheck()
+    -- 找到所有房间内的被动道具
+    EID.VoidStatIncreases = {{}, {}, {}}
+    
+    for _, entity in ipairs(Isaac.FindByType(5, 100, -1, true, false)) do
+        local itemID = entity.SubType
+        local itemConfig = EID.itemConfig:GetCollectible(itemID)
+        
+        -- 检查这个道具是否会被 Void 吸收
+        if itemConfig and 
+           (itemConfig.Type == ItemType.ITEM_PASSIVE or
+            itemConfig.Type == ItemType.ITEM_FAMILIAR) then
+            -- 添加到统计列表
+        end
+    end
+end
+
+function EID:VoidRNGCheck(player, isRune)
+    -- 根据房间内的道具和 RNG 计算 Void 的属性增益
+    local voidStatUps = { 0.2, 0.5, 1, 0.5, 0.2, 1 }
+    local statIncreases = {}
+    
+    -- 根据被动道具计算属性增益
+    for i = 1, 6 do  -- 6个属性
+        statIncreases[i] = 0
+    end
+    
+    -- 示例: 每个红心增加 0.2 伤害
+    for heartCount = 1, collectedHearts do
+        statIncreases[3] = statIncreases[3] + 0.2  -- 伤害
+    end
+    
+    return statIncreases
+end
+```
+
+---
+
+### 8. XML 数据系统 (eid_xmldata.lua)
+
+#### 8.1 数据结构
+
+```lua
+-- 游戏中最大的物品ID
+EID.XMLMaxItemID = 732
+
+-- 固定配方表
+EID.XMLRecipes = {
+    ["29,29,29,29,29,29,29,29"] = 36,   -- 8个蓝苍蝇 -> Eye of Belial
+    ["8,8,8,8,8,8,8,8"] = 177,
+    -- ... 更多固定配方
+}
+
+-- 各物品池的内容和权重
+EID.XMLItemPools = {
+    -- 索引对应 ItemPoolType
+    [1] = {{itemID, weight}, ...},      -- Treasure Room
+    [2] = {{itemID, weight}, ...},      -- Shop
+    [3] = {{itemID, weight}, ...},      -- Boss
+    -- ... 更多池
+}
+
+-- 药丸的元数据 (来自 pocketitems.xml)
+EID.pillMetadata = {
+    [0] = {class = "1+"},   -- 药丸等级分类
+    [1] = {class = "2-"},
+    -- ...
+}
+
+-- Abyss 精灵的效果数据
+EID.XMLLocusts = {
+    [2] = {3, 1, 1, {-1}, ...},     -- 飞行精灵
+    [3] = {1, 1, 1, {-1}, ...},
+    -- ... 更多精灵数据
+}
+```
+
+#### 8.2 访问方式
+
+```lua
+-- 获取物品池
+local treasurePool = EID.XMLItemPools[ItemPoolType.TREASURE_ROOM]
+for _, entry in ipairs(treasurePool) do
+    local itemID = entry[1]
+    local weight = entry[2]
+end
+
+-- 查询固定配方
+local formula = "29,29,29,29,29,29,29,29"
+local result = EID.XMLRecipes[formula]  -- 返回 36 (Eye of Belial)
+
+-- 获取药丸信息
+local pillInfo = EID.pillMetadata[pillEffectID]
+print(pillInfo.class)  -- "1+"
+
+-- 获取精灵效果
+local locustData = EID.XMLLocusts[itemID]
+-- locustData[1] = 伤害倍数
+-- locustData[2] = 眼泪倍数
+-- locustData[3] = 速度倍数
+-- ...
+```
+
+---
+
+### 9. 渲染循环与实体检测
 
 #### 渲染循环 (`main.lua`)
 
@@ -757,7 +1357,7 @@ function EID:HasPathToPosition(playerPos, targetPos)
 end
 ```
 
-### 2. 诅咒之盲检测
+### 10. 诅咒之盲检测
 
 #### Alt Path 隐藏道具检测
 
@@ -777,7 +1377,7 @@ function EID:IsAltChoice(pickup)
 end
 ```
 
-### 3. Flip 物品追踪
+### 11. Flip 物品追踪
 
 追踪 Tainted Lazarus 的 Flip 道具需要特殊处理：
 
@@ -795,7 +1395,7 @@ EID.flipItemPositions = {
 }
 ```
 
-### 4. Crane Game 物品追踪
+### 12. Crane Game 物品追踪
 
 ```lua
 function EID:postGetCollectible(selectedCollectible, itemPoolType)
@@ -810,7 +1410,7 @@ function EID:postGetCollectible(selectedCollectible, itemPoolType)
 end
 ```
 
-### 5. Void 吸收物品追踪
+### 13. Void 吸收物品追踪
 
 ```lua
 -- 追踪已吸收的主动道具
@@ -824,7 +1424,7 @@ function EID:VoidRNGCheck(player, isBlackRune)
 end
 ```
 
-### 6. REPENTOGON 集成 (`eid_repentogon.lua`)
+### 14. REPENTOGON 集成 (`eid_repentogon.lua`)
 
 当检测到 REPENTOGON 时，利用其扩展API获取更精确的数据：
 
@@ -925,6 +1525,95 @@ EID:getTransformationName(id)
 
 -- 渲染字符串
 EID:renderString(text, position, scale, color)
+
+-- 分割 "Type.Variant.SubType" 格式字符串
+EID:SplitTVS(typeVarSubString)  -- 返回 Type, Variant, SubType
+
+-- 检查两个描述对象是否相同
+EID:areDescriptionObjectsEqual(descObj1, descObj2)
+
+-- 获取描述对象的副本
+EID:CopyDescriptionObj(descObj)
+
+-- 获取最大收藏品ID
+EID:GetMaxCollectibleID()
+
+-- 检查物品是否隐藏 (诅咒之盲/Alt Path)
+EID:IsItemHidden(entity)
+
+-- 获取物品种子
+EID:GetItemSeed(player, itemID, variant)
+-- 返回物品的 RNG 种子，用于预测
+
+-- 获取描述条目 (多语言)
+EID:getDescriptionEntry(category, key, isEnglish)
+
+-- 替换描述中的占位符
+EID:ReplaceVariableStr(text, placeholder, value)
+
+-- 生成统计表的描述
+EID:GenerateDescriptionFromStatTable(statTable)
+```
+
+### 条件描述 API
+
+```lua
+-- 添加物品条件
+EID:AddItemConditional(targetItems, requiredItem, textKey, options)
+
+-- 添加玩家条件
+EID:AddPlayerConditional(targetItems, playerType, textKey, options, appendText)
+
+-- 添加协同条件
+EID:AddSynergyConditional(itemA, itemB, textKeyA, textKeyB, options)
+
+-- 添加通用条件
+EID:AddConditional(targetItems, conditionFunction, textKey, options)
+
+-- 添加描述修改器
+EID:addDescriptionModifier(modifierName, conditionFunction, callbackFunction, layer)
+
+-- 检查玩家是否拥有特定物品
+EID:PlayersHaveItem(itemIDString)  -- 返回 hasIt, player, playerNum
+```
+
+### RNG 和预测 API
+
+```lua
+-- RNG 推进
+EID:RNGNext(seed, shift1, shift2, shift3)
+
+-- 种子转浮点数
+EID:SeedToFloat(seed)
+
+-- D Infinity 预测
+EID:CurrentDInfinity(rng, player)
+
+-- Metronome 预测
+EID:MetronomePrediction(rng)
+
+-- Teleport 预测
+EID:Teleport1Prediction(rng)
+EID:Teleport2Prediction()
+
+-- Sanguine Bond 预测
+EID:trimSanguineDesc(spikes, descObj)
+```
+
+### Bag of Crafting API
+
+```lua
+-- 模拟配方
+EID:simulateBagOfCrafting(componentsTable)
+
+-- 搜索可合成物品
+EID:BoCSearch(components, targetItems)
+
+-- 获取拾取物对应的材料ID
+EID:getBagOfCraftingID(Variant, SubType)
+
+-- 检查合成袋内容
+EID:BoCCheckForPickups()
 ```
 
 ---

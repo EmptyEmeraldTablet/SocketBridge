@@ -1,8 +1,648 @@
 # SocketBridge 重构规划文档
 
-> 版本: 1.5
-> 日期: 2026-02-02
-> 状态: **Phase 0-4 完成** ✅ | **Replay 模块重构完成** ✅ | **录制工具完成** ✅ | Phase 5 搁置
+> 版本: 2.0
+> 日期: 2026-02-04
+> 状态: **Phase 0-4 完成** ✅ | **Replay 模块重构完成** ✅ | **录制工具完成** ✅ | **Phase 6 规划中** 📋
+
+---
+
+## 后续重构计划：基于 EID 模组的技术参考
+
+本章节基于 `docs/EID_TECHNICAL_REFERENCE.md` 中分析的 External Item Descriptions (EID) 模组实现，规划后续的数据采集功能优化与重构。
+
+### EID 技术参考核心要点
+
+EID 是《以撒的结合》最成熟的模组之一，提供了大量官方 API 未直接提供的信息读取能力。以下是可借鉴的核心技术：
+
+| 技术领域 | EID 实现 | SocketBridge 可借鉴点 |
+|---------|---------|---------------------|
+| **实体检测** | `Isaac.FindInRadius()` + `Isaac.FindByType()` | 优化实体搜索效率 |
+| **道具识别** | `entity.Type/Variant/SubType` 三元组 | 统一实体标识体系 |
+| **玩家物品追踪** | `player:HasCollectible()` + 事件监听 | 完善物品通道 |
+| **条件描述系统** | 动态条件 + 修改器链 | 可用于动态数据过滤 |
+| **RNG 预测** | Xorshift 算法逆向 | 高级预测功能（可选） |
+| **模块化架构** | 分离的 features 模块 | 通道模块化参考 |
+| **性能优化** | 周期性检查 + 缓存 | 采集频率优化 |
+
+---
+
+## Phase 6: Lua 端数据采集优化 (计划中)
+
+### 6.1 目标
+
+基于 EID 的成熟实现，优化 SocketBridge 的 Lua 端数据采集逻辑，解决以下问题：
+
+1. **实体检测效率低** - 当前每帧全量遍历，EID 使用 `FindInRadius` 优化
+2. **道具系统不完善** - `PLAYER_INVENTORY` 通道功能受限
+3. **药丸/卡牌信息缺失** - 无法获取玩家持有的口袋物品
+4. **变身进度无追踪** - 缺少 Guppy 等变身进度信息
+5. **缺少事件驱动采集** - 过度依赖轮询，缺少事件回调
+
+### 6.2 具体任务
+
+#### 6.2.1 优化实体搜索 (参考 EID `main.lua` 第 1548-1574 行)
+
+**当前实现问题：**
+```lua
+-- 当前: 全量遍历所有实体
+for _, entity in ipairs(Isaac.GetRoomEntities()) do
+    -- 处理每个实体
+end
+```
+
+**优化方案 (参考 EID)：**
+```lua
+-- 优化: 使用分区搜索 + 类型过滤
+local searchPartitions = EntityPartition.PICKUP    -- 只搜索拾取物
+local radius = 40 * 10                             -- 10 格范围
+local entities = Isaac.FindInRadius(playerPos, radius, searchPartitions)
+
+-- 对于需要全房间搜索的实体类型，使用 FindByType
+local enemies = Isaac.FindByType(EntityType.ENTITY_EFFECT, -1, -1, true, false)
+```
+
+**预期收益：**
+- 减少 CPU 开销 50%+
+- 支持距离过滤
+
+#### 6.2.2 完善玩家物品通道 (参考 EID `eid_holdmapdesc.lua`)
+
+**新增采集内容：**
+
+| 数据项 | API | 说明 |
+|-------|-----|------|
+| 主动道具 | `player:GetActiveItem(slot)` | 槽位 0-3 |
+| 被动道具列表 | `player:HasCollectible(id)` | 需遍历所有 ID |
+| 饰品 | `player:GetTrinket(slot)` | 槽位 0-1 |
+| 口袋卡牌 | `player:GetCard(slot)` | 槽位 0-2 |
+| 口袋药丸 | `player:GetPill(slot)` | 槽位 0-2 |
+| 充能状态 | `player:GetActiveCharge(slot)` | 主动道具充能 |
+
+**新增通道设计：**
+```lua
+CollectorRegistry:register("PLAYER_ITEMS_DETAILED", {
+    interval = "ON_CHANGE",
+    priority = 6,
+    collect = function()
+        local player = Isaac.GetPlayer(0)
+        return {
+            actives = {
+                [0] = {id = player:GetActiveItem(0), charge = player:GetActiveCharge(0)},
+                [1] = {id = player:GetActiveItem(1), charge = player:GetActiveCharge(1)},
+            },
+            passives = collectPassiveItems(player),  -- 需缓存优化
+            trinkets = {player:GetTrinket(0), player:GetTrinket(1)},
+            cards = {player:GetCard(0), player:GetCard(1), player:GetCard(2)},
+            pills = {player:GetPill(0), player:GetPill(1), player:GetPill(2)},
+        }
+    end
+})
+```
+
+#### 6.2.3 药丸效果识别 (参考 EID `main.lua` 第 1640-1660 行)
+
+**关键 API：**
+```lua
+local pool = game:GetItemPool()
+
+-- 检查药丸是否已识别
+local identified = pool:IsPillIdentified(pillColor)
+
+-- 获取药丸效果 ID
+local pillEffectID = pool:GetPillEffect(pillColor, player)
+```
+
+**新增字段：**
+```lua
+-- 在 PICKUPS 通道中增强药丸数据
+if entity.Variant == PickupVariant.PICKUP_PILL then
+    local pillColor = entity.SubType
+    local pool = game:GetItemPool()
+    data.pill_identified = pool:IsPillIdentified(pillColor)
+    data.pill_effect_id = pool:GetPillEffect(pillColor, player)
+end
+```
+
+#### 6.2.4 变身进度追踪 (参考 EID `eid_data.lua`)
+
+**变身检测 API：**
+```lua
+-- 检测玩家是否完成变身
+player:HasPlayerForm(PlayerForm.PLAYERFORM_GUPPY)  -- 咕噗变身
+player:HasPlayerForm(PlayerForm.PLAYERFORM_LORD_OF_THE_FLIES)  -- 苍蝇王
+
+-- 变身进度需要手动追踪道具标签
+local itemConfig = Isaac.GetItemConfig():GetCollectible(itemID)
+local tags = itemConfig.Tags
+if tags & ItemConfig.TAG_GUPPY > 0 then
+    -- 这是咕噗变身道具
+end
+```
+
+**新增通道：**
+```lua
+CollectorRegistry:register("PLAYER_TRANSFORMATIONS", {
+    interval = "ON_CHANGE",
+    priority = 3,
+    collect = function()
+        local player = Isaac.GetPlayer(0)
+        return {
+            completed = {
+                guppy = player:HasPlayerForm(PlayerForm.PLAYERFORM_GUPPY),
+                fly = player:HasPlayerForm(PlayerForm.PLAYERFORM_LORD_OF_THE_FLIES),
+                -- ... 更多变身
+            },
+            -- 进度追踪需要额外实现
+        }
+    end
+})
+```
+
+#### 6.2.5 事件驱动采集优化
+
+**当前问题：** 所有数据通过定时轮询采集，即使数据未变化也会发送。
+
+**优化方案 (参考 EID 回调机制)：**
+
+```lua
+-- 使用游戏回调实现事件驱动
+mod:AddCallback(ModCallbacks.MC_POST_PICKUP_INIT, function(_, pickup)
+    -- 新拾取物生成时触发
+    eventQueue:push({type = "PICKUP_SPAWNED", data = pickupToData(pickup)})
+end)
+
+mod:AddCallback(ModCallbacks.MC_POST_ENTITY_REMOVE, function(_, entity)
+    -- 实体移除时触发
+    if entity.Type == EntityType.ENTITY_PICKUP then
+        eventQueue:push({type = "PICKUP_REMOVED", data = {id = entity.Index}})
+    end
+end)
+
+mod:AddCallback(ModCallbacks.MC_POST_NEW_ROOM, function()
+    -- 房间切换时触发完整采集
+    forceCollectAll = true
+end)
+```
+
+### 6.3 优先级与依赖
+
+| 任务 | 优先级 | 依赖 | 预估工时 |
+|-----|--------|-----|---------|
+| 6.2.1 优化实体搜索 | P1 | 无 | 4h |
+| 6.2.2 完善玩家物品通道 | P1 | 无 | 8h |
+| 6.2.3 药丸效果识别 | P2 | 6.2.2 | 2h |
+| 6.2.4 变身进度追踪 | P3 | 6.2.2 | 4h |
+| 6.2.5 事件驱动采集 | P2 | 无 | 8h |
+
+---
+
+## Phase 7: Python 端数据处理增强 (计划中)
+
+### 7.1 目标
+
+配合 Lua 端的采集优化，增强 Python 端的数据处理能力：
+
+1. **条件数据过滤器** - 参考 EID 的条件描述系统
+2. **数据修改器链** - 参考 EID 的 DescModifiers
+3. **智能缓存机制** - 减少重复计算
+4. **预测系统基础设施** - 为未来 RNG 预测做准备
+
+### 7.2 条件数据过滤器
+
+**设计参考 EID `eid_conditionals.lua`：**
+
+```python
+# Python 端条件过滤器
+class DataCondition:
+    def __init__(self, name: str, condition: Callable, transform: Callable):
+        self.name = name
+        self.condition = condition  # 判断条件是否满足
+        self.transform = transform  # 数据转换函数
+
+class ConditionalProcessor:
+    def __init__(self):
+        self.conditions: List[DataCondition] = []
+    
+    def add_condition(self, condition: DataCondition):
+        self.conditions.append(condition)
+    
+    def process(self, data: Dict, context: GameContext) -> Dict:
+        for cond in self.conditions:
+            if cond.condition(context):
+                data = cond.transform(data)
+        return data
+
+# 使用示例
+processor = ConditionalProcessor()
+
+# 当玩家有 Brimstone 时，标记激光类敌人投射物
+processor.add_condition(DataCondition(
+    name="brimstone_synergy",
+    condition=lambda ctx: ctx.player_has_item(118),  # Brimstone ID
+    transform=lambda data: mark_laser_projectiles(data)
+))
+```
+
+### 7.3 数据修改器链
+
+**设计参考 EID `eid_modifiers.lua`：**
+
+```python
+# Python 端数据修改器
+@dataclass
+class DataModifier:
+    name: str
+    condition: Callable[[ProcessedChannel], bool]
+    callback: Callable[[ProcessedChannel], ProcessedChannel]
+    priority: int = 0
+
+class ModifierChain:
+    def __init__(self):
+        self.modifiers: List[DataModifier] = []
+    
+    def add(self, modifier: DataModifier):
+        self.modifiers.append(modifier)
+        self.modifiers.sort(key=lambda m: m.priority, reverse=True)
+    
+    def apply(self, channel: ProcessedChannel) -> ProcessedChannel:
+        for mod in self.modifiers:
+            if mod.condition(channel):
+                channel = mod.callback(channel)
+        return channel
+```
+
+### 7.4 智能缓存机制
+
+**参考 EID 的缓存策略：**
+
+```python
+class SmartCache:
+    def __init__(self, ttl_frames: int = 30):
+        self._cache: Dict[str, CacheEntry] = {}
+        self._ttl = ttl_frames
+    
+    def get(self, key: str, frame: int) -> Optional[Any]:
+        if key in self._cache:
+            entry = self._cache[key]
+            if frame - entry.frame < self._ttl:
+                return entry.value
+        return None
+    
+    def set(self, key: str, value: Any, frame: int):
+        self._cache[key] = CacheEntry(value=value, frame=frame)
+    
+    def invalidate_pattern(self, pattern: str):
+        """使匹配模式的缓存失效"""
+        keys_to_remove = [k for k in self._cache if fnmatch(k, pattern)]
+        for key in keys_to_remove:
+            del self._cache[key]
+```
+
+---
+
+## Phase 8: 高级功能 (长期目标)
+
+### 8.1 RNG 预测系统 (可选)
+
+**参考 EID `eid_itemprediction.lua`：**
+
+EID 实现了多种 RNG 预测功能，包括：
+- Metronome 效果预测
+- Teleport 目标预测
+- Sanguine Bond 结果预测
+- D Infinity 状态预测
+
+**SocketBridge 可借鉴：**
+- 实现 Xorshift RNG 推进算法
+- 预测随机道具效果
+- 预测敌人生成模式
+
+**注意：** RNG 预测依赖于游戏内部算法的逆向工程，需要大量测试验证，优先级较低。
+
+### 8.2 Bag of Crafting 集成 (可选)
+
+**参考 EID `eid_bagofcrafting.lua`：**
+
+对于 Tainted Cain 的合成袋系统，可以：
+- 采集合成袋内的材料
+- 计算可能的配方结果
+- 提供配方推荐
+
+### 8.3 REPENTOGON 支持 (可选)
+
+**参考 EID `eid_repentogon.lua`：**
+
+如果用户安装了 REPENTOGON 扩展，可以获取更多数据：
+- 直接读取成就解锁状态
+- 直接读取已吞噬饰品
+- 直接读取 Crane Game 奖品
+
+---
+
+## 实施建议
+
+### 优先级排序
+
+| 阶段 | 优先级 | 说明 |
+|-----|--------|------|
+| Phase 6.2.1 实体搜索优化 | 🔴 高 | 性能收益明显 |
+| Phase 6.2.2 玩家物品通道 | 🔴 高 | 核心功能缺失 |
+| Phase 6.2.5 事件驱动采集 | 🟡 中 | 架构优化 |
+| Phase 7.1-7.3 Python 增强 | 🟡 中 | 配合 Lua 端优化 |
+| Phase 6.2.3-6.2.4 药丸/变身 | 🟢 低 | 锦上添花 |
+| Phase 8 高级功能 | ⚪ 可选 | 长期目标 |
+
+### 测试策略
+
+1. **单元测试** - 每个新通道/功能需有对应测试
+2. **集成测试** - 使用录制回放系统验证数据一致性
+3. **性能测试** - 对比优化前后的帧率影响
+
+### 风险控制
+
+| 风险 | 缓解措施 |
+|-----|---------|
+| API 兼容性 | 保持向后兼容，新功能使用新通道名 |
+| 性能退化 | 使用 profiling 工具监控 |
+| 游戏更新 | 参考 EID 的版本检测机制 |
+
+---
+
+## 架构影响分析与适配规划
+
+### 当前架构概览
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            Lua 端 (main.lua)                            │
+│  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────────┐  │
+│  │ CollectorRegistry  │  │   Protocol v2.1    │  │  InputExecutor   │  │
+│  │   12 个采集器      │→ │  JSON + 时序信息   │→ │  (控制输入)      │  │
+│  └────────────────────┘  └────────────────────┘  └──────────────────┘  │
+└─────────────────────────────────│─────────────────────────────────────┘
+                                  │ TCP/IP :9527
+┌─────────────────────────────────▼─────────────────────────────────────┐
+│                            Python 端                                   │
+│  ┌──────────────┐  ┌──────────────────────────────────────────────┐   │
+│  │ IsaacBridge  │  │              channels/                        │   │
+│  │  (网络层)    │→ │  player.py | room.py | entities.py | danger.py│   │
+│  └──────────────┘  │  interactables.py                             │   │
+│         │          └──────────────────────────────────────────────┘   │
+│         │                           │                                  │
+│         ▼                           ▼                                  │
+│  ┌──────────────┐  ┌──────────────────────────────────────────────┐   │
+│  │ core/        │  │              services/                        │   │
+│  │  protocol/   │  │  processor.py | facade.py | entity_state.py  │   │
+│  │  replay/     │  │  monitor.py                                   │   │
+│  │  validation/ │  └──────────────────────────────────────────────┘   │
+│  └──────────────┘                   │                                  │
+│                                     ▼                                  │
+│                          ┌──────────────────┐                          │
+│                          │     apps/        │                          │
+│                          │  recorder.py     │                          │
+│                          │  console.py 等   │                          │
+│                          └──────────────────┘                          │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 6 对架构的影响
+
+#### 6.A 新增 Lua 通道的影响
+
+| 新通道 | 影响层级 | 需要修改/新增的文件 |
+|-------|---------|-------------------|
+| `PLAYER_ITEMS_DETAILED` | Lua + Python | `main.lua`, `channels/player.py`, `core/protocol/schema.py` |
+| `PLAYER_TRANSFORMATIONS` | Lua + Python | `main.lua`, `channels/player.py`, `core/protocol/schema.py` |
+| `PICKUPS` 增强 (药丸效果) | Lua + Python | `main.lua`, `channels/entities.py`, `core/protocol/schema.py` |
+
+#### 6.B 适配工作清单
+
+**1. Lua 端 (main.lua)**
+
+```lua
+-- 需要新增的采集器
+CollectorRegistry:register("PLAYER_ITEMS_DETAILED", {...})
+CollectorRegistry:register("PLAYER_TRANSFORMATIONS", {...})
+
+-- 需要修改的采集器
+-- PICKUPS: 增加 pill_identified, pill_effect_id 字段
+-- ENEMIES: 使用 FindByType 优化
+```
+
+**2. Python 通道层 (channels/)**
+
+```python
+# channels/player.py 新增
+class PlayerItemsDetailedChannel(DataChannel[PlayerItemsDetailedData]):
+    """玩家详细物品通道"""
+    name = "PLAYER_ITEMS_DETAILED"
+    ...
+
+class PlayerTransformationsChannel(DataChannel[PlayerTransformationsData]):
+    """玩家变身通道"""
+    name = "PLAYER_TRANSFORMATIONS"
+    ...
+```
+
+**3. Pydantic Schema (core/protocol/schema.py) 新增**
+
+```python
+class ActiveItemData(BaseModel):
+    """主动道具数据"""
+    id: int = 0
+    charge: int = 0
+    max_charge: int = 0
+
+class PlayerItemsDetailedData(BaseModel):
+    """玩家详细物品数据"""
+    actives: Dict[int, ActiveItemData] = {}
+    passives: List[int] = []
+    trinkets: List[int] = []
+    cards: List[int] = []
+    pills: List[int] = []
+
+class PlayerTransformationsData(BaseModel):
+    """玩家变身数据"""
+    completed: Dict[str, bool] = {}
+    progress: Dict[str, int] = {}
+
+# PICKUPS 增强
+class PickupData(BaseModel):
+    # ... 现有字段 ...
+    pill_identified: Optional[bool] = None
+    pill_effect_id: Optional[int] = None
+```
+
+**4. 服务层 (services/facade.py) 新增方法**
+
+```python
+class SocketBridgeFacade:
+    # 新增便捷访问方法
+    def get_player_items_detailed(self) -> Optional[PlayerItemsDetailedData]:
+        """获取玩家详细物品信息"""
+        ...
+    
+    def get_player_transformations(self) -> Optional[PlayerTransformationsData]:
+        """获取玩家变身状态"""
+        ...
+    
+    def get_player_active_item(self, slot: int = 0) -> Optional[ActiveItemData]:
+        """获取指定槽位的主动道具"""
+        ...
+```
+
+**5. 实体状态管理 (services/entity_state.py) 无变更**
+
+新通道主要是玩家状态类数据，不需要跨帧追踪，因此 `GameEntityState` 无需修改。
+
+#### 6.C 事件驱动采集的架构影响
+
+事件驱动采集需要扩展协议，影响较大：
+
+**协议扩展 (v2.2 建议)**
+
+```json
+{
+  "type": "EVENT",           // 新增消息类型
+  "event_type": "PICKUP_SPAWNED",
+  "frame": 1234,
+  "data": {
+    "id": 123,
+    "variant": 100,
+    "subtype": 45
+  }
+}
+```
+
+**Python 端处理**
+
+```python
+# IsaacBridge 需要支持新消息类型
+def _handle_event_message(self, msg: dict):
+    event_type = msg.get("event_type")
+    if event_type == "PICKUP_SPAWNED":
+        self._emit("pickup_spawned", msg["data"])
+    elif event_type == "PICKUP_REMOVED":
+        self._emit("pickup_removed", msg["data"])
+    # ...
+```
+
+**评估：事件驱动采集是较大的架构变更，建议作为 Phase 6.5 独立阶段实施。**
+
+---
+
+### Phase 7 对架构的影响
+
+#### 7.A 条件过滤器的影响
+
+条件过滤器是 services 层的新增功能，不影响现有架构：
+
+```python
+# services/filters.py (新文件)
+class ConditionalProcessor:
+    """条件数据处理器"""
+    ...
+
+# services/facade.py 集成
+class SocketBridgeFacade:
+    def __init__(self, ...):
+        self.conditional_processor = ConditionalProcessor()
+```
+
+#### 7.B 数据修改器链的影响
+
+同样是 services 层的新增功能：
+
+```python
+# services/modifiers.py (新文件)
+class ModifierChain:
+    """数据修改器链"""
+    ...
+```
+
+#### 7.C 智能缓存的影响
+
+需要集成到 `DataProcessor` 中：
+
+```python
+# services/processor.py 增强
+class DataProcessor:
+    def __init__(self, ...):
+        self._cache = SmartCache(ttl_frames=30)
+```
+
+---
+
+### 兼容性保证
+
+#### 向后兼容原则
+
+| 原则 | 说明 |
+|-----|------|
+| **新通道使用新名称** | 不修改现有通道名，避免破坏现有代码 |
+| **字段只增不删** | 现有 schema 字段保持不变，只新增可选字段 |
+| **API 扩展不修改** | Facade 现有方法签名不变，只新增方法 |
+| **协议版本标识** | 新功能需要 v2.2+ 协议支持 |
+
+#### 分阶段发布策略
+
+```
+v2.1.1 - 性能优化（实体搜索优化，不涉及协议变更）
+v2.2.0 - 新通道（PLAYER_ITEMS_DETAILED, PLAYER_TRANSFORMATIONS）
+v2.3.0 - 事件驱动采集（协议扩展）
+v3.0.0 - 条件过滤器 + 修改器链（大版本更新）
+```
+
+---
+
+### 完整适配清单
+
+#### Phase 6 适配清单
+
+| 任务 | 文件 | 工作量 | 优先级 |
+|-----|------|--------|-------|
+| 实体搜索优化 | `main.lua` | 4h | P1 |
+| PLAYER_ITEMS_DETAILED 采集器 | `main.lua` | 4h | P1 |
+| PLAYER_ITEMS_DETAILED 通道类 | `channels/player.py` | 2h | P1 |
+| PLAYER_ITEMS_DETAILED Schema | `core/protocol/schema.py` | 1h | P1 |
+| PLAYER_ITEMS_DETAILED Facade 方法 | `services/facade.py` | 1h | P1 |
+| PLAYER_ITEMS_DETAILED 测试 | `tests/test_channels.py` | 2h | P1 |
+| PLAYER_TRANSFORMATIONS 采集器 | `main.lua` | 2h | P3 |
+| PLAYER_TRANSFORMATIONS 通道类 | `channels/player.py` | 2h | P3 |
+| PLAYER_TRANSFORMATIONS Schema | `core/protocol/schema.py` | 1h | P3 |
+| PICKUPS 药丸效果增强 | `main.lua`, `channels/entities.py` | 2h | P2 |
+| 事件驱动采集 (v2.2 协议) | 多文件 | 8h | P2 |
+| 文档更新 | `README.md`, `DATA_PROTOCOL.md` | 2h | P1 |
+
+#### Phase 7 适配清单
+
+| 任务 | 文件 | 工作量 | 优先级 |
+|-----|------|--------|-------|
+| ConditionalProcessor 类 | `services/filters.py` (新) | 4h | P2 |
+| ModifierChain 类 | `services/modifiers.py` (新) | 4h | P2 |
+| SmartCache 类 | `services/cache.py` (新) | 2h | P2 |
+| Facade 集成 | `services/facade.py` | 2h | P2 |
+| 测试用例 | `tests/test_services.py` | 4h | P2 |
+
+---
+
+### 依赖关系图
+
+```
+Phase 6.2.1 (实体搜索优化)
+    │
+    ├──→ Phase 6.2.2 (玩家物品通道) ──→ Phase 6.2.3 (药丸效果)
+    │         │
+    │         └──→ Phase 6.2.4 (变身追踪)
+    │
+    └──→ Phase 6.2.5 (事件驱动) ──→ Phase 7 (Python 增强)
+                                        │
+                                        ├──→ Phase 7.2 (条件过滤器)
+                                        ├──→ Phase 7.3 (修改器链)
+                                        └──→ Phase 7.4 (智能缓存)
+                                                │
+                                                └──→ Phase 8 (高级功能)
+```
 
 ---
 
