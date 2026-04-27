@@ -492,6 +492,8 @@ Python BridgeServer (asyncio)
 
 - [DATA_PROTOCOL.md](python/DATA_PROTOCOL.md) — 数据协议详细文档
 - [CONSOLE_COMMANDS.md](python/CONSOLE_COMMANDS.md) — 控制台命令参考
+- [HUB_USAGE.md](python/HUB_USAGE.md) — Hub 模式启动与并行运行说明
+- [HUB_SENSOR_GUIDE.md](python/HUB_SENSOR_GUIDE.md) — Hub 模式下 Sensor 注册/订阅/重连规范
 - [docs/EID_TECHNICAL_REFERENCE.md](docs/EID_TECHNICAL_REFERENCE.md) — EID 技术参考
 - [docs/archivedDoc/KNOWN_GAME_ISSUES.md](docs/archivedDoc/KNOWN_GAME_ISSUES.md) — 已知游戏问题
 

@@ -66,3 +66,14 @@ python -m apps.console --hub --hub-host 127.0.0.1 --hub-port 9530
 - `apps.console` 默认直连（不加 `--hub`）
 
 建议多应用并行时统一使用 `--hub`。
+
+## 7. 面向新工具开发的 Sensor 接入规范
+
+如果你正在开发新的 Hub 应用（例如新可视化器、自动化代理、验证器），请先阅读：
+
+- [HUB_SENSOR_GUIDE.md](HUB_SENSOR_GUIDE.md)
+
+该文档定义了：
+- Hub 模式下 Sensor 的职责边界（Lua 注册 / Hub 过滤 / App 订阅）
+- 标准接入流程（subscribe + request_full_state）
+- 断线重连、通道缺失、刷新策略的统一实践
