@@ -133,6 +133,11 @@ class BridgeServer:
                     msg = json.loads(line_str)
                     self.messages_received += 1
 
+                    # CRITICAL DEBUG: log EVERY message at TCP level
+                    import sys
+                    ch = msg.get("channels", [])
+                    print(f"[TCP RX] seq={msg.get('seq','?')} frame={msg.get('frame','?')} type={msg.get('type','?')} ch={ch}", file=sys.stderr, flush=True)
+
                     for cb in self._on_message:
                         try:
                             await cb(msg)

@@ -178,7 +178,10 @@ class SocketBridge:
 
     async def _handle_message(self, raw: dict):
         """Process an incoming message from the game."""
+        import sys
         msg_type = raw.get("type", "")
+        ch = raw.get("channels", [])
+        print(f"[FACADE RX] seq={raw.get('seq','?')} frame={raw.get('frame','?')} type={msg_type} ch={ch}", file=sys.stderr, flush=True)
 
         if msg_type == MessageType.EVENT.value:
             await self._handle_event(raw)
@@ -206,19 +209,29 @@ class SocketBridge:
         self._message_count += 1
         self._monitor.record_message(dm.channels)
 
-        # Debug: log every 150th message
-        if self._message_count % 150 == 1:
-            logger.info("PY RX frame=%d room=%d seq=%d channels=%s",
-                        dm.frame, dm.room_index, dm.seq, dm.channels)
-
         # Parse through sensors
         results = SensorRegistry.process_message(dm.payload, dm.frame)
         self._data.update(results)
 
-        # Debug: log parsed results
+        # Debug: log EVERY message that contains PICKUPS or FIRE_HAZARDS
+        has_pickups = "PICKUPS" in dm.channels
+        has_fire = "FIRE_HAZARDS" in dm.channels
+        if has_pickups or has_fire:
+            p_in_payload = "PICKUPS" in (dm.payload or {})
+            f_in_payload = "FIRE_HAZARDS" in (dm.payload or {})
+            p_parsed = "PICKUPS" in results
+            f_parsed = "FIRE_HAZARDS" in results
+            logger.warning(
+                "PY TRACE seq=%d frame=%d PICKUPS(ch=%s,pay=%s,parsed=%s) FIRE(ch=%s,pay=%s,parsed=%s)",
+                dm.seq, dm.frame,
+                has_pickups, p_in_payload, p_parsed,
+                has_fire, f_in_payload, f_parsed,
+            )
+
+        # Periodic summary
         if self._message_count % 150 == 1:
-            names = list(results.keys())
-            logger.info("PY PARSED: %s", names)
+            logger.info("PY SUMMARY msg=%d frame=%d room=%d channels=%s",
+                        self._message_count, dm.frame, dm.room_index, dm.channels)
 
         # Update entity state
         if self._entities:
@@ -496,12 +509,18 @@ class SocketBridgeSync(SocketBridge):
 
     def stop(self) -> None:
         """Stop the bridge."""
-        _parent_stop = super().stop
-        if self._loop:
-            self._loop.call_soon_threadsafe(
-                lambda: asyncio.create_task(_parent_stop())
-            )
+        if self._loop and self._loop.is_running():
+            # Run async stop coroutine to completion, then stop the loop
+            future = asyncio.run_coroutine_threadsafe(super().stop(), self._loop)
+            try:
+                future.result(timeout=3.0)
+            except Exception:
+                pass
             self._loop.call_soon_threadsafe(self._loop.stop)
+            if self._thread and self._thread.is_alive():
+                self._thread.join(timeout=2.0)
+            self._thread = None
+            self._loop = None
 
     def _run_async(self, coro):
         """Run a coroutine from sync code."""

@@ -1021,9 +1021,11 @@ function CustomCollectors.ROOM_LAYOUT()
         local gridEntity = room:GetGridEntity(i)
         if gridEntity then
             local gridType = gridEntity:GetType()
-            if gridType >= 0 and gridType <= 27 and gridType ~= 13 and gridType ~= 16 and gridType ~= 20 then
+            -- Keep all valid vanilla grid types so terrain visualization is complete.
+            if gridType >= 0 and gridType <= 27 then
                 local pos = room:GetGridPosition(i)
                 grid[tostring(i)] = {
+                    grid_index = i,
                     type = gridType, variant = gridEntity:GetVariant(),
                     state = gridEntity.State, collision = gridEntity.CollisionClass,
                     x = pos.X, y = pos.Y,
@@ -1066,10 +1068,13 @@ function SensorRegistry:collect(name, forceCollect)
         success, data = pcall(function()
             local player = Isaac.GetPlayer(0)
             local entities = self:_searchEntities(sensor)
+            if Config.DEBUG and (name == "PICKUPS" or name == "FIRE_HAZARDS") and State.updateCount % 30 == 1 then
+                print("[SB SEARCH] " .. name .. " found=" .. #entities .. " frame=" .. State.updateCount)
+            end
             local results = {}
             for _, entity in ipairs(entities) do
-                local entry = sensor.extract(entity, player)
-                if entry then table.insert(results, entry) end
+                local ok, entry = pcall(sensor.extract, entity, player)
+                if ok and entry then table.insert(results, entry) end
             end
             return results
         end)
@@ -1077,7 +1082,16 @@ function SensorRegistry:collect(name, forceCollect)
         return nil, nil  -- Callback-only sensors without customFn
     end
 
-    if not success or data == nil then return nil, nil end
+    if not success then
+        print("[SB ERR] collect(" .. name .. ") pcall FAILED: " .. tostring(data))
+        return nil, nil
+    end
+    if data == nil then
+        if forceCollect then
+            print("[SB ERR] collect(" .. name .. ") returned nil (forceCollect)")
+        end
+        return nil, nil
+    end
 
     -- On force-collect: reset frame counter and mark for immediate send
     if forceCollect then
@@ -1089,7 +1103,15 @@ function SensorRegistry:collect(name, forceCollect)
     if not forceCollect and sensor.cache.strategy == "hash" then
         local newHash = Helpers.simpleHash(data)
         if self.changeHashes[name] == newHash then
+            if Config.DEBUG and name == "PICKUPS" and State.updateCount % 60 == 1 then
+                print("[SB HASH] PICKUPS skipped (unchanged) frame=" .. State.updateCount ..
+                      " count=" .. #data .. " hash=" .. string.sub(newHash, 1, 20))
+            end
             return nil, nil
+        end
+        if Config.DEBUG and name == "PICKUPS" then
+            print("[SB HASH] PICKUPS changed frame=" .. State.updateCount ..
+                  " count=" .. #data .. " newHash=" .. string.sub(newHash, 1, 20))
         end
         self.changeHashes[name] = newHash
     end
@@ -1425,8 +1447,7 @@ mod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
     -- Room change detection
     local currentRoom = Game():GetLevel():GetCurrentRoomIndex()
     if currentRoom ~= State.currentRoom then
-        State.currentRoom = currentRoom
-        State.roomEntered = true
+        local prevRoom = State.currentRoom
 
         -- Fire sensor triggers
         SensorTriggers:fire("MC_POST_NEW_ROOM", nil,
@@ -1434,36 +1455,78 @@ mod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
 
         -- Force-collect room data
         SensorRegistry:collect("ROOM_INFO", true)
-        SensorRegistry:collect("ROOM_LAYOUT", true)
+        local rlData, _ = SensorRegistry:collect("ROOM_LAYOUT", true)
         SensorRegistry:collect("PICKUPS", true)
 
-        EventSystem.emit("ROOM_ENTER", {
-            room_index = currentRoom,
-            room_info = SensorRegistry:getCached("ROOM_INFO"),
-            room_layout = SensorRegistry:getCached("ROOM_LAYOUT"),
-        })
+        -- Only commit room change if ROOM_LAYOUT succeeded (GetRoom() may be nil during transition)
+        if rlData ~= nil then
+            State.currentRoom = currentRoom
+            State.roomEntered = true
+
+            if Config.DEBUG then
+                print("[SB ROOM] Room change: " .. tostring(prevRoom) ..
+                      " -> " .. tostring(currentRoom) .. " frame=" .. State.updateCount)
+            end
+
+            EventSystem.emit("ROOM_ENTER", {
+                room_index = currentRoom,
+                room_info = SensorRegistry:getCached("ROOM_INFO"),
+                room_layout = SensorRegistry:getCached("ROOM_LAYOUT"),
+            })
+        elseif Config.DEBUG then
+            print("[SB ROOM] Room change DEFERRED: " .. tostring(prevRoom) ..
+                  " -> " .. tostring(currentRoom) .. " (ROOM_LAYOUT collect failed, retrying next frame)")
+        end
     end
 
     -- Collect and send
     if State.connected then
         local data, channels, meta = SensorRegistry:collectAll()
         if next(data) then
-            local ok = Network.send(Protocol.createDataMessage(data, channels, meta))
-            if Config.DEBUG and State.updateCount % Config.DEBUG_INTERVAL == 1 then
-                local names = table.concat(channels, ",")
-                local sizes = {}
-                for _, n in ipairs(channels) do
-                    local d = data[n]
-                    local sz = type(d) == "table" and #d or "?"
-                    table.insert(sizes, n .. "=" .. tostring(sz))
+            local msg = Protocol.createDataMessage(data, channels, meta)
+
+            -- Dump raw payload keys when PICKUPS/FIRE is present
+            if Config.DEBUG and (data["PICKUPS"] or data["FIRE_HAZARDS"]) then
+                local pKey = data["PICKUPS"] and "YES" or "NO"
+                local fKey = data["FIRE_HAZARDS"] and "YES" or "NO"
+                local pData = msg.payload["PICKUPS"]
+                local fData = msg.payload["FIRE_HAZARDS"]
+                local pType = type(pData)
+                local pLen = (pType == "table" and #pData) or "nil"
+                local fType = type(fData)
+                local fLen = (fType == "table" and #fData) or "nil"
+                print("[SB PAYLOAD] seq=" .. State.messageSeq + 1 ..
+                      " PICKUPS_in_data=" .. pKey .. " PICKUPS_in_payload: type=" .. pType .. " len=" .. tostring(pLen) ..
+                      " FIRE_in_data=" .. fKey .. " FIRE_in_payload: type=" .. fType .. " len=" .. tostring(fLen))
+            end
+
+            local ok = Network.send(msg)
+
+            -- Targeted trace: log whenever PICKUPS, FIRE_HAZARDS, or ROOM_LAYOUT included
+            if Config.DEBUG and (data["PICKUPS"] or data["FIRE_HAZARDS"] or data["ROOM_LAYOUT"]) then
+                local pCount = (type(data["PICKUPS"]) == "table" and #data["PICKUPS"]) or 0
+                local fCount = (type(data["FIRE_HAZARDS"]) == "table" and #data["FIRE_HAZARDS"]) or 0
+                local rlPresent = data["ROOM_LAYOUT"] ~= nil
+                print("[SB SEND] seq=" .. State.messageSeq + 1 .. " frame=" .. State.updateCount ..
+                      " PICKUPS=" .. pCount .. " FIRE=" .. fCount .. " LAYOUT=" .. tostring(rlPresent) ..
+                      " channels=[" .. table.concat(channels, ",") .. "]")
+                -- Dump a sample pickup for comparison
+                if pCount > 0 then
+                    local sample = data["PICKUPS"][1]
+                    print("[SB SEND]   sample pickup id=" .. tostring(sample.id) ..
+                          " variant=" .. tostring(sample.variant) ..
+                          " pos=(" .. tostring(sample.pos.x) .. "," .. tostring(sample.pos.y) .. ")")
                 end
-                print("[SB SEND] frame=" .. State.updateCount ..
-                      " channels=[" .. names .. "]" ..
-                      " sizes={" .. table.concat(sizes, " ") .. "}" ..
-                      " ok=" .. tostring(ok))
+            end
+
+            -- Periodic summary (only when NO pickups/fire to keep output clean)
+            if Config.DEBUG and State.updateCount % Config.DEBUG_INTERVAL == 1
+               and not data["PICKUPS"] and not data["FIRE_HAZARDS"] then
+                local names = table.concat(channels, ",")
+                print("[SB SEND] frame=" .. State.updateCount .. " channels=[" .. names .. "]")
             end
         elseif Config.DEBUG and State.updateCount % Config.DEBUG_INTERVAL == 1 then
-            print("[SB SEND] frame=" .. State.updateCount .. " NO DATA — all sensors skipped or empty")
+            print("[SB SEND] frame=" .. State.updateCount .. " NO DATA")
         end
 
         -- Flush pending events

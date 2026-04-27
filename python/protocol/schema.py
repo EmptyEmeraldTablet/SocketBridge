@@ -324,13 +324,19 @@ class Pickup(BaseModel):
 
     model_config = {"extra": "allow"}
 
+    @field_validator("price", "shop_item_id", "wait", mode="before")
+    @classmethod
+    def _coerce_none_int(cls, v):
+        if v is None: return 0
+        return v
+
 
 class Bomb(BaseModel):
     """BOMBS — collected every 15 frames."""
     id: int = Field(..., ge=0)
     type: int = 0
     variant: int = 0
-    variant_name: str = "UNKNOWN"
+    variant_name: str = "NORMAL"
     sub_type: int = 0
     pos: Vector2D = Field(default_factory=Vector2D)
     vel: Vector2D = Field(default_factory=Vector2D)
@@ -339,6 +345,11 @@ class Bomb(BaseModel):
     distance: float = Field(default=0.0, ge=0.0)
 
     model_config = {"extra": "allow"}
+
+    @field_validator("explosion_radius", "timer", "distance", "type", "variant", "sub_type", mode="before")
+    @classmethod
+    def _coerce_none_num(cls, v):
+        return 0 if v is None else v
 
 
 class FireHazard(BaseModel):

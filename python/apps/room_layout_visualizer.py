@@ -98,15 +98,20 @@ class Colors:
 class RoomLayoutVisualizer:
     """房间布局可视化器"""
     
-    def __init__(self):
-        from isaac_bridge import IsaacBridge
-
-        self.adapter = IsaacBridge()
+    def __init__(self, use_hub: bool = False, hub_host: str = "127.0.0.1", hub_port: int = 9530):
+        self.use_hub = use_hub
+        if use_hub:
+            from hub_bridge import HubBridge
+            self.adapter = HubBridge(host=hub_host, port=hub_port, client_name="room_layout_visualizer")
+        else:
+            from isaac_bridge import IsaacBridge
+            self.adapter = IsaacBridge()
         
         # 当前房间数据
         self.current_room_info = None
         self.current_room_layout = None
         self.current_player_pos = None
+        self.current_fire_hazards = []
         self.current_frame = 0
         
         # 标记是否已收到完整数据
@@ -127,6 +132,14 @@ class RoomLayoutVisualizer:
             print(f"游戏已连接: {data.get('address')}")
             print(f"等待进入房间...")
             print(f"{'='*60}\n")
+
+            # Hub 模式下按需订阅，降低应用侧不必要的数据量。
+            if hasattr(self.adapter, "subscribe"):
+                self.adapter.subscribe(["ROOM_INFO", "ROOM_LAYOUT", "PLAYER_POSITION"])
+
+            # 主动请求一次快照，避免首帧等待过久。
+            if hasattr(self.adapter, "request_full_state"):
+                self.adapter.request_full_state()
         
         @self.adapter.on("disconnected")
         def on_disconnected(data):
@@ -135,12 +148,15 @@ class RoomLayoutVisualizer:
         @self.adapter.on("message")
         def on_message(msg: dict, processed):
             self._process_message(msg)
-    
+
     def _process_message(self, msg: dict):
         """处理消息，更新当前数据"""
         payload = msg.get("payload", {})
         channels = msg.get("channels", [])
-        self.current_frame = msg.get("frame", 0)
+        msg_frame = msg.get("frame", 0)
+        self.current_frame = msg_frame
+
+        # 更新玩家位置
         
         # 更新玩家位置
         # PLAYER_POSITION 结构: {"1": {"pos": {...}, ...}, "2": {...}}
@@ -164,7 +180,12 @@ class RoomLayoutVisualizer:
         if "ROOM_LAYOUT" in channels:
             self.current_room_layout = payload.get("ROOM_LAYOUT")
             self.has_room_layout = True
-    
+
+        # 更新火焰危险物位置
+        if "FIRE_HAZARDS" in channels:
+            raw_fires = payload.get("FIRE_HAZARDS", [])
+            self.current_fire_hazards = raw_fires
+
     def render_grid(self) -> str:
         """渲染当前房间为字符网格"""
         if not self.current_room_info or not self.current_room_layout:
@@ -265,11 +286,34 @@ class RoomLayoutVisualizer:
         # 添加玩家位置
         if self.current_player_pos:
             px, py = self.current_player_pos
-            # 使用调整后的 TopLeft
             pgx = int((px - adjusted_tl_x) / 40)
             pgy = int((py - adjusted_tl_y) / 40)
             if 1 <= pgx < grid_width - 1 and 1 <= pgy < grid_height - 1:
                 grid[pgy][pgx] = '@'
+
+        # 添加火焰危险物 (FIRE_HAZARDS)
+        fire_count = 0
+        for fire in (self.current_fire_hazards or []):
+            if not isinstance(fire, dict):
+                continue
+            fpos = fire.get("pos", {})
+            if not isinstance(fpos, dict):
+                continue
+            fx, fy = fpos.get("x", 0), fpos.get("y", 0)
+            fgx = int((fx - adjusted_tl_x) / 40)
+            fgy = int((fy - adjusted_tl_y) / 40)
+            if 0 <= fgx < grid_width and 0 <= fgy < grid_height:
+                is_extinguished = fire.get("is_extinguished", False)
+                is_shooting = fire.get("is_shooting", False)
+                if is_shooting:
+                    grid[fgy][fgx] = '*'
+                elif not is_extinguished:
+                    grid[fgy][fgx] = 'F'
+                else:
+                    grid[fgy][fgx] = 'f'
+                fire_count = fire_count + 1
+        if fire_count > 0:
+            logger.info("VIZ: rendered %d fires on grid", fire_count)
         
         # 构建输出字符串
         lines = []
@@ -437,7 +481,11 @@ class RoomLayoutVisualizer:
     
     def has_complete_data(self) -> bool:
         """检查是否有完整数据"""
-        return self.has_room_info and self.has_room_layout
+        result = self.has_room_info and self.has_room_layout
+        if not result:
+            logger.debug("VIZ: incomplete has_info=%s has_layout=%s",
+                         self.has_room_info, self.has_room_layout)
+        return result
 
 
 def clear_screen():
@@ -445,7 +493,7 @@ def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 
-def run_live_mode():
+def run_live_mode(use_hub: bool = False, hub_host: str = "127.0.0.1", hub_port: int = 9530):
     """实时模式 - 持续更新显示"""
     print("=" * 60)
     print("房间布局可视化 - 实时模式")
@@ -454,31 +502,27 @@ def run_live_mode():
     print("按 Ctrl+C 退出")
     print("=" * 60)
     
-    viz = RoomLayoutVisualizer()
+    viz = RoomLayoutVisualizer(use_hub=use_hub, hub_host=hub_host, hub_port=hub_port)
     
     try:
         viz.start()
         
         last_room_idx = None
-        
+
         while True:
-            time.sleep(0.5)
-            
             if viz.has_complete_data():
-                # 检测房间变化
                 current_room_idx = viz.current_room_info.get("room_idx") if viz.current_room_info else None
-                
                 if current_room_idx != last_room_idx:
-                    # 房间变化，重新渲染
                     clear_screen()
+                    print("=" * 60)
+                    print("房间布局可视化 - 实时模式")
+                    print("=" * 60)
                     print(viz.render_grid())
                     print()
+                    print(viz.render_detailed_list())
                     last_room_idx = current_room_idx
-                else:
-                    # 同一房间，更新玩家位置
-                    # 移动光标到开头重绘（简化处理：重绘全部）
-                    clear_screen()
-                    print(viz.render_grid())
+
+            time.sleep(0.2)
     
     except KeyboardInterrupt:
         print("\n\n收到退出信号...")
@@ -486,7 +530,7 @@ def run_live_mode():
         viz.stop()
 
 
-def run_snapshot_mode():
+def run_snapshot_mode(use_hub: bool = False, hub_host: str = "127.0.0.1", hub_port: int = 9530):
     """快照模式 - 进入房间后截取一次完整数据"""
     print("=" * 60)
     print("房间布局可视化 - 快照模式")
@@ -495,7 +539,7 @@ def run_snapshot_mode():
     print("按 Ctrl+C 退出")
     print("=" * 60)
     
-    viz = RoomLayoutVisualizer()
+    viz = RoomLayoutVisualizer(use_hub=use_hub, hub_host=hub_host, hub_port=hub_port)
     
     try:
         viz.start()
@@ -546,7 +590,7 @@ def run_snapshot_mode():
         viz.stop()
 
 
-def run_compare_mode():
+def run_compare_mode(use_hub: bool = False, hub_host: str = "127.0.0.1", hub_port: int = 9530):
     """对比模式 - 显示网格和详细列表，方便与游戏画面对比"""
     print("=" * 60)
     print("房间布局可视化 - 对比模式")
@@ -555,7 +599,7 @@ def run_compare_mode():
     print("按 Ctrl+C 退出")
     print("=" * 60)
     
-    viz = RoomLayoutVisualizer()
+    viz = RoomLayoutVisualizer(use_hub=use_hub, hub_host=hub_host, hub_port=hub_port)
     
     try:
         viz.start()
@@ -629,15 +673,39 @@ def main():
         default="live",
         help="运行模式: live=实时更新, snapshot=快照, compare=对比模式"
     )
+
+    parser.add_argument(
+        "--hub",
+        action="store_true",
+        help="通过 BridgeHub 连接（支持多应用共享连接）"
+    )
+
+    parser.add_argument(
+        "--hub-host",
+        default="127.0.0.1",
+        help="BridgeHub 主机地址（默认 127.0.0.1）"
+    )
+
+    parser.add_argument(
+        "--hub-port",
+        type=int,
+        default=9530,
+        help="BridgeHub 端口（默认 9530）"
+    )
     
     args = parser.parse_args()
+    kwargs = {
+        "use_hub": args.hub,
+        "hub_host": args.hub_host,
+        "hub_port": args.hub_port,
+    }
     
     if args.mode == "live":
-        run_live_mode()
+        run_live_mode(**kwargs)
     elif args.mode == "snapshot":
-        run_snapshot_mode()
+        run_snapshot_mode(**kwargs)
     elif args.mode == "compare":
-        run_compare_mode()
+        run_compare_mode(**kwargs)
 
 
 if __name__ == "__main__":

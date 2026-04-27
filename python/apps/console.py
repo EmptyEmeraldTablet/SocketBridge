@@ -21,19 +21,17 @@ SocketBridge 交互式控制台
 """
 
 import sys
-import json
 import cmd
-import threading
 import time
+import argparse
 from datetime import datetime
-from typing import Optional
 from pathlib import Path
 
 # 添加父目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # 导入 IsaacBridge 作为 TCP 服务器
-from isaac_bridge import IsaacBridge, MessageType
+from isaac_bridge import IsaacBridge
 
 # 颜色配置
 class Colors:
@@ -90,16 +88,7 @@ class IsaacConsole(cmd.Cmd):
     - 实时连接状态
     """
     
-    intro = f"""
-{Colors.BOLD}╔════════════════════════════════════════════════════════════╗
-║          SocketBridge 交互式控制台                    ║
-║          以撒的结合: Rebirth                          ║
-╚════════════════════════════════════════════════════════════╝
-{Colors.RESET}
-输入 {Colors.info('help')} 查看可用命令，{Colors.info('quit')} 退出
-启动服务器，等待游戏连接...
-"""
-    
+    intro = ""
     prompt = f"{Colors.BOLD}isaac> {Colors.RESET}"
     
     # 控制台命令参考
@@ -137,12 +126,25 @@ class IsaacConsole(cmd.Cmd):
         "time": "time - 显示游戏时间",
     }
     
-    def __init__(self):
+    def __init__(self, use_hub: bool = False, hub_host: str = "127.0.0.1", hub_port: int = 9530):
         super().__init__()
+
+        self.use_hub = use_hub
+        self.connection_desc = ""
         
-        # 使用 IsaacBridge 作为 TCP 服务器
-        self.bridge = IsaacBridge(host="127.0.0.1", port=9527)
+        if use_hub:
+            from hub_bridge import HubBridge
+
+            self.bridge = HubBridge(host=hub_host, port=hub_port, client_name="console")
+            self.connection_desc = f"BridgeHub {hub_host}:{hub_port}"
+        else:
+            # 使用 IsaacBridge 作为 TCP 服务器
+            self.bridge = IsaacBridge(host="127.0.0.1", port=9527)
+            self.connection_desc = "127.0.0.1:9527"
+
         self.bridge.start()
+
+        self.intro = self._build_intro()
         
         # 状态
         self.command_history: list[CommandRecord] = []
@@ -150,6 +152,18 @@ class IsaacConsole(cmd.Cmd):
         
         # 注册事件处理
         self._register_handlers()
+
+    def _build_intro(self) -> str:
+        return f"""
+{Colors.BOLD}╔════════════════════════════════════════════════════════════╗
+║          SocketBridge 交互式控制台                    ║
+║          以撒的结合: Rebirth                          ║
+╚════════════════════════════════════════════════════════════╝
+{Colors.RESET}
+输入 {Colors.info('help')} 查看可用命令，{Colors.info('quit')} 退出
+连接模式: {Colors.info(self.connection_desc)}
+等待游戏连接...
+"""
     
     def _register_handlers(self):
         """注册事件处理器"""
@@ -240,7 +254,11 @@ class IsaacConsole(cmd.Cmd):
             print(f"  命令发送: {stats['commands_sent']}")
         else:
             print(f"{Colors.warning('✗ 等待游戏连接中...')}")
-            print(f"  服务器: 127.0.0.1:9527")
+            print(f"  连接入口: {self.connection_desc}")
+
+        if self.use_hub:
+            stats = self.bridge.get_stats()
+            print(f"  Hub 连接: {'已连接' if stats.get('hub_connected') else '未连接'}")
         
         print(f"  命令历史: {len(self.command_history)} 条")
     
@@ -308,15 +326,25 @@ class IsaacConsole(cmd.Cmd):
 def main():
     """主函数"""
     import os
+
+    parser = argparse.ArgumentParser(description="SocketBridge 交互式控制台")
+    parser.add_argument("--hub", action="store_true", help="通过 BridgeHub 连接（支持多应用并行）")
+    parser.add_argument("--hub-host", default="127.0.0.1", help="BridgeHub 主机地址")
+    parser.add_argument("--hub-port", type=int, default=9530, help="BridgeHub 端口")
+    args = parser.parse_args()
     
     # 确保在正确目录
     os.chdir(os.path.dirname(os.path.abspath(__file__)) or '.')
     
-    console = IsaacConsole()
+    console = IsaacConsole(use_hub=args.hub, hub_host=args.hub_host, hub_port=args.hub_port)
     
     try:
-        print(f"{Colors.info('服务器已启动在 127.0.0.1:9527')}")
-        print(f"{Colors.info('请启动游戏并加载 SocketBridge mod')}\n")
+        if args.hub:
+            print(f"{Colors.info(f'正在连接 BridgeHub: {args.hub_host}:{args.hub_port}')}")
+            print(f"{Colors.info('请先启动 bridge_hub，再启动游戏并加载 SocketBridge mod')}\n")
+        else:
+            print(f"{Colors.info('服务器已启动在 127.0.0.1:9527')}")
+            print(f"{Colors.info('请启动游戏并加载 SocketBridge mod')}\n")
         console.cmdloop()
     except KeyboardInterrupt:
         print(f"\n{Colors.info('正在退出...')}")

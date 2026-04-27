@@ -9,7 +9,7 @@ All actual logic is delegated to the new architecture (facade.py + layers).
 
 from facade import SocketBridgeSync as _SocketBridgeSync
 from protocol.schema import MessageType, CollectInterval, Vector2D
-from sensors.base import SensorRegistry
+import inspect
 
 # ══════════════════════════════════════════════════════════════════════════
 # Backward-compat type aliases
@@ -94,75 +94,178 @@ class IsaacBridge:
             self.connected = False
             self._trigger("disconnected", {})
 
+        @self._bridge._server.on_message
+        async def _on_raw_message(raw_msg: dict):
+            import sys
+            ch = raw_msg.get("channels", [])
+            print(f"[COMPAT RX] seq={raw_msg.get('seq','?')} frame={raw_msg.get('frame','?')} type={raw_msg.get('type','?')} ch={ch} n_msg_handlers={len(self.handlers.get('message',[]))}", file=sys.stderr, flush=True)
+            # Keep legacy raw message stream for adapter-style consumers.
+            self._trigger("raw_message", raw_msg)
+
+            msg_type = raw_msg.get("type")
+            if msg_type in (MessageType.DATA.value, MessageType.FULL.value):
+                self._handle_data_message(raw_msg)
+                return
+
+            if msg_type == MessageType.EVENT.value:
+                event_name = raw_msg.get("event") or raw_msg.get("event_type") or ""
+                event_data = raw_msg.get("data") or raw_msg.get("event_data") or {}
+                frame = raw_msg.get("frame", self.state.frame)
+                self._emit_game_event(event_name, event_data, frame=frame)
+                return
+
+            if msg_type in (MessageType.COMMAND.value, "CMD"):
+                result = raw_msg.get("result", raw_msg)
+                self._trigger("command_result", result)
+
         # Per-frame data
         @self._bridge.on_frame
         def _on_frame(frame, room):
             self.state.frame = frame
             self.state.room_index = room
-            self.stats["messages_received"] += 1
 
-            # Sync sensor data into legacy state dict
-            for name in SensorRegistry.all_names():
-                data = self._bridge.get_raw_data(name)
-                if data is not None:
-                    self.state.data[name] = data
-                    # Propagate per-channel handlers: "data:PLAYER_POSITION", etc.
-                    self._trigger(f"data:{name}", data)
+    def _invoke_handler_with_fallback(self, handler, *preferred_args):
+        """Call handlers with graceful arity fallback for legacy compatibility."""
+        call_variants = [preferred_args]
 
-            # Propagate to legacy "data" handlers
-            for h in self.handlers.get("data", []):
-                try:
-                    h(self.state.data)
-                except Exception:
-                    pass
+        # If handler has fewer params, retry with truncated args.
+        for i in range(len(preferred_args) - 1, -1, -1):
+            call_variants.append(preferred_args[:i])
 
-        @self._bridge.on("ROOM_ENTER")
-        def _on_room_enter(data):
-            self._trigger("event:ROOM_ENTER", data)
+        # De-duplicate variants while preserving order.
+        seen = set()
+        unique_variants = []
+        for args in call_variants:
+            key = len(args)
+            if key not in seen:
+                seen.add(key)
+                unique_variants.append(args)
 
-        @self._bridge.on("ROOM_CLEAR")
-        def _on_room_clear(data):
-            self._trigger("event:ROOM_CLEAR", data)
-
-        @self._bridge.on("PLAYER_DAMAGE")
-        def _on_damage(data):
-            self._trigger("event:PLAYER_DAMAGE", data)
-
-        @self._bridge.on("GAME_START")
-        def _on_game_start(data):
-            self._trigger("event:GAME_START", data)
-
-        @self._bridge.on("GAME_END")
-        def _on_game_end(data):
-            self._trigger("event:GAME_END", data)
-
-        @self._bridge.on("NPC_DEATH")
-        def _on_npc_death(data):
-            self._trigger("event:NPC_DEATH", data)
-
-        @self._bridge.on("PLAYER_DEATH")
-        def _on_player_death(data):
-            self._trigger("event:PLAYER_DEATH", data)
-
-        @self._bridge.on("ITEM_COLLECTED")
-        def _on_item(data):
-            self._trigger("event:ITEM_COLLECTED", data)
-
-        @self._bridge.on("command_result")
-        def _on_cmd_result(data):
-            self._trigger("command_result", data)
-
-    def _trigger(self, event_name, data):
-        for h in self.handlers.get(event_name, []):
+        for args in unique_variants:
             try:
-                h(data)
+                handler(*args)
+                return
+            except TypeError:
+                continue
             except Exception:
-                pass
-        for h in self.handlers.get("event", []):
+                return
+
+    def _trigger(self, event_name, *args):
+        for handler in self.handlers.get(event_name, []):
+            self._invoke_handler_with_fallback(handler, *args)
+
+    def _extract_processed_channels(self, channels: list) -> dict:
+        processed = {}
+        for name in channels:
+            data = self._bridge.get_raw_data(name)
+            if data is not None:
+                processed[name] = data
+        return processed
+
+    def _emit_legacy_message(self, raw_msg: dict, processed: dict):
+        import sys
+        msg_type = raw_msg.get("type", MessageType.DATA.value)
+        payload = raw_msg.get("payload", {})
+        channels = raw_msg.get("channels", list(payload.keys()) if isinstance(payload, dict) else [])
+
+        handlers_list = self.handlers.get("message", [])
+        print(f"[EMIT LEGACY] frame={raw_msg.get('frame','?')} type={msg_type} ch={channels} n_handlers={len(handlers_list)}", file=sys.stderr, flush=True)
+
+        legacy_msg = DataMessage(
+            version=raw_msg.get("version", 2),
+            msg_type=msg_type,
+            timestamp=raw_msg.get("timestamp", raw_msg.get("game_time", 0)),
+            frame=raw_msg.get("frame", self.state.frame),
+            room_index=raw_msg.get("room_index", self.state.room_index),
+            payload=payload if isinstance(payload, dict) else {},
+            channels=channels if isinstance(channels, list) else [],
+        )
+
+        for handler in self.handlers.get("message", []):
+            # Preferred legacy style: (raw_msg, processed)
+            # Single-arg consumers receive DataMessage for typed access.
             try:
-                h(data)
+                sig = inspect.signature(handler)
+                positional = [
+                    p for p in sig.parameters.values()
+                    if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+                ]
+                has_varargs = any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values())
+                arity = len(positional)
             except Exception:
-                pass
+                # Fallback best effort if introspection fails.
+                self._invoke_handler_with_fallback(
+                    handler,
+                    raw_msg,
+                    processed,
+                    legacy_msg,
+                )
+                continue
+
+            try:
+                if has_varargs or arity >= 3:
+                    handler(raw_msg, processed, legacy_msg)
+                elif arity == 2:
+                    handler(raw_msg, processed)
+                elif arity == 1:
+                    handler(legacy_msg)
+                else:
+                    handler()
+            except Exception:
+                # Keep compatibility behavior: handler exceptions should not break bridge loop.
+                continue
+
+        if msg_type == MessageType.FULL.value:
+            self._trigger("full_state", legacy_msg)
+
+    def _emit_game_event(self, event_name: str, event_data: dict, frame: int = 0):
+        if not event_name:
+            return
+
+        data = event_data if isinstance(event_data, dict) else {"value": event_data}
+        evt = Event(type=event_name, data=data, frame=frame or self.state.frame)
+
+        self.stats["events_received"] += 1
+        try:
+            self.event_queue.put_nowait(evt)
+        except Exception:
+            pass
+
+        self._trigger(f"event:{event_name}", data)
+
+        # Backward-compat alias used by some legacy apps.
+        if event_name == "ROOM_ENTER":
+            self._trigger("event:ROOM_CHANGED", data)
+
+        # Generic game event channel receives Event object only.
+        self._trigger("event", evt)
+
+    def _handle_data_message(self, raw_msg: dict):
+        payload = raw_msg.get("payload", {})
+        if not isinstance(payload, dict):
+            payload = {}
+
+        channels = raw_msg.get("channels", list(payload.keys()))
+        if not isinstance(channels, list):
+            channels = list(payload.keys())
+
+        frame = raw_msg.get("frame", self.state.frame)
+        room_index = raw_msg.get("room_index", self.state.room_index)
+
+        self.state.frame = frame
+        self.state.room_index = room_index
+        self.stats["messages_received"] += 1
+
+        # Keep legacy state as raw payload (dict/list primitives), not Pydantic models.
+        for name in channels:
+            if name in payload:
+                self.state.data[name] = payload[name]
+                self._trigger(f"data:{name}", payload[name])
+
+        self._trigger("data", self.state.data)
+
+        processed = self._extract_processed_channels(channels)
+        self._emit_legacy_message(raw_msg, processed)
 
     # ── Old API ──────────────────────────────────────────────────────
 
@@ -282,26 +385,46 @@ class DataMessage:
             "channels": self.channels,
         }
 
+    def _top_level(self):
+        return {
+            "version": self.version,
+            "type": self.msg_type,
+            "msg_type": self.msg_type,
+            "timestamp": self.timestamp,
+            "frame": self.frame,
+            "room_index": self.room_index,
+            "payload": self.payload,
+            "channels": self.channels,
+        }
+
     def __getitem__(self, key):
-        return self.payload[key] if self.payload else None
+        top = self._top_level()
+        if key in top:
+            return top[key]
+        if self.payload and key in self.payload:
+            return self.payload[key]
+        raise KeyError(key)
 
     def __contains__(self, key):
-        return self.payload is not None and key in self.payload
+        return key in self._top_level() or (self.payload is not None and key in self.payload)
 
     def get(self, key, default=None):
+        top = self._top_level()
+        if key in top:
+            return top[key]
         return self.payload.get(key, default) if self.payload else default
 
     def keys(self):
-        return self.payload.keys() if self.payload else []
+        return self._top_level().keys()
 
     def values(self):
-        return self.payload.values() if self.payload else []
+        return self._top_level().values()
 
     def items(self):
-        return self.payload.items() if self.payload else []
+        return self._top_level().items()
 
     def __len__(self):
-        return len(self.payload) if self.payload else 0
+        return len(self._top_level())
 
 
 @dataclass
