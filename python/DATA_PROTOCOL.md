@@ -1,56 +1,97 @@
-# SocketBridge 数据通信协议文档
-
-本文档详细描述了 SocketBridge mod 与 Python 端之间通信的所有数据格式及使用方法。
+# SocketBridge v3.0 数据通信协议
 
 ## 目录
 
 1. [消息类型概述](#消息类型概述)
-2. [数据通道详解](#数据通道详解)
-3. [事件类型详解](#事件类型详解)
-4. [命令控制](#命令控制)
-5. [Python 端使用示例](#python-端使用示例)
-6. [完整 JSON 示例](#完整-json-示例)
+2. [订阅协商](#订阅协商)
+3. [数据消息结构 (v3.0)](#数据消息结构-v30)
+4. [Sensor 数据格式](#sensor-数据格式)
+5. [事件类型](#事件类型)
+6. [命令控制](#命令控制)
+7. [运行时重配置](#运行时重配置)
 
 ---
 
 ## 消息类型概述
 
-SocketBridge 使用四种基本消息类型进行通信：
+| 类型 | 值 | 方向 | 说明 |
+|------|-----|------|------|
+| DATA | `"DATA"` | Lua → Python | 常规数据更新 |
+| FULL | `"FULL"` | Lua → Python | 完整状态快照 |
+| EVENT | `"EVENT"` | Lua → Python | 游戏事件通知 |
+| CMD | `"CMD"` | Lua → Python | 命令执行结果 |
+| SUBSCRIBE | `"SUBSCRIBE"` | Python → Lua | Sensor 订阅请求 |
+| SUBSCRIBE_ACK | `"SUBSCRIBE_ACK"` | Lua → Python | 订阅确认 |
 
-| 消息类型 | 类型值 | 说明 |
-|---------|-------|------|
-| DATA | `"DATA"` | 常规数据更新（增量/全量） |
-| FULL_STATE | `"FULL"` | 完整状态快照 |
-| EVENT | `"EVENT"` | 游戏事件通知 |
-| COMMAND | `"CMD"` | 命令执行结果 |
+---
 
-### v2.1 消息结构（时序扩展）
+## 订阅协商
 
-**v2.1** 在 v2.0 基础上新增时序字段，解决数据时序问题：
+Python 端连接后可发送订阅请求，Lua 端仅发送已订阅的 Sensor 数据。
+
+### Python → Lua: SUBSCRIBE
 
 ```json
 {
-    "version": "2.1",
+    "type": "SUBSCRIBE",
+    "sensors": ["ENEMIES", "PLAYER_POSITION", "PROJECTILES", "ROOM_INFO"],
+    "config_overrides": {
+        "ENEMIES": {
+            "throttle": {"combat_interval": 1, "idle_interval": 30}
+        }
+    }
+}
+```
+
+### Lua → Python: SUBSCRIBE_ACK
+
+```json
+{
+    "version": "3.0",
+    "type": "SUBSCRIBE_ACK",
+    "accepted": ["ENEMIES", "PLAYER_POSITION", "PROJECTILES", "ROOM_INFO"],
+    "rejected": [],
+    "sensor_configs": {
+        "ENEMIES": {"enabled": true, "throttle": {"combat_interval": 1, ...}},
+        "PLAYER_POSITION": {...}
+    }
+}
+```
+
+> 注意：如果从未发送 SUBSCRIBE，所有 Sensor 默认启用（空订阅表 = 全部采集）。
+
+---
+
+## 数据消息结构 (v3.0)
+
+```json
+{
+    "version": "3.0",
     "type": "DATA",
     "timestamp": 123456789000,
     "frame": 123,
     "room_index": 5,
 
-    "seq": 456,                    // 消息序列号
-    "game_time": 123456789000,     // 游戏内时间戳
-    "prev_frame": 122,             // 上一条消息帧号
-    "channel_meta": {              // 各通道采集元数据
+    "seq": 456,
+    "game_time": 123456789000,
+    "prev_frame": 122,
+
+    "sensors": {
         "PLAYER_POSITION": {
-            "collect_frame": 123,  // 数据采集帧号
+            "collect_frame": 123,
             "collect_time": 123456789000,
-            "interval": "HIGH",    // 采集频率
-            "stale_frames": 0      // 数据过期帧数
+            "interval": "fixed",
+            "stale_frames": 0,
+            "entity_count": 1,
+            "hash": "a1b2c3d4"
         },
-        "PLAYER_STATS": {
-            "collect_frame": 120,
-            "collect_time": 123456780000,
-            "interval": "LOW",
-            "stale_frames": 3
+        "ENEMIES": {
+            "collect_frame": 123,
+            "collect_time": 123456789000,
+            "interval": "dynamic",
+            "stale_frames": 0,
+            "entity_count": 3,
+            "hash": "e5f6g7h8"
         }
     },
 
@@ -62,277 +103,52 @@ SocketBridge 使用四种基本消息类型进行通信：
 }
 ```
 
-### v2.0 消息结构（兼容）
+### 字段说明
 
-```json
-{
-    "version": 2,
-    "type": "DATA",
-    "frame": 123,
-    "room_index": 5,
-    "payload": {
-        "PLAYER_POSITION": {...},
-        "ENEMIES": [...]
-    },
-    "channels": ["PLAYER_POSITION", "ENEMIES"]
-}
-```
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `version` | string | 协议版本 `"3.0"` |
+| `type` | string | `"DATA"` / `"FULL"` |
+| `seq` | int | 消息序列号（递增） |
+| `frame` | int | 发送时的游戏帧号 |
+| `game_time` | int | 游戏内毫秒时间戳 |
+| `prev_frame` | int | 上一条消息的帧号 |
+| `room_index` | int | 当前房间索引 |
+| `sensors` | object | 各 Sensor 采集元数据 |
+| `sensors.*.collect_frame` | int | 该 Sensor 数据实际采集的帧号 |
+| `sensors.*.entity_count` | int | 采集到的实体数量 |
+| `sensors.*.hash` | string | 数据哈希（变化检测） |
+| `sensors.*.stale_frames` | int | 数据过期帧数（当前帧 - 采集帧） |
+| `payload` | object | 各 Sensor 的数据负载 |
+| `channels` | array | 本条消息包含的 Sensor 名称 |
 
-### v2.1 时序字段说明
+### v2.x 兼容
 
-| 字段 | 类型 | 版本 | 说明 |
-|-----|------|------|------|
-| `seq` | int | v2.1 | 消息序列号，递增 |
-| `game_time` | int | v2.1 | 游戏内时间戳（毫秒） |
-| `prev_frame` | int | v2.1 | 上一条消息的帧号 |
-| `channel_meta` | object | v2.1 | 各通道采集元数据 |
-| `channel_meta.*.collect_frame` | int | v2.1 | 该通道数据采集时的帧号 |
-| `channel_meta.*.collect_time` | int | v2.1 | 该通道数据采集时的时间戳 |
-| `channel_meta.*.interval` | string | v2.1 | 采集频率（HIGH/MEDIUM/LOW/RARE/ON_CHANGE） |
-| `channel_meta.*.stale_frames` | int | v2.1 | 数据过期帧数（当前帧 - 采集帧） |
+v3.0 仍可解析 v2.1 消息（`channel_meta` → `sensors` 自动转换）。`version` 字段从 v2.1 的 `"2.1"` (字符串) 或 v2.0 的 `2` (数字) 均兼容。
 
 ---
 
-## 数据通道详解
+## Sensor 数据格式
 
-### 1. PLAYER_POSITION - 玩家位置（高频）
+### PLAYER_POSITION
 
-**采集频率**: HIGH（每帧）
-
-**JSON 结构**:
 ```json
-{
-    "1": {
+[
+    {
         "pos": {"x": 320, "y": 240},
         "vel": {"x": 5.0, "y": -2.0},
         "move_dir": 3,
         "fire_dir": 2,
         "head_dir": 0,
         "aim_dir": {"x": 1.0, "y": 0.0}
-    },
-    "2": {
-        "pos": {"x": 350, "y": 280},
-        "vel": {"x": 0.0, "y": 0.0},
-        "move_dir": 0,
-        "fire_dir": 4,
-        "head_dir": 1,
-        "aim_dir": {"x": 0.0, "y": -1.0}
     }
-}
+]
 ```
 
-**字段说明**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `pos` | object | 玩家位置坐标 |
-| `vel` | object | 玩家速度向量 |
-| `move_dir` | int | 移动方向 (0-7 或 GetMovementDirection 返回值) |
-| `fire_dir` | int | 射击方向 |
-| `head_dir` | int | 头部朝向 |
-| `aim_dir` | object | 瞄准方向向量 |
+支持列表格式（`[{...}]`）或字典格式（`{"1": {...}}`）。
 
-**使用示例** (Python):
-```python
-# 获取玩家1位置
-pos = bridge.get_channel("PLAYER_POSITION")
-if pos and 1 in pos:
-    x = pos[1]["pos"]["x"]
-    y = pos[1]["pos"]["y"]
-    print(f"玩家1位置: ({x}, {y})")
+### ENEMIES
 
-# 获取玩家瞄准方向
-if pos and 1 in pos:
-    aim_x = pos[1]["aim_dir"]["x"]
-    aim_y = pos[1]["aim_dir"]["y"]
-```
-
----
-
-### 2. PLAYER_STATS - 玩家属性（低频）
-
-**采集频率**: LOW
-
-**JSON 结构**:
-```json
-{
-    "1": {
-        "player_type": 0,
-        "damage": 3.5,
-        "speed": 1.0,
-        "tears": 10,
-        "range": 300,
-        "tear_range": 300,
-        "shot_speed": 1.0,
-        "luck": 0,
-        "tear_height": 5.0,
-        "tear_falling_speed": 0.0,
-        "can_fly": false,
-        "size": 10.0,
-        "sprite_scale": 1.0
-    }
-}
-```
-
-**字段说明**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `player_type` | int | 玩家角色类型 |
-| `damage` | float | 伤害值 |
-| `speed` | float | 移动速度 |
-| `tears` | float | 射速（MaxFireDelay） |
-| `range` | int | 射程 |
-| `shot_speed` | float | 弹速 |
-| `luck` | int | 幸运值 |
-| `can_fly` | bool | 是否能飞行 |
-| `size` | float | 碰撞体积 |
-| `sprite_scale` | float | 精灵缩放 |
-
-**使用示例**:
-```python
-stats = bridge.get_channel("PLAYER_STATS")
-if stats and 1 in stats:
-    damage = stats[1]["damage"]
-    speed = stats[1]["speed"]
-    can_fly = stats[1]["can_fly"]
-```
-
----
-
-### 3. PLAYER_HEALTH - 玩家生命值（中频）
-
-**采集频率**: LOW
-
-**JSON 结构**:
-```json
-{
-    "1": {
-        "red_hearts": 3,
-        "max_hearts": 6,
-        "soul_hearts": 2,
-        "black_hearts": 0,
-        "bone_hearts": 0,
-        "golden_hearts": 0,
-        "eternal_hearts": 0,
-        "rotten_hearts": 0,
-        "broken_hearts": 0,
-        "extra_lives": 0
-    }
-}
-```
-
-**字段说明**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `red_hearts` | int | 红心数量 |
-| `max_hearts` | int | 最大红心容量 |
-| `soul_hearts` | int | 灵魂心数量 |
-| `black_hearts` | int | 黑心数量 |
-| `bone_hearts` | int | 骨心数量 |
-| `golden_hearts` | int | 金心数量 |
-| `eternal_hearts` | int | 永恒之心数量 |
-| `rotten_hearts` | int | 腐烂之心数量 |
-| `broken_hearts` | int | 破碎之心数量 |
-| `extra_lives` | int | 额外生命 |
-
-**使用示例**:
-```python
-health = bridge.get_channel("PLAYER_HEALTH")
-if health and 1 in health:
-    hp = health[1]["red_hearts"] + health[1]["soul_hearts"]
-    max_hp = health[1]["max_hearts"]
-    black_hearts = health[1]["black_hearts"]
-    print(f"当前血量: {hp}, 最大: {max_hp}, 黑心: {black_hearts}")
-```
-
----
-
-### 4. PLAYER_INVENTORY - 玩家物品栏（低频）（由于API缺乏，此通道暂时不可用）
-
-**采集频率**: RARE
-
-**JSON 结构**:
-```json
-{
-    "1": {
-        "coins": 15,
-        "bombs": 3,
-        "keys": 2,
-        "trinket_0": 33,
-        "trinket_1": 0,
-        "card_0": 1,
-        "pill_0": 0,
-        "collectible_count": 5,
-        "collectibles": {
-            "1": 1,
-            "33": 1,
-            "245": 1,
-            "246": 1,
-            "412": 1
-        },
-        "active_items": {
-            "0": {
-                "item": 33,
-                "charge": 6,
-                "max_charge": 12,
-                "battery_charge": 0
-            }
-        }
-    }
-}
-```
-
-**字段说明**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `coins` | int | 金币数量 |
-| `bombs` | int | 炸弹数量 |
-| `keys` | int | 钥匙数量 |
-| `trinket_0` | int | 饰品槽位0 |
-| `trinket_1` | int | 饰品槽位1 |
-| `card_0` | int | 卡牌槽位 |
-| `pill_0` | int | 药丸槽位 |
-| `collectible_count` | int | 收集品总数 |
-| `collectibles` | object | 收集品字典 {物品ID: 数量} |
-| `active_items` | object | 主动道具 {槽位: 信息} |
-
-**主动道具详情**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `item` | int | 主动道具ID |
-| `charge` | int | 当前充能 |
-| `max_charge` | int | 最大充能 |
-| `battery_charge` | int | 电池充能 |
-
-**使用示例**:
-```python
-inventory = bridge.get_channel("PLAYER_INVENTORY")
-if inventory and 1 in inventory:
-    inv = inventory[1]
-    coins = inv["coins"]
-    bombs = inv["bombs"]
-    keys = inv["keys"]
-    
-    # 检查是否有特定物品
-    collectibles = inv["collectibles"]
-    has_treasure_map = "33" in collectibles  # 33 是宝藏地图
-    num_treasure_map = collectibles.get("33", 0)
-    
-    # 检查主动道具
-    active = inv.get("active_items", {})
-    if "0" in active:
-        active_item = active["0"]["item"]
-        charge = active["0"]["charge"]
-        max_charge = active["0"]["max_charge"]
-        print(f"主动道具: {active_item}, 充能: {charge}/{max_charge}")
-```
-
----
-
-### 5. ENEMIES - 敌人（高频）
-
-**采集频率**: HIGH
-
-**JSON 结构**:
 ```json
 [
     {
@@ -359,56 +175,8 @@ if inventory and 1 in inventory:
 ]
 ```
 
-**字段说明**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `id` | int | 实体索引（用于标识） |
-| `type` | int | 实体类型 |
-| `variant` | int | 变种类型 |
-| `subtype` | int | 子类型 |
-| `pos` | object | 敌人位置 |
-| `vel` | object | 敌人速度 |
-| `hp` | float | 当前生命值 |
-| `max_hp` | float | 最大生命值 |
-| `is_boss` | bool | 是否为Boss |
-| `is_champion` | bool | 是否为冠军敌人 |
-| `state` | int | NPC状态 |
-| `state_frame` | int | 状态帧 |
-| `projectile_cooldown` | int | 投射物冷却 |
-| `projectile_delay` | int | 投射物延迟 |
-| `collision_radius` | int | 碰撞半径 |
-| `distance` | float | 到玩家距离 |
-| `target_pos` | object | 目标位置（玩家位置） |
+### PROJECTILES
 
-**使用示例**:
-```python
-enemies = bridge.get_channel("ENEMIES")
-for enemy in enemies:
-    enemy_id = enemy["id"]
-    x, y = enemy["pos"]["x"], enemy["pos"]["y"]
-    hp = enemy["hp"]
-    max_hp = enemy["max_hp"]
-    dist = enemy["distance"]
-    is_boss = enemy["is_boss"]
-    
-    # 找出最近的敌人
-    nearest = min(enemies, key=lambda e: e["distance"])
-    print(f"最近敌人: ID={nearest['id']}, 距离={nearest['distance']:.1f}")
-
-# 按距离排序
-enemies_by_dist = sorted(enemies, key=lambda e: e["distance"])
-
-# 只获取非Boss敌人
-normal_enemies = [e for e in enemies if not e["is_boss"]]
-```
-
----
-
-### 6. PROJECTILES - 投射物（高频）
-
-**采集频率**: HIGH
-
-**JSON 结构**:
 ```json
 {
     "enemy_projectiles": [
@@ -446,66 +214,8 @@ normal_enemies = [e for e in enemies if not e["is_boss"]]
 }
 ```
 
-**字段说明**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `enemy_projectiles` | array | 敌方投射物列表 |
-| `player_tears` | array | 玩家泪弹列表 |
-| `lasers` | array | 激光列表 |
+### ROOM_INFO
 
-**投射物字段**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `id` | int | 实体索引 |
-| `pos` | object | 位置 |
-| `vel` | object | 速度 |
-| `variant` | int | 变种 |
-| `collision_radius` | int | 碰撞半径 |
-| `height` | float | 高度（用于抛物线） |
-| `falling_speed` | float | 下落速度 |
-| `falling_accel` | float | 下落加速度 |
-
-**激光字段**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `id` | int | 实体索引 |
-| `pos` | object | 位置 |
-| `angle` | float | 角度（度） |
-| `max_distance` | float | 最大距离 |
-| `is_enemy` | bool | 是否为敌方激光 |
-
-**使用示例**:
-```python
-projectiles = bridge.get_channel("PROJECTILES")
-
-# 获取敌方投射物
-enemy_projs = projectiles.get("enemy_projectiles", [])
-for proj in enemy_projs:
-    x, y = proj["pos"]["x"], proj["pos"]["y"]
-    vx, vy = proj["vel"]["x"], proj["vel"]["y"]
-    # 预测位置：proj_pos + vel * (距离 / |vel|)
-    dist = proj["distance"]
-
-# 获取玩家泪弹
-player_tears = projectiles.get("player_tears", [])
-print(f"发射了 {len(player_tears)} 个泪弹")
-
-# 获取激光
-lasers = projectiles.get("lasers", [])
-for laser in lasers:
-    if laser["is_enemy"]:
-        # 躲避敌方激光
-        angle = laser["angle"]
-        print(f"危险激光方向: {angle}度")
-```
-
----
-
-### 7. ROOM_INFO - 房间信息（中频）
-
-**采集频率**: LOW
-
-**JSON 结构**:
 ```json
 {
     "room_type": 2,
@@ -526,80 +236,16 @@ for laser in lasers:
 }
 ```
 
-**字段说明**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `room_type` | int | 房间类型 |
-| `room_shape` | int | 房间形状 |
-| `room_idx` | int | 房间索引 |
-| `stage` | int | 关卡层级 |
-| `stage_type` | int | 关卡类型 |
-| `difficulty` | int | 难度 |
-| `is_clear` | bool | 房间是否已清除 |
-| `is_first_visit` | bool | 是否首次访问 |
-| `grid_width` | int | 网格宽度 |
-| `grid_height` | int | 网格高度 |
-| `top_left` | object | 左上角坐标 |
-| `bottom_right` | object | 右下角坐标 |
-| `has_boss` | bool | 是否有Boss |
-| `enemy_count` | int | 存活敌人数 |
-| `room_variant` | int | 房间变种 |
+### ROOM_LAYOUT
 
-**使用示例**:
-```python
-room_info = bridge.get_channel("ROOM_INFO")
-if room_info:
-    is_clear = room_info["is_clear"]
-    enemy_count = room_info["enemy_count"]
-    stage = room_info["stage"]
-    room_idx = room_info["room_idx"]
-    grid_width = room_info["grid_width"]
-    grid_height = room_info["grid_height"]
-    
-    if is_clear:
-        print("房间已清除，可以安全移动")
-    else:
-        print(f"房间还有 {enemy_count} 个敌人")
-    
-    # 计算房间中心
-    center_x = (room_info["top_left"]["x"] + room_info["bottom_right"]["x"]) / 2
-    center_y = (room_info["top_left"]["y"] + room_info["bottom_right"]["y"]) / 2
-```
-
----
-
-### 8. ROOM_LAYOUT - 房间布局/障碍物（变化时）
-
-**采集频率**: LOW (ON_CHANGE)
-
-**JSON 结构**:
 ```json
 {
     "grid": {
-        "0": {
-            "type": 2,
-            "variant": 0,
-            "state": 0,
-            "collision": 1,
-            "x": 64,
-            "y": 64
-        },
-        "1": {
-            "type": 3,
-            "variant": 0,
-            "state": 0,
-            "collision": 1,
-            "x": 128,
-            "y": 64
-        }
+        "0": {"type": 2, "variant": 0, "state": 0, "collision": 1, "x": 64, "y": 64},
+        "1": {"type": 15, "variant": 0, "state": 0, "collision": 1, "x": 128, "y": 64}
     },
     "doors": {
-        "0": {
-            "target_room": 3,
-            "target_room_type": 1,
-            "is_open": true,
-            "is_locked": false
-        }
+        "0": {"target_room": 3, "target_room_type": 1, "is_open": true, "is_locked": false, "x": 320, "y": 60}
     },
     "grid_size": 91,
     "width": 13,
@@ -607,692 +253,29 @@ if room_info:
 }
 ```
 
-**字段说明**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `grid` | object | 网格实体字典，key 为 grid_index，value 包含类型、变体、状态、碰撞和坐标 |
-| `doors` | object | 门字典，key 为门槽位 |
-| `grid_size` | int | 网格总数 |
-| `width` | int | 网格宽度 |
-| `height` | int | 网格高度 |
+### PICKUPS / BOMBS / FIRE_HAZARDS / INTERACTABLES
 
-**grid 字段说明**:
-| 字段 | 类型 | 说明 |
-|-----|------|------|
-| `type` | int | GridEntityType ID (0-27) |
-| `variant` | int | 变体ID (0-255) |
-| `state` | int | 状态值 ，障碍物是否被破坏的判断依据|
-| `collision` | int | 碰撞类型 (GridCollision)，障碍物能否通过的判断依据 |
-| `x` | float | 世界坐标 X |
-| `y` | float | 世界坐标 Y |
-
-**GridEntityType 枚举 (0-27)**:
-> **设计原则**: Lua 端只负责采集所有 GridEntityType 枚举的原始数据，Python 端负责分类逻辑。
-
-| type | 名称 | 说明 | Python TileType 映射 |
-|------|------|------|---------------------|
-| 0 | GRID_NULL | 空 | 忽略 |
-| 1 | GRID_DECORATION | 装饰物 | 忽略 |
-| 2 | GRID_ROCK | 岩石 | WALL |
-| 3 | GRID_ROCKB | 方块岩石 | WALL |
-| 4 | GRID_ROCKT | 染色岩 | WALL |
-| 5 | GRID_ROCK_BOMB | 炸弹岩 | WALL |
-| 6 | GRID_ROCK_ALT | 罐子/蘑菇/骷髅 | WALL |
-| 7 | GRID_PIT | 坑 | VOID |
-| 8 | GRID_SPIKES | 尖刺 | HAZARD |
-| 9 | GRID_SPIKES_ONOFF | 开关尖刺 | HAZARD |
-| 10 | GRID_SPIDERWEB | 蜘蛛网 | HAZARD |
-| 11 | GRID_LOCK | 锁块 | WALL |
-| 12 | GRID_TNT | TNT | WALL |
-| 13 | GRID_FIREPLACE | 火盆 | **不发送** (已弃用，改用 ENTITY_EFFECT) |
-| 14 | GRID_POOP | 大便 | WALL |
-| 15 | GRID_WALL | 墙 | WALL |
-| 16 | GRID_DOOR | 门 | **不发送** (由 doors 处理) |
-| 17 | GRID_TRAPDOOR | 陷阱门 | SPECIAL |
-| 18 | GRID_STAIRS | 楼梯 | SPECIAL |
-| 19 | GRID_GRAVITY | 重力区域 | SPECIAL |
-| 20 | GRID_PRESSURE_PLATE | 按钮 | SPECIAL |
-| 21 | GRID_STATUE | 雕像 | WALL |
-| 22 | GRID_ROCK_SS | 超染岩 | WALL |
-| 23 | GRID_TELEPORTER | 传送门 | SPECIAL |
-| 24 | GRID_PILLAR | 柱子 | WALL |
-| 25 | GRID_ROCK_SPIKED | 尖刺岩 | WALL |
-| 26 | GRID_ROCK_ALT2 | 染色骷髅 | WALL |
-| 27 | GRID_ROCK_GOLD | 聚宝岩 | WALL |
-
-**门数据 (ROOM_LAYOUT.doors)**:
-| 字段 | 说明 |
-|------|------|
-| target_room | 目标房间索引 |
-| target_room_type | 目标房间类型 |
-| is_open | 是否开启 |
-| is_locked | 是否锁定 |
-| x | 门世界坐标 X |
-| y | 门世界坐标 Y |
-
-**门槽位 (DoorSlot)**:
-| 值 | 说明 |
-|---|------|
-| 0 | LEFT (左) |
-| 1 | UP (上) |
-| 2 | RIGHT (右) |
-| 3 | DOWN (下) |
-| 4-7 | 特殊门 |
-
-**使用示例**:
-```python
-layout = bridge.get_channel("ROOM_LAYOUT")
-if layout:
-    # 获取所有障碍物（从 static_obstacles）
-    # Python 端 environment.py 已将 type 2,3,4,5,6,11,12,14,15,21,22,24,25,26,27 映射到 WALL
-    # 并存储在 game_map.static_obstacles 中
-
-    # 从 raw_layout.grid 获取按钮 (type=20)
-    buttons = []
-    for idx, tile in layout.get("grid", {}).items():
-        if tile["type"] == 20:  # GRID_PRESSURE_PLATE
-            buttons.append({
-                "grid_index": int(idx),
-                "x": tile["x"],
-                "y": tile["y"],
-                "variant": tile["variant"],
-                "state": tile["state"],
-            })
-
-    # 获取门信息
-    doors = layout["doors"]
-    for slot, door in doors.items():
-        if door["is_open"] and not door["is_locked"]:
-            print(f"门 {slot} 开启，通向房间 {door['target_room']}")
-
-    # 构建碰撞地图用于寻路 (使用 static_obstacles)
-    # game_map.static_obstacles 包含所有 WALL 类型的 (gx, gy) 坐标
-```
+与其他实体列表格式一致，详见 `protocol/schema.py` 中的 Pydantic 模型定义。
 
 ---
 
-### 9. BOMBS - 炸弹（中频）
+## 事件类型
 
-**采集频率**: LOW
-
-**JSON 结构**:
-```json
-[
-    {
-        "id": 30,
-        "type": 4,
-        "variant": 0,
-        "variant_name": "NORMAL",
-        "sub_type": 0,
-        "pos": {"x": 350, "y": 300},
-        "vel": {"x": 0.0, "y": 0.0},
-        "explosion_radius": 80,
-        "timer": 60,
-        "distance": 80.0
-    }
-]
-```
-
-**炸弹类型**:
-| Variant | 名称 | 说明 |
-|---------|------|------|
-| 0 | NORMAL | 普通炸弹 |
-| 1 | BIG | 大型炸弹 |
-| 2 | DECOY | 诱饵 |
-| 3 | TROLL | 即爆炸弹 |
-| 4 | MEGA_TROLL | 超级即爆炸弹 |
-| 5 | POISON | 毒性炸弹 |
-| 6 | BIG_POISON | 大型毒性炸弹 |
-| 7 | SAD | 伤心炸弹 |
-| 8 | HOT | 燃烧炸弹 |
-| 9 | BUTT | 大便炸弹 |
-| 10 | MR_MEGA | 大爆弹先生 |
-| 11 | BOBBY | 波比炸弹 |
-| 12 | GLITTER | 闪光炸弹 |
-| 13 | THROWABLE | 可投掷炸弹 |
-| 14 | SMALL | 小炸弹 |
-| 15 | BRIMSTONE | 硫磺火炸弹 |
-| 16 | BLOODY_SAD | 鲜血伤心炸弹 |
-| 17 | GIGA | 巨型炸弹 |
-| 18 | GOLDEN_TROLL | 金即爆炸弹 |
-| 19 | ROCKET | 火箭 |
-| 20 | GIGA_ROCKET | 巨型火箭 |
-
-**使用示例**:
-```python
-bombs = bridge.get_channel("BOMBS")
-for bomb in bombs:
-    x, y = bomb["pos"]["x"], bomb["pos"]["y"]
-    timer = bomb["timer"]
-    explosion_radius = bomb["explosion_radius"]
-    bomb_type = bomb["variant_name"]
-    
-    if timer < 30:  # 即将爆炸
-        print(f"警告: {bomb_type} 将在 {timer} 帧后爆炸!")
-    
-    # 计算危险区域
-    if bomb_type in ["TROLL", "MEGA_TROLL"]:
-        danger_radius = explosion_radius
-        # 立即躲避
-
-# 找出最近的定时炸弹
-nearest_bomb = min(bombs, key=lambda b: b["distance"])
-print(f"最近炸弹: {nearest_bomb['variant_name']}, 距离: {nearest_bomb['distance']:.1f}")
-```
-
----
-
-### 10. INTERACTABLES - 可互动实体（中频）
-
-**采集频率**: LOW
-
-**JSON 结构**:
-```json
-[
-    {
-        "id": 40,
-        "type": 6,
-        "variant": 1,
-        "variant_name": "SLOT_MACHINE",
-        "sub_type": 0,
-        "pos": {"x": 200, "y": 300},
-        "vel": {"x": 0.0, "y": 0.0},
-        "state": 0,
-        "state_frame": 0,
-        "target_pos": {"x": 320, "y": 240},
-        "distance": 120.5
-    }
-]
-```
-
-**实体类型**:
-| Variant | 名称 | 说明 |
-|---------|------|------|
-| 1 | SLOT_MACHINE | 赌博机 |
-| 2 | BLOOD_DONATION | 献血机 |
-| 3 | FORTUNE_TELLING | 预言机 |
-| 4 | BEGGAR | 乞丐 |
-| 5 | DEVIL_BEGGAR | 恶魔乞丐 |
-| 6 | SHELL_GAME | 赌博乞丐 |
-| 7 | KEY_MASTER | 钥匙大师 |
-| 8 | DONATION_MACHINE | 捐款机 |
-| 9 | BOMB_BUM | 炸弹乞丐 |
-| 10 | RESTOCK_MACHINE | 补货机 |
-| 11 | GREED_MACHINE | 贪婪机 |
-| 12 | MOMS_DRESSING_TABLE | 妈妈的梳妆台 |
-| 13 | BATTERY_BUM | 电池乞丐 |
-| 14 | ISAAC_SECRET | 以撒（隐藏） |
-| 15 | HELL_GAME | 赌命乞丐 |
-| 16 | CRANE_GAME | 娃娃机 |
-| 17 | CONFESSIONAL | 忏悔室 |
-| 18 | ROTTEN_BEGGAR | 腐烂乞丐 |
-| 19 | REVIVE_MACHINE | 复活机 |
-
-**使用示例**:
-```python
-interactables = bridge.get_channel("INTERACTABLES")
-for entity in interactables:
-    entity_type = entity["variant_name"]
-    x, y = entity["pos"]["x"], entity["pos"]["y"]
-    state = entity["state"]
-    dist = entity["distance"]
-
-# 找出附近的机器
-nearby_machines = [e for e in interactables if e["distance"] < 200]
-
-# 检查捐款机是否有钱
-donation_machine = [e for e in interactables 
-                   if e["variant_name"] == "DONATION_MACHINE"]
-if donation_machine:
-    state = donation_machine[0]["state"]
-    # 状态为1000表示已损坏
-
-# 找出所有乞丐
-beggars = [e for e in interactables if "BEGGAR" in e["variant_name"]]
-```
-
----
-
-### 11. PICKUPS - 可拾取物（中频）
-
-**采集频率**: LOW
-
-**JSON 结构**:
-```json
-[
-    {
-        "id": 50,
-        "variant": 20,
-        "sub_type": 1,
-        "pos": {"x": 350, "y": 300},
-        "price": 0,
-        "shop_item_id": -1,
-        "wait": 0
-    }
-]
-```
-
-**可拾取物类型 (Variant)**:
-| Variant | 名称 | 类型 |
-|---------|------|------|
-| 10 | HEART | 红心 |
-| 12 | COIN | 硬币 |
-| 15 | KEY | 钥匙 |
-| 17 | BOMB | 炸弹 |
-| 20 | COLLECTIBLE | 收集品 |
-| 21 | SHOP_ITEM | 商店物品 |
-| 22 | ENDING | 结局道具 |
-
-**使用示例**:
-```python
-pickups = bridge.get_channel("PICKUPS")
-for item in pickups:
-    item_id = item["id"]
-    variant = item["variant"]
-    sub_type = item["sub_type"]
-    x, y = item["pos"]["x"], item["pos"]["y"]
-    price = item["price"]
-    shop_id = item["shop_item_id"]
-
-# 找出免费物品
-free_items = [p for p in pickups if p["price"] == 0]
-
-# 找出商店物品
-shop_items = [p for p in pickups if p["shop_item_id"] >= 0]
-
-# 按距离排序拾取物
-sorted_pickups = sorted(pickups, key=lambda p: 
-    ((p["pos"]["x"] - player_x)**2 + (p["pos"]["y"] - player_y)**2)**0.5)
-```
-
----
-
-### 12. FIRE_HAZARDS - 火焰危险物（中频）
-
-**采集频率**: LOW
-
-**JSON 结构**:
-```json
-[
-    {
-        "id": 60,
-        "type": "FIREPLACE",
-        "fireplace_type": "NORMAL",
-        "variant": 0,
-        "sub_variant": 0,
-        "pos": {"x": 400, "y": 350},
-        "hp": 5.0,
-        "max_hp": 10.0,
-        "state": 0,
-        "is_extinguished": false,
-        "collision_radius": 25,
-        "distance": 100.0,
-        "is_shooting": false,
-        "sprite_scale": 1.0
-    }
-]
-```
-
-**火堆类型**:
-| Variant | 名称 | 说明 |
-|---------|------|------|
-| 0 | NORMAL | 普通火堆 |
-| 1 | RED | 红色火堆（发射泪弹） |
-| 2 | BLUE | 蓝色火堆 |
-| 3 | PURPLE | 紫色火堆（发射泪弹） |
-| 4 | WHITE | 白色火堆 |
-| 10 | MOVABLE | 可移动火堆 |
-| 11 | COAL | 火炭 |
-
-**使用示例**:
-```python
-fires = bridge.get_channel("FIRE_HAZARDS")
-for fire in fires:
-    fire_type = fire["fireplace_type"]
-    x, y = fire["pos"]["x"], fire["pos"]["y"]
-    hp = fire["hp"]
-    max_hp = fire["max_hp"]
-    is_extinguished = fire["is_extinguished"]
-    is_shooting = fire["is_shooting"]
-    dist = fire["distance"]
-
-# 找出危险火堆
-dangerous_fires = [f for f in fires 
-                  if not f["is_extinguished"] and f["distance"] < 200]
-
-# 找出发射泪弹的火堆
-shooting_fires = [f for f in fires if f["is_shooting"]]
-for fire in shooting_fires:
-    print(f"警告: {fire['fireplace_type']} 火堆正在发射泪弹!")
-    # 可以计算泪弹来袭方向
-```
-
----
-
-## 事件类型详解
-
-### 已定义事件
-
-| 事件名称 | 触发时机 | 数据结构 |
-|---------|---------|---------|
+| 事件名 | 触发时机 | 数据 |
+|--------|---------|------|
 | `ROOM_ENTER` | 进入新房间 | `{room_index, room_info, room_layout}` |
 | `ROOM_CLEAR` | 房间清除 | `{room_index}` |
 | `PLAYER_DAMAGE` | 玩家受伤 | `{amount, flags, source_type, hp_after}` |
-| `NPC_DEATH` | NPC死亡 | `{type, variant, subtype, pos, is_boss}` |
+| `NPC_DEATH` | NPC 死亡 | `{type, variant, subtype, pos, is_boss}` |
 | `PLAYER_DEATH` | 玩家死亡 | `{player_idx}` |
 | `GAME_START` | 游戏开始 | `{continued}` |
 | `GAME_END` | 游戏结束 | `{reason}` |
 | `ITEM_COLLECTED` | 获得道具 | `{item_id, first_time, slot, player_idx}` |
 
-### 事件 JSON 格式
-
+事件消息格式：
 ```json
 {
-    "type": "EVENT",
-    "event": "PLAYER_DAMAGE",
-    "frame": 123,
-    "data": {
-        "amount": 1,
-        "flags": 0,
-        "source_type": 18,
-        "hp_after": 3
-    }
-}
-```
-
-### 事件使用示例
-
-```python
-@bridge.on("event:PLAYER_DAMAGE")
-def on_player_damage(event):
-    amount = event.data["amount"]
-    hp_after = event.data["hp_after"]
-    source_type = event.data["source_type"]
-    print(f"受到 {amount} 点伤害，剩余血量: {hp_after}, 伤害来源类型: {source_type}")
-
-@bridge.on("event:ROOM_ENTER")
-def on_room_enter(event):
-    room_idx = event.data["room_index"]
-    print(f"进入房间 {room_idx}")
-
-@bridge.on("event:NPC_DEATH")
-def on_npc_death(event):
-    is_boss = event.data["is_boss"]
-    if is_boss:
-        print("Boss 被击败!")
-```
-
----
-
-## 命令控制
-
-### 可用命令
-
-| 命令 | 参数 | 说明 |
-|-----|------|------|
-| `SET_CHANNEL` | `{channel, enabled}` | 启用/禁用数据通道 |
-| `SET_INTERVAL` | `{channel, interval}` | 设置采集频率 |
-| `GET_FULL_STATE` | - | 请求完整状态 |
-| `GET_CONFIG` | - | 获取当前配置 |
-| `SET_MANUAL` | `{enabled}` | 设置手动模式 |
-| `SET_FORCE_AI` | `{enabled}` | 设置强制AI模式 |
-| `SET_CONTROL_MODE` | `{mode}` | 设置控制模式 |
-| `GET_CONTROL_MODE` | - | 获取当前控制模式 |
-| `EXEC_CONSOLE` | `{command}` | 执行控制台命令 |
-
-### 采集频率枚举
-
-| 值 | 说明 |
-|---|------|
-| `HIGH` | 每帧采集 |
-| `MEDIUM` | 每几帧采集 |
-| `LOW` | 低频率采集 |
-| `RARE` | 很少采集 |
-| `ON_CHANGE` | 仅变化时采集 |
-
-### 命令使用示例
-
-```python
-# 启用/禁用数据通道
-bridge.set_channel("ENEMIES", True)
-bridge.set_channel("PICKUPS", False)
-
-# 设置采集频率
-from isaac_bridge import CollectInterval
-bridge.set_interval("PLAYER_POSITION", CollectInterval.HIGH)
-bridge.set_interval("ROOM_LAYOUT", CollectInterval.ON_CHANGE)
-
-# 请求完整状态
-bridge.request_full_state()
-
-# 设置控制模式
-bridge.send_command("SET_CONTROL_MODE", {"mode": "AUTO"})
-bridge.set_manual_mode(False)
-
-# 执行控制台命令
-bridge.send_console_command("goto s.storage.1")
-```
-
----
-
-## Python 端使用示例
-
-### 基础连接
-
-```python
-from isaac_bridge import IsaacBridge, GameDataAccessor
-
-# 创建桥接器
-bridge = IsaacBridge(host="127.0.0.1", port=9527)
-
-# 创建数据访问器
-data = GameDataAccessor(bridge)
-
-# 启动服务器
-bridge.start()
-print("等待游戏连接...")
-```
-
-### 注册事件处理器
-
-```python
-@bridge.on("connected")
-def on_connected():
-    print("游戏已连接!")
-    bridge.set_channel("ENEMIES", True)
-    bridge.set_channel("PLAYER_POSITION", True)
-
-@bridge.on("disconnected")
-def on_disconnected():
-    print("游戏已断开")
-
-@bridge.on("data:PLAYER_POSITION")
-def on_position(data):
-    if 1 in data:
-        x, y = data[1]["pos"]["x"], data[1]["pos"]["y"]
-        # 处理位置数据...
-
-@bridge.on("event:PLAYER_DAMAGE")
-def on_damage(event):
-    print(f"玩家受到伤害: {event.data}")
-```
-
-### 发送输入指令
-
-```python
-# 移动 (方向: -1, 0, 1)
-bridge.send_input(move=(1, 0))      # 向右
-bridge.send_input(move=(0, -1))     # 向上
-bridge.send_input(move=(-1, 1))     # 向左下
-
-# 射击
-bridge.send_input(shoot=(1, 0))     # 向右射击
-
-# 组合指令
-bridge.send_input(move=(0, 1), shoot=(0, -1))  # 向下移动，向上射击
-
-# 使用道具/炸弹
-bridge.send_input(use_item=True)
-bridge.send_input(use_bomb=True)
-```
-
-### 便捷数据访问
-
-```python
-# 使用 GameDataAccessor
-player_pos = data.get_player_position()
-player_stats = data.get_player_stats()
-player_health = data.get_player_health()
-player_inv = data.get_player_inventory()
-
-room_info = data.get_room_info()
-room_layout = data.get_room_layout()
-is_clear = data.is_room_clear()
-
-enemies = data.get_enemies()
-projectiles = data.get_projectiles()
-enemy_projs = data.get_enemy_projectiles()
-pickups = data.get_pickups()
-fires = data.get_fire_hazards()
-bombs = data.get_bombs()
-interactables = data.get_interactables()
-```
-
----
-
-## 完整 JSON 示例
-
-### 完整状态消息
-
-```json
-{
-    "version": 2,
-    "type": "FULL",
-    "frame": 0,
-    "room_index": 5,
-    "payload": {
-        "PLAYER_POSITION": {
-            "1": {
-                "pos": {"x": 320, "y": 240},
-                "vel": {"x": 0, "y": 0},
-                "move_dir": 0,
-                "fire_dir": 4,
-                "head_dir": 0,
-                "aim_dir": {"x": 1, "y": 0}
-            }
-        },
-        "PLAYER_STATS": {
-            "1": {
-                "player_type": 0,
-                "damage": 3.5,
-                "speed": 1.0,
-                "tears": 10,
-                "range": 300,
-                "shot_speed": 1.0,
-                "luck": 0,
-                "can_fly": false,
-                "size": 10
-            }
-        },
-        "PLAYER_HEALTH": {
-            "1": {
-                "red_hearts": 3,
-                "max_hearts": 6,
-                "soul_hearts": 2,
-                "black_hearts": 0,
-                "bone_hearts": 0,
-                "extra_lives": 0
-            }
-        },
-        "PLAYER_INVENTORY": {
-            "1": {
-                "coins": 15,
-                "bombs": 3,
-                "keys": 2,
-                "trinket_0": 0,
-                "trinket_1": 0,
-                "collectible_count": 5,
-                "collectibles": {"1": 1, "33": 1, "245": 1},
-                "active_items": {"0": {"item": 33, "charge": 6, "max_charge": 12}}
-            }
-        },
-        "ENEMIES": [
-            {
-                "id": 10,
-                "type": 18,
-                "variant": 0,
-                "pos": {"x": 400, "y": 300},
-                "hp": 10,
-                "max_hp": 10,
-                "is_boss": false,
-                "distance": 120.5
-            }
-        ],
-        "PROJECTILES": {
-            "enemy_projectiles": [],
-            "player_tears": [],
-            "lasers": []
-        },
-        "ROOM_INFO": {
-            "room_type": 2,
-            "room_shape": 1,
-            "room_idx": 5,
-            "stage": 2,
-            "is_clear": false,
-            "grid_width": 13,
-            "grid_height": 7,
-            "enemy_count": 5
-        },
-        "ROOM_LAYOUT": {
-            "grid": {},
-            "doors": {},
-            "grid_size": 91
-        },
-        "PICKUPS": [],
-        "FIRE_HAZARDS": []
-    }
-}
-```
-
-### 常规数据消息
-
-```json
-{
-    "version": 2,
-    "type": "DATA",
-    "frame": 150,
-    "room_index": 5,
-    "payload": {
-        "PLAYER_POSITION": {
-            "1": {
-                "pos": {"x": 325, "y": 238},
-                "vel": {"x": 2, "y": -1}
-            }
-        },
-        "ENEMIES": [
-            {
-                "id": 10,
-                "pos": {"x": 400, "y": 300},
-                "hp": 8,
-                "distance": 100.2
-            },
-            {
-                "id": 11,
-                "pos": {"x": 450, "y": 320},
-                "hp": 10,
-                "distance": 150.8
-            }
-        ]
-    },
-    "channels": ["PLAYER_POSITION", "ENEMIES"]
-}
-```
-
-### 事件消息
-
-```json
-{
-    "version": 2,
+    "version": "3.0",
     "type": "EVENT",
     "event": "PLAYER_DAMAGE",
     "frame": 152,
@@ -1305,189 +288,70 @@ interactables = data.get_interactables()
 }
 ```
 
-### 命令消息
+---
+
+## 命令控制
+
+### 可用命令
+
+| 命令 | 参数 | 说明 |
+|------|------|------|
+| `CONFIGURE_SENSOR` | `{sensor, throttle?, enabled?}` | 运行时重配置 Sensor |
+| `LIST_SENSORS` | — | 列出所有 Sensor |
+| `GET_SENSOR_CONFIG` | `{sensor}` | 获取 Sensor 配置 |
+| `SUBSCRIBE_SENSORS` | `{sensors: [...]}` | 订阅 Sensor |
+| `UNSUBSCRIBE_SENSORS` | `{sensors: [...]}` | 取消订阅 |
+| `SET_CHANNEL` | `{channel, enabled}` | 启用/禁用 Sensor（兼容旧版） |
+| `GET_FULL_STATE` | — | 请求完整状态 |
+| `SET_CONTROL_MODE` | `{mode}` | 控制模式 (MANUAL/AUTO/FORCE_AI) |
+| `GET_CONTROL_MODE` | — | 获取当前模式 |
+| `EXEC_CONSOLE` | `{command}` | 执行控制台指令 |
+
+### 命令请求/响应格式
 
 ```json
 // 请求
-{
-    "command": "SET_CONTROL_MODE",
-    "params": {"mode": "AUTO"}
-}
+{"command": "EXEC_CONSOLE", "params": {"command": "giveitem c1"}}
 
 // 响应
 {
-    "version": 2,
+    "version": "3.0",
     "type": "CMD",
     "frame": 153,
-    "result": {"success": true, "mode": "AUTO"}
+    "result": {"success": true, "command": "giveitem c1", "result": ""}
 }
 ```
 
+### 运行时重配置示例
+
+```json
+// 将 ENEMIES Sensor 改为战斗每帧、空闲每30帧采集
+{"command": "CONFIGURE_SENSOR", "params": {
+    "sensor": "ENEMIES",
+    "throttle": {"combat_interval": 1, "idle_interval": 30}
+}}
+
+// 禁用 FIRE_HAZARDS Sensor
+{"command": "CONFIGURE_SENSOR", "params": {
+    "sensor": "FIRE_HAZARDS",
+    "enabled": false
+}}
+```
+
 ---
 
-## v2.1 时序协议使用指南
+## 时序问题检测
 
-### 为什么需要时序字段
-
-在高频数据采集中，不同通道以不同频率采集数据：
-- PLAYER_POSITION: 每帧采集
-- ENEMIES: 每帧采集
-- PLAYER_STATS: 每30帧采集
-- ROOM_INFO: 每30帧采集
-
-这导致数据到达 Python 端时存在时序不一致问题。v2.1 通过以下机制解决：
-
-1. **消息序列号 (`seq`)**: 检测消息丢失和乱序
-2. **帧号 (`frame`)**: 标识游戏帧，便于同步
-3. **通道元数据 (`channel_meta`)**: 记录每个通道的实际采集时刻
-4. **过期检测 (`stale_frames`)**: 识别过期数据
-
-### Python 端时序监控示例
-
-```python
-from core.protocol.timing import TimingMonitor, MessageTimingInfo
-
-monitor = TimingMonitor()
-
-def on_data_message(msg):
-    # 解析时序信息
-    timing = MessageTimingInfo.from_message(msg)
-
-    # 检测时序问题
-    issues = monitor.check_message(timing)
-
-    for issue in issues:
-        if issue.severity == "error":
-            print(f"🚨 [ERROR] {issue.issue_type.value}: {issue.details}")
-        elif issue.severity == "warning":
-            print(f"⚠️  [WARNING] {issue.issue_type.value}: {issue.details}")
-
-    # 获取统计
-    stats = monitor.get_stats()
-    print(f"问题率: {stats['issue_rate']:.2%}")
-```
-
-### 使用时机感知状态管理器
-
-```python
-from models.state import TimingAwareStateManager
-
-state_manager = TimingAwareStateManager()
-
-def process_data_message(msg):
-    timing = MessageTimingInfo.from_message(msg)
-
-    # 更新各通道状态
-    for channel_name, channel_timing in timing.channel_meta.items():
-        channel_data = msg.get("payload", {}).get(channel_name)
-        if channel_data:
-            state_manager.update_channel(
-                channel_name,
-                channel_data,
-                channel_timing,
-                timing.frame
-            )
-
-    # 检查通道是否新鲜
-    if state_manager.is_channel_fresh("PLAYER_STATS", max_stale_frames=10):
-        stats = state_manager.get_channel_data("PLAYER_STATS")
-        # 使用数据...
-    else:
-        print("PLAYER_STATS 数据已过期")
-
-    # 获取同步快照
-    snapshot = state_manager.get_synchronized_snapshot(
-        ["PLAYER_POSITION", "ENEMIES"],
-        max_frame_diff=1  # 帧差不超过1
-    )
-    if snapshot:
-        # 数据同步，可以使用...
-        pass
-```
-
-### 采集频率配置
-
-| 频率 | 帧间隔 | 适用场景 |
-|-----|-------|---------|
-| HIGH | 1 | 玩家位置、敌人、投射物 |
-| MEDIUM | 5 | 快速变化的战斗数据 |
-| LOW | 30 | 玩家属性、房间信息 |
-| RARE | 90 | 物品栏、被动道具 |
-| ON_CHANGE | 变化时 | 房间布局、门状态 |
-
-### 时序问题检测
+v3.0 的 `TimingMonitor` 在 Python 端检测以下问题：
 
 | 问题类型 | 检测条件 | 严重程度 |
 |---------|---------|---------|
-| `FRAME_GAP` | 帧号跳跃 > 5 | warning |
-| `FRAME_JUMP` | 帧号跳跃 > 30 | error |
+| `FRAME_GAP` | seq 跳跃 > 1 | warning |
+| `FRAME_JUMP` | 帧号跳跃 > 5 | warning / error |
 | `OUT_OF_ORDER` | 帧号回退或 seq 乱序 | error |
-| `STALE_DATA` | stale_frames > 阈值 | info |
-| `CHANNEL_DESYNC` | 高频通道帧差 > 1 | warning |
+| `STALE_DATA` | stale_frames > 间隔 × 2 | info |
+| `CHANNEL_DESYNC` | 高频 Sensor 帧差 > 1 | warning |
 
 ---
 
-## 附录
-
-### 常用物品 ID
-
-| ID | 名称 |
-|----|------|
-| 1 | The D6 |
-| 2 | D4 |
-| 3 | D5 |
-| 33 | Treasure Map |
-| 245 | Dead Cat |
-| 246 | Blank Card |
-| 412 | Isaac's Heart |
-
-### 实体类型 (EntityType)
-
-| 值 | 名称 |
-|---|------|
-| 1 | ENTITY_PLAYER |
-| 2 | ENTITY_FAMILIAR |
-| 3 | ENTITY_BOMB |
-| 4 | ENTITY_PICKUP |
-| 5 | ENTITY_PROJECTILE |
-| 6 | ENTITY_NPC |
-| 7 | ENTITY_EFFECT |
-| 8 | ENTITY_LASER |
-| 9 | ENTITY_KNIFE |
-| 10 | ENTITY_TEAR |
-| 12 | ENTITY_MONITOR |
-| 13 | ENTITY_MUSHROOM |
-| 15 | ENTITY_RAGMAN_2 |
-| 18 | ENTITY_ENEMY |
-| 20 | ENTITY_FIREPLACE |
-| 21 | ENTITY_CRAWLER |
-| 22 | ENTITY_PUSHABLE |
-
-### 房间类型 (RoomType)
-
-| 值 | 名称 |
-|---|------|
-| 0 | NULL |
-| 1 | DEFAULT |
-| 2 | ERROR |
-| 3 | SHOP |
-| 4 | LIBRARY |
-| 5 | SACRIFICE |
-| 6 | DEVIL |
-| 7 | ANGEL |
-| 8 | SECRET |
-| 9 | SUPERSECRET |
-| 10 | ARENA |
-| 11 | DOOR |
-
----
-
-
-
-### 未来计划添加
-
-跟班信息采集
-
-完成药品，卡牌，道具，饰品的信息采集。
-
-*文档生成时间: 2026*
+*文档更新: 2026年4月 — v3.0*

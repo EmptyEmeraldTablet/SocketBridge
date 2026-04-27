@@ -15,7 +15,8 @@ from pathlib import Path
 # 添加父目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.replay import DataReplayer, ReplayerConfig, list_sessions
+from persistence import SessionReplayer as DataReplayer, ReplayerConfig
+from persistence import list_sessions
 
 
 def main():

@@ -99,14 +99,9 @@ class RoomLayoutVisualizer:
     """房间布局可视化器"""
     
     def __init__(self):
-        from core.connection import BridgeAdapter, AdapterConfig
-        
-        config = AdapterConfig(
-            log_messages=False,
-            validation_enabled=True,
-            monitoring_enabled=False,
-        )
-        self.adapter = BridgeAdapter(config)
+        from isaac_bridge import IsaacBridge
+
+        self.adapter = IsaacBridge()
         
         # 当前房间数据
         self.current_room_info = None

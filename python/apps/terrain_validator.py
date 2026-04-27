@@ -45,14 +45,9 @@ class TerrainValidator:
     """
     
     def __init__(self):
-        from core.connection import BridgeAdapter, AdapterConfig
-        
-        config = AdapterConfig(
-            log_messages=False,
-            validation_enabled=True,
-            monitoring_enabled=True,
-        )
-        self.adapter = BridgeAdapter(config)
+        from isaac_bridge import IsaacBridge
+
+        self.adapter = IsaacBridge()
         
         # 存储最后的原始数据用于对比
         self.last_raw_room_info = None
@@ -162,8 +157,8 @@ class TerrainValidator:
         
         # 尝试使用新架构解析
         try:
-            from core.protocol.schema import RoomInfoData
-            parsed = RoomInfoData(**raw)
+            from protocol.schema import RoomInfo
+            parsed = RoomInfo(**raw)
             self.last_parsed_room_info = parsed
         except Exception as e:
             error = f"Frame {frame}: ROOM_INFO 解析失败 - {e}"

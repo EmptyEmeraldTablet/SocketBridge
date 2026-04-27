@@ -48,14 +48,14 @@ from typing import Optional, Dict, Any
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from isaac_bridge import IsaacBridge, DataMessage, Event
-from core.replay import (
-    DataRecorder,
+from persistence import (
+    SessionRecorder as DataRecorder,
     RecorderConfig,
-    RawMessage,
     SessionManager,
     list_sessions,
     get_latest_session,
 )
+from protocol.messages import RawMessage
 
 # 配置日志
 logging.basicConfig(
