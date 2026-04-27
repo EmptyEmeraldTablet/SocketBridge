@@ -1,12 +1,55 @@
 # SocketBridge 重构规划文档
 
-> 版本: 2.0
-> 日期: 2026-02-04
-> 状态: **Phase 0-4 完成** ✅ | **Replay 模块重构完成** ✅ | **录制工具完成** ✅ | **Phase 6 规划中** 📋
+> 版本: 3.0
+> 日期: 2026-04-27
+> 状态: **v3.0 架构重构完成** ✅ | **Phase 0-4 (v2.x) 完成** ✅ | **Phase 5 搁置** ⏸️
 
 ---
 
-## 后续重构计划：基于 EID 模组的技术参考
+## v3.0 重构总结 (2026-04-27)
+
+### 完成内容
+
+基于 EID (External Item Descriptions) 模组的成熟技术，对 SocketBridge 进行了全面架构重构：
+
+**Lua 端：**
+- `CollectorRegistry` → `SensorRegistry`：每个 Sensor 定义搜索策略（EntityPartition / FindInRadius / FindByType）、动态节流（战斗/空闲）、回调触发
+- 双帧计数器（MC_POST_UPDATE / MC_POST_RENDER）
+- 订阅协商（Python 告知 Lua 需要哪些 Sensor）
+- 运行时重配置（CONFIGURE_SENSOR 命令）
+- forcePending 机制确保强制采集的数据立即发送
+
+**Python 端：**
+- 消除双架构并存问题：删除 `core/`、`channels/`、`services/`、`models/` 旧目录
+- 统一数据模型：所有实体类型在 `protocol/schema.py` 中唯一定义（Pydantic）
+- 分层架构：`connection/` → `protocol/` → `sensors/` → `entities/` → `facade.py` → `persistence/`
+- asyncio TCP 服务器替代阻塞 socket + 多线程
+- `EntityStateManager[T]` 泛型实体追踪（统一替代 `GameStateData` + `GameEntityState`）
+- `isaac_bridge.py` 向后兼容包装
+
+### 新文件结构
+
+```
+python/
+├── connection/       # asyncio TCP server
+├── protocol/         # Pydantic schemas + message types
+├── sensors/          # 12 Sensor mirrors (auto-registered)
+├── entities/         # EntityStateManager[T] + GameEntityStore
+├── persistence/      # recorder, replayer, session manager
+├── validation/       # rules, quality monitor
+├── facade.py         # unified SocketBridge API
+└── isaac_bridge.py   # backward compat wrapper
+```
+
+### 旧代码归档
+
+- `python/archive/v2_legacy/` — core/, channels/, services/, models/, environment.py
+- `python/archive/v2_tests/` — 旧测试文件（7个）
+- `python/archive/` — 原有的归档内容保持不变
+
+---
+
+## v2.x 后续重构计划：基于 EID 模组的技术参考 (已纳入 v3.0)
 
 本章节基于 `docs/EID_TECHNICAL_REFERENCE.md` 中分析的 External Item Descriptions (EID) 模组实现，规划后续的数据采集功能优化与重构。
 

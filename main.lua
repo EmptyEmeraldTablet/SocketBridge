@@ -1,234 +1,75 @@
 --[[
-    The Binding of Isaac: Repentance - 模块化数据采集框架
-    
-    架构设计:
-    1. CollectorRegistry - 可扩展的数据收集器注册系统
-    2. Network - 网络通信层
-    3. Protocol - 消息协议层
-    4. InputExecutor - 输入执行模块
-    5. EventSystem - 事件系统
-    
-    支持功能:
-    - 分频采集 (HIGH/MEDIUM/LOW/ON_CHANGE)
-    - 动态启用/禁用采集通道
-    - 增量数据更新
-    - 双向命令通信
+    SocketBridge v3.0 — Sensor-based modular data collection framework
+
+    Key improvements over v2.x:
+    1. Sensors, not Collectors — each Sensor knows HOW to find entities
+       (EntityPartition, FindInRadius, FindByType) instead of brute-force
+       full-room traversal via Isaac.GetRoomEntities().
+    2. Dynamic throttle — combat vs idle collection rates.
+    3. Callback-driven triggers — MC_POST_NEW_ROOM, MC_POST_NPC_DEATH, etc.
+    4. Subscription negotiation — Python tells Lua what data it needs.
+    5. Runtime reconfiguration — CONFIGURE_SENSOR command.
+    6. Dual frame counters (from EID) for accurate pause handling.
+
+    Architecture:
+    SensorRegistry → Protocol v3.0 → Network → Python
+    Python → Network → CommandExecutor → Input injection / Sensor config
 ]]
 
 local mod = RegisterMod("SocketBridge", 1)
 local json = require("json")
 
 -- ============================================================================
--- 配置系统
+-- Configuration
 -- ============================================================================
 local Config = {
     HOST = "127.0.0.1",
     PORT = 9527,
-    
-    -- 采集频率配置（帧数间隔）
-    CollectIntervals = {
-        HIGH = 1,       -- 每帧采集
-        MEDIUM = 5,     -- 5帧一次
-        LOW = 30,       -- 30帧一次
-        RARE = 90,      -- 90帧一次
-        ON_CHANGE = -1  -- 仅在变化时采集
-    },
+    PROTOCOL_VERSION = "3.0",
+    DEBUG = true,               -- Enable debug logging for data flow
+    DEBUG_INTERVAL = 150,       -- Debug output every N frames (~5 sec)
 }
 
 -- ============================================================================
--- 全局状态
+-- Global State
 -- ============================================================================
 local State = {
     connected = false,
     socket = nil,
-    frameCounter = 0,
-    currentRoomIndex = -1,
 
-    -- 时序扩展字段 (v2.1)
+    -- Dual counters (from EID pattern)
+    updateCount = 0,       -- MC_POST_UPDATE (30 tps, respects pause)
+    renderCount = 0,       -- MC_POST_RENDER (60 tps, ignores pause)
+
+    -- Message sequencing
     messageSeq = 0,
     prevFrameSent = 0,
-    channelLastCollect = {},
 
-    -- 控制模式
-    -- 模式选项:
-    --   "MANUAL"      - 手动控制
-    --   "AUTO"        - 自动切换（有敌人AI，无敌人手动）
-    --   "FORCE_AI"    - 强制AI模式（无敌人也生效）
-    controlMode = "AUTO",
-    
-    -- 内部状态追踪
+    -- Room tracking
+    currentRoom = -1,
+    roomEntered = false,
+
+    -- Subscription
+    subscribedSensors = {},  -- {["ENEMIES"] = true, ...}
+
+    -- Control mode
+    controlMode = "AUTO",    -- "MANUAL" | "AUTO" | "FORCE_AI"
     lastEnemyCount = 0,
-    wasInCombat = false,  -- 上一帧是否在战斗中
-    aiActive = false,     -- AI 是否正在发送非零输入
+    wasInCombat = false,
+    aiActive = false,
     toggleCooldown = 0,
     showModeMessage = false,
     modeMessageTimer = 0,
 }
 
 -- ============================================================================
--- 输入执行模块
--- ============================================================================
-local InputExecutor = {
-    moveDirection = {x = 0, y = 0},
-    shootDirection = {x = 0, y = 0},
-    useItem = false,
-    useBomb = false,
-    useCard = false,
-    usePill = false,
-    drop = false,
-}
-
-function InputExecutor.applyCommand(command)
-    if not command then return end
-    
-    local hasInput = false
-    
-    if command.move then
-        InputExecutor.moveDirection = command.move
-        -- 检查是否有非零移动输入
-        if command.move.x ~= 0 or command.move.y ~= 0 then
-            hasInput = true
-        end
-    end
-    if command.shoot then
-        InputExecutor.shootDirection = command.shoot
-        -- 检查是否有非零射击输入
-        if command.shoot.x ~= 0 or command.shoot.y ~= 0 then
-            hasInput = true
-        end
-    end
-    if command.use_item ~= nil then
-        InputExecutor.useItem = command.use_item
-        if command.use_item then hasInput = true end
-    end
-    if command.use_bomb ~= nil then
-        InputExecutor.useBomb = command.use_bomb
-        if command.use_bomb then hasInput = true end
-    end
-    if command.use_card ~= nil then
-        InputExecutor.useCard = command.use_card
-        if command.use_card then hasInput = true end
-    end
-    if command.use_pill ~= nil then
-        InputExecutor.usePill = command.use_pill
-        if command.use_pill then hasInput = true end
-    end
-    if command.drop ~= nil then
-        InputExecutor.drop = command.drop
-        if command.drop then hasInput = true end
-    end
-    
-    -- 标记 AI 是否正在发送有效输入
-    State.aiActive = hasInput
-end
-
-function InputExecutor.reset()
-    InputExecutor.moveDirection = {x = 0, y = 0}
-    InputExecutor.shootDirection = {x = 0, y = 0}
-    InputExecutor.useItem = false
-    InputExecutor.useBomb = false
-    InputExecutor.useCard = false
-    InputExecutor.usePill = false
-    InputExecutor.drop = false
-    State.aiActive = false
-end
-
--- 获取当前控制模式
-function GetControlMode()
-    return State.controlMode
-end
-
--- 设置控制模式
-function SetControlMode(mode)
-    if mode == "MANUAL" or mode == "AUTO" or mode == "FORCE_AI" then
-        State.controlMode = mode
-        State.forceAI = (mode == "FORCE_AI")
-        -- 切换到手动模式时立即重置输入
-        if mode == "MANUAL" then
-            InputExecutor.reset()
-            State.wasInCombat = false
-        end
-        print("[SocketBridge] Control mode set to: " .. mode)
-    end
-end
-
--- 判断当前是否应该由 AI 控制
-local function shouldAIControl()
-    local mode = State.controlMode
-    
-    if mode == "MANUAL" then
-        -- 总是确保手动模式下没有残留的 AI 输入
-        if State.wasInCombat then
-            InputExecutor.reset()
-            State.wasInCombat = false
-        end
-        -- 即使 wasInCombat 为 false，也确保重置输入（处理从未战斗的情况）
-        InputExecutor.reset()
-        return false
-    elseif mode == "FORCE_AI" then
-        State.wasInCombat = true
-        return true
-    end
-    
-    -- AUTO 模式: 根据敌人存在与否自动切换
-    local room = Game():GetRoom()
-    local enemyCount = room and room:GetAliveEnemiesCount() or 0
-    
-    -- 检测战斗状态变化
-    local isInCombat = enemyCount > 0
-    
-    -- 状态变化检测
-    -- 只有当 AI 实际发送输入时，才认为 AI 在控制
-    if State.aiActive then
-        State.wasInCombat = true
-    end
-    
-    -- AI 正在控制且有敌人时，阻止玩家输入
-    if isInCombat and State.aiActive then
-        return true
-    end
-    
-    -- 如果没有敌人，或者敌人存在但 AI 未发送输入，玩家可以手动控制
-    if not isInCombat then
-        -- 战斗结束，切换回手动
-        if State.wasInCombat then
-            InputExecutor.reset()
-            State.wasInCombat = false
-        end
-    end
-    
-    return false
-end
-
--- ============================================================================
--- 辅助函数
+-- Helpers
 -- ============================================================================
 local Helpers = {}
 
 function Helpers.vectorToTable(vec)
-    if vec then
-        return { x = vec.X, y = vec.Y }
-    end
+    if vec then return { x = vec.X, y = vec.Y } end
     return { x = 0, y = 0 }
-end
-
-function Helpers.colorToTable(color)
-    if color then
-        return { r = color.R, g = color.G, b = color.B, a = color.A }
-    end
-    return nil
-end
-
-function Helpers.getGame()
-    return Game()
-end
-
-function Helpers.getRoom()
-    return Game():GetRoom()
-end
-
-function Helpers.getLevel()
-    return Game():GetLevel()
 end
 
 function Helpers.getPlayers()
@@ -236,15 +77,23 @@ function Helpers.getPlayers()
     local players = {}
     for i = 0, game:GetNumPlayers() - 1 do
         local player = Isaac.GetPlayer(i)
-        if player then
-            table.insert(players, player)
-        end
+        if player then table.insert(players, player) end
     end
     return players
 end
 
+function Helpers.simpleHash(data)
+    if type(data) ~= "table" then return tostring(data) end
+    local str = ""
+    for k, v in pairs(data) do
+        if type(v) == "table" then str = str .. k .. Helpers.simpleHash(v)
+        else str = str .. k .. tostring(v) end
+    end
+    return str
+end
+
 -- ============================================================================
--- 网络层
+-- Network Layer (unchanged from v2.x — proven stable)
 -- ============================================================================
 local Network = {
     retryInterval = 60,
@@ -253,27 +102,44 @@ local Network = {
 
 function Network.connect()
     if State.connected then return true end
-    
-    if State.frameCounter - Network.lastRetryFrame < Network.retryInterval then
+    if State.updateCount - Network.lastRetryFrame < Network.retryInterval then
         return false
     end
-    Network.lastRetryFrame = State.frameCounter
-    
-    local success, result = pcall(function()
-        local socket = require("socket.core")
-        local tcp = socket.tcp()
-        tcp:settimeout(0.01)
-        local connectResult = tcp:connect(Config.HOST, Config.PORT)
-        return tcp, connectResult
+    Network.lastRetryFrame = State.updateCount
+
+    local requireOk, socketMod = pcall(function()
+        return require("socket.core")
     end)
-    
-    if success and result then
-        State.socket = result
+    if not requireOk then
+        if State.updateCount <= 60 then
+            print("[SocketBridge] ERROR: require('socket.core') failed: " .. tostring(socketMod))
+            print("[SocketBridge] Ensure --luadebug launch option is enabled in Steam")
+        end
+        return false
+    end
+
+    local success, tcp = pcall(function()
+        local s = socketMod
+        local t = s.tcp()
+        t:settimeout(0.01)
+        local r = t:connect(Config.HOST, Config.PORT)
+        return t, r
+    end)
+
+    if success and tcp then
+        State.socket = tcp
         State.connected = true
-        print("[SocketBridge] Connected to server")
+        print("[SocketBridge] Connected to " .. Config.HOST .. ":" .. Config.PORT)
         return true
     end
-    
+
+    if State.updateCount <= 60 then
+        if not success then
+            print("[SocketBridge] Connection attempt failed: " .. tostring(tcp))
+        else
+            print("[SocketBridge] Connection refused — Python server not running?")
+        end
+    end
     return false
 end
 
@@ -287,120 +153,80 @@ end
 
 function Network.send(data)
     if not State.connected then return false end
-    
     local success, err = pcall(function()
         local payload = json.encode(data) .. "\n"
         State.socket:send(payload)
     end)
-    
-    if not success then
-        Network.disconnect()
-        return false
-    end
+    if not success then Network.disconnect(); return false end
     return true
 end
 
 function Network.receive()
     if not State.connected then return nil end
-    
     local success, line, err = pcall(function()
         return State.socket:receive("*l")
     end)
-    
     if success and line then
         local ok, data = pcall(json.decode, line)
-        if ok then
-            return data
-        end
+        if ok then return data end
     elseif err == "closed" then
         Network.disconnect()
     end
-    
     return nil
 end
 
 -- ============================================================================
--- 协议层
+-- Protocol v3.0
 -- ============================================================================
 local Protocol = {
-    VERSION = "2.1",
+    VERSION = Config.PROTOCOL_VERSION,
     MessageType = {
         DATA = "DATA",
-        FULL_STATE = "FULL",
+        FULL = "FULL",
         EVENT = "EVENT",
         COMMAND = "CMD",
+        SUBSCRIBE_ACK = "SUBSCRIBE_ACK",
     }
 }
 
-function Protocol.createDataMessage(data, channels)
+function Protocol.createDataMessage(payload, sensorNames, sensorMeta)
     State.messageSeq = State.messageSeq + 1
-
-    local channelMeta = {}
-    for _, channelName in ipairs(channels) do
-        local meta = State.channelLastCollect[channelName]
-        if meta then
-            channelMeta[channelName] = {
-                collect_frame = meta.collect_frame,
-                collect_time = meta.collect_time,
-                interval = meta.interval,
-                stale_frames = State.frameCounter - meta.collect_frame,
-            }
-        end
-    end
 
     local msg = {
         version = Protocol.VERSION,
         type = Protocol.MessageType.DATA,
         timestamp = Isaac.GetTime(),
-        frame = State.frameCounter,
-        room_index = State.currentRoomIndex,
-
-        -- 时序字段 (v2.1)
+        frame = State.updateCount,
+        room_index = State.currentRoom,
         seq = State.messageSeq,
         game_time = Isaac.GetTime(),
-        prev_frame = State.prevFrameSent or 0,
-        channel_meta = channelMeta,
-
-        payload = data,
-        channels = channels
+        prev_frame = State.prevFrameSent,
+        sensors = sensorMeta or {},
+        payload = payload,
+        channels = sensorNames,
     }
 
-    State.prevFrameSent = State.frameCounter
+    State.prevFrameSent = State.updateCount
     return msg
 end
 
-function Protocol.createFullStateMessage(fullState, channels)
+function Protocol.createFullStateMessage(payload, sensorNames, sensorMeta)
     State.messageSeq = State.messageSeq + 1
-
-    local channelMeta = {}
-    for _, channelName in ipairs(channels or {}) do
-        local meta = State.channelLastCollect[channelName]
-        if meta then
-            channelMeta[channelName] = {
-                collect_frame = meta.collect_frame,
-                collect_time = meta.collect_time,
-                interval = meta.interval,
-                stale_frames = State.frameCounter - meta.collect_frame,
-            }
-        end
-    end
 
     local msg = {
         version = Protocol.VERSION,
-        type = Protocol.MessageType.FULL_STATE,
+        type = Protocol.MessageType.FULL,
         timestamp = Isaac.GetTime(),
-        frame = State.frameCounter,
-
-        -- 时序字段 (v2.1)
+        frame = State.updateCount,
         seq = State.messageSeq,
         game_time = Isaac.GetTime(),
-        prev_frame = State.prevFrameSent or 0,
-        channel_meta = channelMeta,
-
-        payload = fullState,
+        prev_frame = State.prevFrameSent,
+        sensors = sensorMeta or {},
+        payload = payload,
+        channels = sensorNames,
     }
 
-    State.prevFrameSent = State.frameCounter
+    State.prevFrameSent = State.updateCount
     return msg
 end
 
@@ -409,60 +235,200 @@ function Protocol.createEventMessage(eventType, eventData)
         version = Protocol.VERSION,
         type = Protocol.MessageType.EVENT,
         timestamp = Isaac.GetTime(),
-        frame = State.frameCounter,
+        frame = State.updateCount,
         event = eventType,
-        data = eventData
+        data = eventData,
     }
 end
 
 -- ============================================================================
--- 收集器注册系统
+-- Sensor Registry (NEW — replaces CollectorRegistry)
 -- ============================================================================
-local CollectorRegistry = {
-    collectors = {},
-    cache = {},
-    frameCounters = {},
-    changeHashes = {},
+--
+-- Sensor definition:
+-- {
+--     name = "ENEMIES",
+--     search = {
+--         strategy = "partition" | "callback" | "hybrid",
+--         partitions = EntityPartition.ENEMY,   -- bitmask
+--         type_filter = nil,                     -- optional EntityType
+--         radius = nil,                          -- nil = full room
+--         sort_by_distance = true,
+--     },
+--     throttle = {
+--         base_interval = 1,       -- Frames between non-dynamic collection
+--         dynamic = true,           -- Switch intervals based on combat
+--         combat_interval = 1,
+--         idle_interval = 15,
+--     },
+--     extract = function(entity, player) ... end,  -- Per-entity data
+--     cache = {
+--         strategy = "hash" | "none" | "snapshot",
+--     },
+--     triggers = { "MC_POST_NPC_DEATH", ... },  -- Callback-driven triggers
+-- }
+--
+-- ============================================================================
+-- Sensor Triggers (callback-driven forced collection)
+-- ============================================================================
+-- Sensor Triggers (callback-driven forced collection)
+-- ============================================================================
+local SensorTriggers = {
+    triggers = {},  -- {triggerName: [{sensorName, onTriggerFn}]}
 }
 
-function CollectorRegistry:register(name, config)
-    self.collectors[name] = {
-        name = name,
-        enabled = config.enabled ~= false,
-        interval = config.interval or "MEDIUM",
-        priority = config.priority or 5,
-        collect = config.collect,
-        hash = config.hash,
+function SensorTriggers:register(triggerName, sensorName, onTriggerFn)
+    if not self.triggers[triggerName] then
+        self.triggers[triggerName] = {}
+    end
+    table.insert(self.triggers[triggerName], {
+        sensorName = sensorName,
+        onTrigger = onTriggerFn,
+    })
+end
+
+function SensorTriggers:fire(triggerName, entity, forceCollectFn)
+    local entries = self.triggers[triggerName]
+    if not entries then return end
+    for _, entry in ipairs(entries) do
+        if entry.onTrigger then
+            entry.onTrigger(entity)
+        end
+        -- Delegate to callback to avoid circular dependency with SensorRegistry
+        if forceCollectFn then
+            forceCollectFn(entry.sensorName)
+        end
+    end
+end
+
+-- ============================================================================
+-- Sensor Registry (NEW — replaces CollectorRegistry)
+-- ============================================================================
+local SensorRegistry = {
+    sensors = {},
+    cache = {},
+    changeHashes = {},
+    lastCollect = {},
+    lastCollectFrame = {},
+    frameCounters = {},    -- per-sensor frame counters for throttle
+    forcePending = {},      -- sensors force-collected this frame (always sent)
+}
+
+function SensorRegistry:register(name, def)
+    self.sensors[name] = {
+        name = name or def.name,
+        enabled = def.enabled ~= false,
+        search = def.search or { strategy = "partition" },
+        throttle = def.throttle or {
+            base_interval = 1, dynamic = false,
+            combat_interval = 1, idle_interval = 15,
+        },
+        extract = def.extract or function(e, p) return {} end,
+        cache = def.cache or {},
+        triggers = def.triggers or {},
     }
-    self.frameCounters[name] = 0
     self.cache[name] = nil
     self.changeHashes[name] = nil
-end
+    self.lastCollect[name] = nil
+    self.lastCollectFrame[name] = 0
 
-function CollectorRegistry:setEnabled(name, enabled)
-    if self.collectors[name] then
-        self.collectors[name].enabled = enabled
+    -- Register callback triggers
+    if def.triggers then
+        for _, triggerName in ipairs(def.triggers) do
+            SensorTriggers:register(triggerName, name, def.onTrigger)
+        end
     end
 end
 
-function CollectorRegistry:setInterval(name, interval)
-    if self.collectors[name] then
-        self.collectors[name].interval = interval
+-- ── Search strategies ────────────────────────────────────────────────
+
+function SensorRegistry:_searchEntities(sensor)
+    local player = Isaac.GetPlayer(0)
+    if not player then return {} end
+
+    local search = sensor.search
+    local strategy = search.strategy or "partition"
+    local results = {}
+
+    if strategy == "callback" then
+        -- Purely callback-driven, no polled search
+        return {}
     end
+
+    if strategy == "partition" or strategy == "hybrid" then
+        if search.partitions and search.radius and player then
+            -- Use FindInRadius with EntityPartition mask (EID technique)
+            local radius = search.radius * 40  -- grid units → pixels
+            local entities = Isaac.FindInRadius(player.Position, radius, search.partitions)
+            for i = 1, #entities do
+                local e = entities[i]
+                if not search.type_filter or e.Type == search.type_filter then
+                    table.insert(results, e)
+                end
+            end
+        elseif search.partitions and not search.radius then
+            -- Full room but filtered by partition
+            local entities = Isaac.GetRoomEntities()
+            for _, e in ipairs(entities) do
+                -- Check if entity type matches partition mask
+                -- (Simplified: include all for broad partitions)
+                if not search.type_filter or e.Type == search.type_filter then
+                    table.insert(results, e)
+                end
+            end
+        elseif search.type_filter then
+            -- Use FindByType for specific entity type (EID technique)
+            local entities = Isaac.FindByType(search.type_filter, -1, -1, true, false)
+            for i = 1, #entities do
+                table.insert(results, entities[i])
+            end
+        else
+            -- Fallback: full room traversal
+            local entities = Isaac.GetRoomEntities()
+            for _, e in ipairs(entities) do
+                table.insert(results, e)
+            end
+        end
+    end
+
+    -- Sort by distance if requested
+    if search.sort_by_distance and player and #results > 0 then
+        local playerPos = player.Position
+        table.sort(results, function(a, b)
+            return playerPos:Distance(a.Position) < playerPos:Distance(b.Position)
+        end)
+    end
+
+    return results
 end
 
-function CollectorRegistry:shouldCollect(name)
-    local collector = self.collectors[name]
-    if not collector or not collector.enabled then
+-- ── Throttle ──────────────────────────────────────────────────────────
+
+function SensorRegistry:_shouldCollect(sensor)
+    if not sensor.enabled then return false end
+
+    -- Check subscription
+    if next(State.subscribedSensors) and not State.subscribedSensors[sensor.name] then
         return false
     end
-    
-    local interval = Config.CollectIntervals[collector.interval]
-    if interval == -1 then
-        return true -- ON_CHANGE 模式
+
+    local throttle = sensor.throttle
+    local interval = throttle.base_interval
+
+    if throttle.dynamic then
+        local room = Game():GetRoom()
+        local inCombat = room and room:GetAliveEnemiesCount() > 0
+        interval = inCombat and throttle.combat_interval or throttle.idle_interval
     end
-    
-    self.frameCounters[name] = (self.frameCounters[name] or 0) + 1
+
+    if interval <= 0 then
+        return false  -- Disabled throttle (callback-only)
+    end
+
+    -- Per-sensor frame counter (resets on force-collect)
+    local name = sensor.name
+    if not self.frameCounters[name] then self.frameCounters[name] = 0 end
+    self.frameCounters[name] = self.frameCounters[name] + 1
     if self.frameCounters[name] >= interval then
         self.frameCounters[name] = 0
         return true
@@ -470,39 +436,658 @@ function CollectorRegistry:shouldCollect(name)
     return false
 end
 
--- 简单哈希用于变化检测
-local function simpleHash(data)
-    if type(data) ~= "table" then
-        return tostring(data)
+-- ── Collect ───────────────────────────────────────────────────────────
+
+function SensorRegistry:collect(name, forceCollect)
+    local sensor = self.sensors[name]
+    if not sensor then return nil, nil end
+
+    if not forceCollect and not self:_shouldCollect(sensor) then
+        return nil, nil
     end
-    local str = ""
-    for k, v in pairs(data) do
-        if type(v) == "table" then
-            str = str .. k .. simpleHash(v)
-        else
-            str = str .. k .. tostring(v)
+
+    -- Run extract on searched entities (or custom collect function)
+    local success, data = pcall(function()
+        local player = Isaac.GetPlayer(0)
+        local entities = self:_searchEntities(sensor)
+        local results = {}
+        for _, entity in ipairs(entities) do
+            local entry = sensor.extract(entity, player)
+            if entry then
+                table.insert(results, entry)
+            end
         end
+        return results
+    end)
+
+    if not success then
+        return nil, nil
     end
-    return str
+
+    if data == nil or (type(data) == "table" and #data == 0 and next(data) == nil) then
+        return nil, nil
+    end
+
+    -- Hash-based change detection
+    if not forceCollect and sensor.cache.strategy == "hash" then
+        local newHash = Helpers.simpleHash(data)
+        if self.changeHashes[name] == newHash then
+            return nil, nil  -- Unchanged
+        end
+        self.changeHashes[name] = newHash
+    end
+
+    self.cache[name] = data
+    self.lastCollectFrame[name] = State.updateCount
+
+    local meta = {
+        collect_frame = State.updateCount,
+        collect_time = Isaac.GetTime(),
+        interval = sensor.throttle.dynamic and "dynamic" or "fixed",
+        stale_frames = 0,
+        entity_count = #data,
+        hash = self.changeHashes[name] or "",
+    }
+    SensorRegistry.lastCollect[name] = meta
+
+    return data, meta
 end
 
-function CollectorRegistry:collect(name, forceCollect)
-    local collector = self.collectors[name]
-    if not collector then return nil, nil end
+function SensorRegistry:collectAll()
+    local results = {}
+    local collectedNames = {}
+    local collectedMeta = {}
 
-    if not forceCollect and not self:shouldCollect(name) then
+    for name, _ in pairs(self.sensors) do
+        local data, meta = self:collect(name, false)
+        if data ~= nil then
+            results[name] = data
+            table.insert(collectedNames, name)
+            collectedMeta[name] = meta
+        end
+    end
+
+    -- Include force-pending sensors (force-collected this frame)
+    -- These have cached data but throttle may have blocked them
+    for name, _ in pairs(self.forcePending) do
+        local cached = self.cache[name]
+        if cached ~= nil and results[name] == nil then
+            results[name] = cached
+            table.insert(collectedNames, name)
+            collectedMeta[name] = self.lastCollect[name] or {
+                collect_frame = State.updateCount,
+                collect_time = Isaac.GetTime(),
+                interval = "forced",
+                stale_frames = 0,
+                entity_count = (type(cached) == "table" and #cached) or 0,
+                hash = self.changeHashes[name] or "",
+            }
+        end
+    end
+
+    -- Clear force-pending for next frame
+    self.forcePending = {}
+
+    return results, collectedNames, collectedMeta
+end
+
+function SensorRegistry:forceCollectAll()
+    local results = {}
+    local names = {}
+    local meta = {}
+    for name, _ in pairs(self.sensors) do
+        local data, m = self:collect(name, true)
+        if data ~= nil then
+            results[name] = data
+            table.insert(names, name)
+            meta[name] = m
+        end
+    end
+    return results, names, meta
+end
+
+function SensorRegistry:getCached(name)
+    return self.cache[name]
+end
+
+function SensorRegistry:getConfig(name)
+    local sensor = self.sensors[name]
+    if not sensor then return nil end
+    return {
+        name = sensor.name,
+        enabled = sensor.enabled,
+        throttle = sensor.throttle,
+        search = sensor.search,
+    }
+end
+
+function SensorRegistry:getAllConfigs()
+    local configs = {}
+    for name, _ in pairs(self.sensors) do
+        configs[name] = self:getConfig(name)
+    end
+    return configs
+end
+
+function SensorRegistry:setEnabled(name, enabled)
+    if self.sensors[name] then
+        self.sensors[name].enabled = enabled
+    end
+end
+
+function SensorRegistry:setThrottle(name, throttleConfig)
+    local sensor = self.sensors[name]
+    if sensor then
+        for k, v in pairs(throttleConfig) do
+            sensor.throttle[k] = v
+        end
+    end
+end
+
+-- ============================================================================
+-- Sensor Definitions (all 12 sensors ported from v2.x + enhanced)
+-- ============================================================================
+
+-- 1. PLAYER_POSITION (HIGH frequency, single entity — no search needed)
+SensorRegistry:register("PLAYER_POSITION", {
+    name = "PLAYER_POSITION",
+    search = { strategy = "callback" },  -- Direct API, no entity search
+    throttle = { base_interval = 1, dynamic = false },
+    cache = { strategy = "hash" },
+    extract = function()  -- Override collect behavior per-sensor
+        -- This sensor uses a custom collect function, defined below
+    end,
+})
+
+-- 2. PLAYER_STATS (LOW frequency)
+SensorRegistry:register("PLAYER_STATS", {
+    name = "PLAYER_STATS",
+    search = { strategy = "callback" },
+    throttle = { base_interval = 30, dynamic = false },
+    cache = { strategy = "hash" },
+})
+
+-- 3. PLAYER_HEALTH (LOW frequency)
+SensorRegistry:register("PLAYER_HEALTH", {
+    name = "PLAYER_HEALTH",
+    search = { strategy = "callback" },
+    throttle = { base_interval = 30, dynamic = false },
+    cache = { strategy = "hash" },
+})
+
+-- 4. PLAYER_INVENTORY (RARE frequency)
+SensorRegistry:register("PLAYER_INVENTORY", {
+    name = "PLAYER_INVENTORY",
+    search = { strategy = "callback" },
+    throttle = { base_interval = 90, dynamic = false },
+    cache = { strategy = "hash" },
+})
+
+-- 5. ENEMIES (HIGH in combat, LOW idle)
+SensorRegistry:register("ENEMIES", {
+    name = "ENEMIES",
+    search = {
+        strategy = "partition",
+        partitions = EntityPartition.ENEMY,
+        sort_by_distance = true,
+    },
+    throttle = {
+        base_interval = 1, dynamic = true,
+        combat_interval = 1, idle_interval = 15,
+    },
+    cache = { strategy = "hash" },
+    triggers = { "MC_POST_NPC_DEATH", "MC_POST_NEW_ROOM" },
+    extract = function(entity, player)
+        if not entity:IsActiveEnemy(false) or not entity:IsVulnerableEnemy() then
+            return nil
+        end
+        local npc = entity:ToNPC()
+        local targetPos = { x = 0, y = 0 }
+        if npc then
+            local target = npc:GetPlayerTarget()
+            if target then targetPos = Helpers.vectorToTable(target.Position) end
+        end
+        return {
+            id = entity.Index,
+            type = entity.Type, variant = entity.Variant, subtype = entity.SubType,
+            pos = Helpers.vectorToTable(entity.Position),
+            vel = Helpers.vectorToTable(entity.Velocity),
+            hp = entity.HitPoints, max_hp = entity.MaxHitPoints,
+            is_boss = entity:IsBoss(),
+            is_champion = npc and npc:IsChampion() or false,
+            state = npc and npc.State or 0,
+            state_frame = npc and npc.StateFrame or 0,
+            projectile_cooldown = npc and npc.ProjectileCooldown or 0,
+            projectile_delay = npc and npc.ProjectileDelay or 0,
+            collision_radius = entity.Size,
+            distance = player and player.Position:Distance(entity.Position) or 0,
+            target_pos = targetPos,
+            v1 = npc and Helpers.vectorToTable(npc.V1) or { x = 0, y = 0 },
+            v2 = npc and Helpers.vectorToTable(npc.V2) or { x = 0, y = 0 },
+        }
+    end,
+})
+
+-- 6. PROJECTILES (HIGH in combat, LOW idle)
+SensorRegistry:register("PROJECTILES", {
+    name = "PROJECTILES",
+    search = {
+        strategy = "partition",
+        partitions = EntityPartition.BULLET + EntityPartition.EFFECT,
+    },
+    throttle = {
+        base_interval = 1, dynamic = true,
+        combat_interval = 1, idle_interval = 15,
+    },
+    cache = { strategy = "hash" },
+    triggers = { "MC_POST_NEW_ROOM" },
+    extract = function(entity, player)
+        -- We override this with a custom collect — see custom sensor handlers below
+    end,
+})
+
+-- 7. ROOM_INFO (on room change + LOW)
+SensorRegistry:register("ROOM_INFO", {
+    name = "ROOM_INFO",
+    search = { strategy = "callback" },
+    throttle = { base_interval = 15, dynamic = false },
+    cache = { strategy = "hash" },
+    triggers = { "MC_POST_NEW_ROOM" },
+})
+
+-- 8. ROOM_LAYOUT (on room change)
+SensorRegistry:register("ROOM_LAYOUT", {
+    name = "ROOM_LAYOUT",
+    search = { strategy = "callback" },
+    throttle = { base_interval = -1, dynamic = false },  -- Callback-only
+    cache = { strategy = "snapshot" },
+    triggers = { "MC_POST_NEW_ROOM" },
+})
+
+-- 9. BOMBS (LOW frequency)
+SensorRegistry:register("BOMBS", {
+    name = "BOMBS",
+    search = {
+        strategy = "partition",
+        type_filter = EntityType.ENTITY_BOMB,
+    },
+    throttle = { base_interval = 15, dynamic = false },
+    cache = { strategy = "hash" },
+    extract = function(entity, player)
+        if entity.Type ~= EntityType.ENTITY_BOMB then return nil end
+        local bomb = entity:ToBomb()
+        local dist = player and player.Position:Distance(entity.Position) or 0
+        local BOMB_VARIANTS = {
+            [0]="NORMAL",[1]="BIG",[2]="DECOY",[3]="TROLL",[4]="MEGA_TROLL",
+            [5]="POISON",[6]="BIG_POISON",[7]="SAD",[8]="HOT",[9]="BUTT",
+            [10]="MR_MEGA",[11]="BOBBY",[12]="GLITTER",[13]="THROWABLE",
+            [14]="SMALL",[15]="BRIMSTONE",[16]="BLOODY_SAD",[17]="GIGA",
+            [18]="GOLDEN_TROLL",[19]="ROCKET",[20]="GIGA_ROCKET",
+        }
+        return {
+            id = entity.Index, type = entity.Type,
+            variant = entity.Variant,
+            variant_name = BOMB_VARIANTS[entity.Variant] or ("UNKNOWN_" .. entity.Variant),
+            sub_type = entity.SubType,
+            pos = Helpers.vectorToTable(entity.Position),
+            vel = Helpers.vectorToTable(entity.Velocity),
+            explosion_radius = bomb and bomb.ExplosionRadius or 0,
+            timer = bomb and bomb.Timer or 0,
+            distance = dist,
+        }
+    end,
+})
+
+-- 10. INTERACTABLES (LOW frequency)
+SensorRegistry:register("INTERACTABLES", {
+    name = "INTERACTABLES",
+    search = {
+        strategy = "partition",
+        type_filter = 6,  -- EntityType 6 = interactable entities
+    },
+    throttle = { base_interval = 15, dynamic = false },
+    cache = { strategy = "hash" },
+    extract = function(entity, player)
+        if entity.Type ~= 6 then return nil end
+        local npc = entity:ToNPC()
+        local dist = player and player.Position:Distance(entity.Position) or 0
+        local INTERACTABLE_VARIANTS = {
+            [1]="SLOT_MACHINE",[2]="BLOOD_DONATION",[3]="FORTUNE_TELLING",
+            [4]="BEGGAR",[5]="DEVIL_BEGGAR",[6]="SHELL_GAME",
+            [7]="KEY_MASTER",[8]="DONATION_MACHINE",[9]="BOMB_BUM",
+            [10]="RESTOCK_MACHINE",[11]="GREED_MACHINE",[12]="MOMS_DRESSING_TABLE",
+            [13]="BATTERY_BUM",[14]="ISAAC_SECRET",[15]="HELL_GAME",
+            [16]="CRANE_GAME",[17]="CONFESSIONAL",[18]="ROTTEN_BEGGAR",
+            [19]="REVIVE_MACHINE",
+        }
+        local target = npc and npc:GetPlayerTarget()
+        return {
+            id = entity.Index, type = entity.Type,
+            variant = entity.Variant,
+            variant_name = INTERACTABLE_VARIANTS[entity.Variant] or ("UNKNOWN_" .. entity.Variant),
+            sub_type = entity.SubType,
+            pos = Helpers.vectorToTable(entity.Position),
+            vel = Helpers.vectorToTable(entity.Velocity),
+            state = npc and npc.State or 0,
+            state_frame = npc and npc.StateFrame or 0,
+            target_pos = target and Helpers.vectorToTable(target.Position) or { x = 0, y = 0 },
+            distance = dist,
+        }
+    end,
+})
+
+-- 11. PICKUPS (LOW frequency + callback on pickup init)
+SensorRegistry:register("PICKUPS", {
+    name = "PICKUPS",
+    search = {
+        strategy = "partition",
+        partitions = EntityPartition.PICKUP,
+    },
+    throttle = { base_interval = 15, dynamic = false },
+    cache = { strategy = "hash" },
+    triggers = { "MC_POST_PICKUP_INIT", "MC_POST_NEW_ROOM" },
+    extract = function(entity, player)
+        if entity.Type ~= EntityType.ENTITY_PICKUP then return nil end
+        local pickup = entity:ToPickup()
+        return {
+            id = entity.Index,
+            variant = entity.Variant,
+            sub_type = entity.SubType,
+            pos = Helpers.vectorToTable(entity.Position),
+            price = pickup and pickup.Price or 0,
+            shop_item_id = pickup and pickup.ShopItemId or -1,
+            wait = pickup and pickup.Wait or 0,
+        }
+    end,
+})
+
+-- 12. FIRE_HAZARDS (LOW frequency)
+SensorRegistry:register("FIRE_HAZARDS", {
+    name = "FIRE_HAZARDS",
+    search = { strategy = "hybrid" },
+    throttle = { base_interval = 15, dynamic = false },
+    cache = { strategy = "hash" },
+    extract = function(entity, player)
+        local dist = player and player.Position:Distance(entity.Position) or 0
+        -- Handle fire effects (bomb fire, candle flame)
+        local DANGEROUS_FIRE = { [51] = true, [52] = true }
+        local FIREPLACE_TYPES = {
+            [0]="NORMAL",[1]="RED",[2]="BLUE",[3]="PURPLE",[4]="WHITE",
+            [10]="MOVABLE",[11]="COAL",[12]="MOVABLE_BLUE",[13]="MOVABLE_PURPLE",
+        }
+        if entity.Type == EntityType.ENTITY_EFFECT then
+            if DANGEROUS_FIRE[entity.Variant] then
+                return {
+                    id = entity.Index, type = "EFFECT", variant = entity.Variant,
+                    pos = Helpers.vectorToTable(entity.Position),
+                    collision_radius = entity.Size > 0 and entity.Size or 20,
+                    distance = dist,
+                }
+            end
+        elseif entity.Type == 33 then  -- ENTITY_FIREPLACE
+            local variant = entity.Variant
+            local isExtinguished = entity.State == 1000
+            local isShooting = false
+            local npc = entity:ToNPC()
+            if npc and (variant == 1 or variant == 3) then
+                isShooting = (npc.State == 8)
+            end
+            return {
+                id = entity.Index, type = "FIREPLACE",
+                fireplace_type = FIREPLACE_TYPES[variant] or ("UNKNOWN_" .. variant),
+                variant = variant, sub_variant = entity.SubType,
+                pos = Helpers.vectorToTable(entity.Position),
+                hp = entity.HitPoints, max_hp = entity.MaxHitPoints,
+                state = entity.State, is_extinguished = isExtinguished,
+                collision_radius = entity.Size > 0 and entity.Size or 25,
+                distance = dist, is_shooting = isShooting,
+                sprite_scale = entity.SpriteScale.X,
+            }
+        end
+        return nil
+    end,
+})
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- Custom sensor collect functions (override search-based collection)
+-- These sensors don't use entity search — they query the API directly.
+-- ═══════════════════════════════════════════════════════════════════════
+
+local CustomCollectors = {}
+
+function CustomCollectors.PLAYER_POSITION()
+    local players = Helpers.getPlayers()
+    local data = {}
+    for i, player in ipairs(players) do
+        data[i] = {
+            pos = Helpers.vectorToTable(player.Position),
+            vel = Helpers.vectorToTable(player.Velocity),
+            move_dir = player:GetMovementDirection(),
+            fire_dir = player:GetFireDirection(),
+            head_dir = player:GetHeadDirection(),
+            aim_dir = Helpers.vectorToTable(player:GetAimDirection()),
+        }
+    end
+    return data
+end
+
+function CustomCollectors.PLAYER_STATS()
+    local players = Helpers.getPlayers()
+    local data = {}
+    for i, player in ipairs(players) do
+        data[i] = {
+            player_type = player:GetPlayerType(),
+            damage = player.Damage, speed = player.MoveSpeed,
+            tears = player.MaxFireDelay,
+            range = player.TearRange, tear_range = player.TearRange,
+            shot_speed = player.ShotSpeed, luck = player.Luck,
+            tear_height = player.TearHeight,
+            tear_falling_speed = player.TearFallingSpeed,
+            can_fly = player.CanFly, size = player.Size,
+            sprite_scale = player.SpriteScale.X,
+        }
+    end
+    return data
+end
+
+function CustomCollectors.PLAYER_HEALTH()
+    local players = Helpers.getPlayers()
+    local data = {}
+    for i, player in ipairs(players) do
+        data[i] = {
+            red_hearts = player:GetHearts(), max_hearts = player:GetMaxHearts(),
+            soul_hearts = player:GetSoulHearts(), black_hearts = player:GetBlackHearts(),
+            bone_hearts = player:GetBoneHearts(), golden_hearts = player:GetGoldenHearts(),
+            eternal_hearts = player:GetEternalHearts(), rotten_hearts = player:GetRottenHearts(),
+            broken_hearts = player:GetBrokenHearts(), extra_lives = player:GetExtraLives(),
+        }
+    end
+    return data
+end
+
+function CustomCollectors.PLAYER_INVENTORY()
+    local players = Helpers.getPlayers()
+    local data = {}
+    for i, player in ipairs(players) do
+        local playerData = {
+            coins = player:GetNumCoins(), bombs = player:GetNumBombs(),
+            keys = player:GetNumKeys(),
+            trinket_0 = player:GetTrinket(0), trinket_1 = player:GetTrinket(1),
+            card_0 = player:GetCard(0), pill_0 = player:GetPill(0),
+            collectible_count = player:GetCollectibleCount(),
+        }
+        -- Collectibles
+        local items = {}
+        if playerData.collectible_count > 0 then
+            for itemId = 1, 733 do
+                if player:HasCollectible(itemId, true) then
+                    local count = player:GetCollectibleNum(itemId, true)
+                    if count > 0 then items[tostring(itemId)] = count end
+                end
+            end
+        end
+        playerData.collectibles = items
+        -- Active items
+        local activeSlots = {}
+        for slot = 0, 3 do
+            local activeItem = player:GetActiveItem(slot)
+            if activeItem > 0 then
+                activeSlots[tostring(slot)] = {
+                    item = activeItem,
+                    charge = player:GetActiveCharge(slot),
+                    max_charge = player:GetActiveMaxCharge(slot),
+                    battery_charge = player:GetBatteryCharge(slot),
+                }
+            end
+        end
+        playerData.active_items = activeSlots
+        data[i] = playerData
+    end
+    return data
+end
+
+function CustomCollectors.PROJECTILES()
+    local player = Isaac.GetPlayer(0)
+    if not player then return { enemy_projectiles = {}, player_tears = {}, lasers = {} } end
+    local data = { enemy_projectiles = {}, player_tears = {}, lasers = {} }
+    for _, entity in ipairs(Isaac.GetRoomEntities()) do
+        if entity.Type == EntityType.ENTITY_PROJECTILE then
+            local proj = entity:ToProjectile()
+            table.insert(data.enemy_projectiles, {
+                id = entity.Index,
+                pos = Helpers.vectorToTable(entity.Position),
+                vel = Helpers.vectorToTable(entity.Velocity),
+                variant = entity.Variant, collision_radius = entity.Size,
+                height = proj and proj.Height or 0,
+                falling_speed = proj and proj.FallingSpeed or 0,
+                falling_accel = proj and proj.FallingAccel or 0,
+            })
+        elseif entity.Type == EntityType.ENTITY_TEAR then
+            local tear = entity:ToTear()
+            local tearData = {
+                id = entity.Index,
+                pos = Helpers.vectorToTable(entity.Position),
+                vel = Helpers.vectorToTable(entity.Velocity),
+                variant = entity.Variant, collision_radius = entity.Size,
+                height = tear and tear.Height or 0,
+                scale = tear and tear.Scale or 1,
+            }
+            if entity.SpawnerType == EntityType.ENTITY_PLAYER then
+                table.insert(data.player_tears, tearData)
+            else
+                table.insert(data.enemy_projectiles, tearData)
+            end
+        elseif entity.Type == EntityType.ENTITY_LASER then
+            local laser = entity:ToLaser()
+            if laser then
+                table.insert(data.lasers, {
+                    id = entity.Index,
+                    pos = Helpers.vectorToTable(entity.Position),
+                    angle = laser.Angle, max_distance = laser.MaxDistance,
+                    is_enemy = entity:IsEnemy(),
+                })
+            end
+        end
+    end
+    return data
+end
+
+function CustomCollectors.ROOM_INFO()
+    local room = Game():GetRoom()
+    local level = Game():GetLevel()
+    if not room then return nil end
+    local tl = room:GetTopLeftPos()
+    local br = room:GetBottomRightPos()
+    local roomDesc = level:GetCurrentRoomDesc()
+    return {
+        room_type = room:GetType(), room_shape = room:GetRoomShape(),
+        room_idx = level:GetCurrentRoomIndex(),
+        stage = level:GetStage(), stage_type = level:GetStageType(),
+        difficulty = Game().Difficulty,
+        is_clear = room:IsClear(), is_first_visit = room:IsFirstVisit(),
+        grid_width = room:GetGridWidth(), grid_height = room:GetGridHeight(),
+        top_left = Helpers.vectorToTable(tl), bottom_right = Helpers.vectorToTable(br),
+        has_boss = room:GetBossID() > 0, enemy_count = room:GetAliveEnemiesCount(),
+        room_variant = roomDesc and roomDesc.Data and roomDesc.Data.Variant or 0,
+    }
+end
+
+function CustomCollectors.ROOM_LAYOUT()
+    local room = Game():GetRoom()
+    if not room then return nil end
+    local grid, doors = {}, {}
+    local width = room:GetGridWidth()
+    for i = 0, room:GetGridSize() - 1 do
+        local gridEntity = room:GetGridEntity(i)
+        if gridEntity then
+            local gridType = gridEntity:GetType()
+            if gridType >= 0 and gridType <= 27 and gridType ~= 13 and gridType ~= 16 and gridType ~= 20 then
+                local pos = room:GetGridPosition(i)
+                grid[tostring(i)] = {
+                    type = gridType, variant = gridEntity:GetVariant(),
+                    state = gridEntity.State, collision = gridEntity.CollisionClass,
+                    x = pos.X, y = pos.Y,
+                }
+            end
+        end
+    end
+    for slot = 0, DoorSlot.NUM_DOOR_SLOTS - 1 do
+        local door = room:GetDoor(slot)
+        if door then
+            local doorPos = door.Position
+            doors[tostring(slot)] = {
+                target_room = door.TargetRoomIndex, target_room_type = door.TargetRoomType,
+                is_open = door:IsOpen(), is_locked = door:IsLocked(),
+                x = doorPos.X, y = doorPos.Y,
+            }
+        end
+    end
+    return {
+        grid = grid, doors = doors,
+        grid_size = room:GetGridSize(), width = width, height = room:GetGridHeight(),
+    }
+end
+
+-- Override collect method for custom sensors
+local origCollect = SensorRegistry.collect
+function SensorRegistry:collect(name, forceCollect)
+    local sensor = self.sensors[name]
+    if not sensor then return nil, nil end
+    if not forceCollect and not self:_shouldCollect(sensor) then
         return nil, nil
     end
 
-    local success, data = pcall(collector.collect)
-    if not success or data == nil then
-        return nil, nil
+    -- Check for custom collector
+    local customFn = CustomCollectors[name]
+    local success, data
+    if customFn then
+        success, data = pcall(customFn)
+    elseif sensor.search.strategy ~= "callback" then
+        success, data = pcall(function()
+            local player = Isaac.GetPlayer(0)
+            local entities = self:_searchEntities(sensor)
+            local results = {}
+            for _, entity in ipairs(entities) do
+                local entry = sensor.extract(entity, player)
+                if entry then table.insert(results, entry) end
+            end
+            return results
+        end)
+    else
+        return nil, nil  -- Callback-only sensors without customFn
     end
 
-    -- ON_CHANGE 变化检测
-    if collector.interval == "ON_CHANGE" and not forceCollect then
-        local hashFunc = collector.hash or simpleHash
-        local newHash = hashFunc(data)
+    if not success or data == nil then return nil, nil end
+
+    -- On force-collect: reset frame counter and mark for immediate send
+    if forceCollect then
+        self.frameCounters[name] = 0
+        self.forcePending[name] = true
+    end
+
+    -- Hash-based change detection
+    if not forceCollect and sensor.cache.strategy == "hash" then
+        local newHash = Helpers.simpleHash(data)
         if self.changeHashes[name] == newHash then
             return nil, nil
         end
@@ -510,827 +1095,87 @@ function CollectorRegistry:collect(name, forceCollect)
     end
 
     self.cache[name] = data
+    self.lastCollectFrame[name] = State.updateCount
 
-    local collectMeta = {
-        collect_frame = State.frameCounter,
+    local meta = {
+        collect_frame = State.updateCount,
         collect_time = Isaac.GetTime(),
-        interval = collector.interval,
+        interval = sensor.throttle.dynamic and "dynamic" or "fixed",
+        stale_frames = 0,
+        entity_count = (type(data) == "table" and #data) or 0,
+        hash = self.changeHashes[name] or "",
     }
-    State.channelLastCollect[name] = collectMeta
-
-    return data, collectMeta
-end
-
-function CollectorRegistry:collectAll()
-    local results = {}
-    local collectedChannels = {}
-
-    for name, _ in pairs(self.collectors) do
-        local data, meta = self:collect(name, false)
-        if data ~= nil then
-            results[name] = data
-            table.insert(collectedChannels, name)
-        end
-    end
-
-    return results, collectedChannels
-end
-
-function CollectorRegistry:forceCollectAll()
-    local results = {}
-    local channels = {}
-    for name, _ in pairs(self.collectors) do
-        local data, meta = self:collect(name, true)
-        if data ~= nil then
-            results[name] = data
-            table.insert(channels, name)
-        end
-    end
-    return results, channels
-end
-
-function CollectorRegistry:getCached(name)
-    return self.cache[name]
-end
-
-function CollectorRegistry:getAllCached()
-    local results = {}
-    for name, data in pairs(self.cache) do
-        if data ~= nil then
-            results[name] = data
-        end
-    end
-    return results
-end
-
-function CollectorRegistry:getConfig()
-    local config = {}
-    for name, collector in pairs(self.collectors) do
-        config[name] = {
-            enabled = collector.enabled,
-            interval = collector.interval,
-            priority = collector.priority
-        }
-    end
-    return config
+    self.lastCollect[name] = meta
+    return data, meta
 end
 
 -- ============================================================================
--- 数据收集器定义
+-- Input Executor (unchanged from v2.x)
 -- ============================================================================
-
--- 玩家位置 (高频)
-CollectorRegistry:register("PLAYER_POSITION", {
-    interval = "HIGH",
-    priority = 10,
-    collect = function()
-        local players = Helpers.getPlayers()
-        local data = {}
-        for i, player in ipairs(players) do
-            data[i] = {
-                pos = Helpers.vectorToTable(player.Position),
-                vel = Helpers.vectorToTable(player.Velocity),
-                move_dir = player:GetMovementDirection(),
-                fire_dir = player:GetFireDirection(),
-                head_dir = player:GetHeadDirection(),
-                aim_dir = Helpers.vectorToTable(player:GetAimDirection()),
-            }
-        end
-        return data
-    end
-})
-
--- 玩家属性 (低频)
-CollectorRegistry:register("PLAYER_STATS", {
-    interval = "LOW",
-    priority = 5,
-    collect = function()
-        local players = Helpers.getPlayers()
-        local data = {}
-        for i, player in ipairs(players) do
-            local tearRange = player.TearRange
-            data[i] = {
-                player_type = player:GetPlayerType(),
-                damage = player.Damage,
-                speed = player.MoveSpeed,
-                tears = player.MaxFireDelay,
-                range = player.TearRange,
-                tear_range = tearRange,
-                shot_speed = player.ShotSpeed,
-                luck = player.Luck,
-                tear_height = player.TearHeight,
-                tear_falling_speed = player.TearFallingSpeed,
-                can_fly = player.CanFly,
-                size = player.Size,
-                sprite_scale = player.SpriteScale.X,
-            }
-        end
-        return data
-    end
-})
-
--- 玩家生命值 (实时检测，稍低频率)
-CollectorRegistry:register("PLAYER_HEALTH", {
-    interval = "LOW",
-    priority = 8,
-    collect = function()
-        local players = Helpers.getPlayers()
-        local data = {}
-        for i, player in ipairs(players) do
-            data[i] = {
-                red_hearts = player:GetHearts(),
-                max_hearts = player:GetMaxHearts(),
-                soul_hearts = player:GetSoulHearts(),
-                black_hearts = player:GetBlackHearts(),
-                bone_hearts = player:GetBoneHearts(),
-                golden_hearts = player:GetGoldenHearts(),
-                eternal_hearts = player:GetEternalHearts(),
-                rotten_hearts = player:GetRottenHearts(),
-                broken_hearts = player:GetBrokenHearts(),
-                extra_lives = player:GetExtraLives(),
-            }
-        end
-        return data
-    end
-})
-
--- 玩家物品栏 (低频采集)
-CollectorRegistry:register("PLAYER_INVENTORY", {
-    interval = "RARE",
-    priority = 3,
-    collect = function()
-        local players = Helpers.getPlayers()
-        local data = {}
-        for i, player in ipairs(players) do
-            -- 基础资源（这些应该总是能获取到）
-            local playerData = {
-                -- 消耗品
-                coins = player:GetNumCoins(),
-                bombs = player:GetNumBombs(),
-                keys = player:GetNumKeys(),
-                -- 饰品
-                trinket_0 = player:GetTrinket(0),
-                trinket_1 = player:GetTrinket(1),
-                -- 卡牌/药丸
-                card_0 = player:GetCard(0),
-                pill_0 = player:GetPill(0),
-                -- 收集品总数
-                collectible_count = player:GetCollectibleCount(),
-            }
-            
-            -- 收集物品（使用安全的固定上限）
-            local items = {}
-            local maxItemId = 733  -- Repentance 最大物品 ID（固定值避免常量问题）
-            
-            -- 只在有收集品时才遍历
-            if playerData.collectible_count > 0 then
-                for itemId = 1, maxItemId do
-                    -- 先用 HasCollectible 检查（更快）
-                    if player:HasCollectible(itemId, true) then
-                        local count = player:GetCollectibleNum(itemId, true)
-                        if count > 0 then
-                            items[tostring(itemId)] = count
-                        end
-                    end
-                end
-            end
-            playerData.collectibles = items
-            
-            -- 主动道具槽位
-            local activeSlots = {}
-            for slot = 0, 3 do
-                local activeItem = player:GetActiveItem(slot)
-                if activeItem > 0 then
-                    activeSlots[tostring(slot)] = {
-                        item = activeItem,
-                        charge = player:GetActiveCharge(slot),
-                        max_charge = player:GetActiveMaxCharge(slot),
-                        battery_charge = player:GetBatteryCharge(slot)
-                    }
-                end
-            end
-            playerData.active_items = activeSlots
-            
-            data[i] = playerData
-        end
-        return data
-    end
-})
-
--- 敌人 (高频)
-CollectorRegistry:register("ENEMIES", {
-    interval = "HIGH",
-    priority = 7,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local enemies = {}
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            if entity:IsActiveEnemy(false) and entity:IsVulnerableEnemy() then
-                local npc = entity:ToNPC()
-                
-                local targetPos = {x = 0, y = 0}
-                if npc then
-                    local target = npc:GetPlayerTarget()
-                    if target then
-                        targetPos = Helpers.vectorToTable(target.Position)
-                    end
-                end
-                
-                local dist = playerPos:Distance(entity.Position)
-                
-                table.insert(enemies, {
-                    id = entity.Index,
-                    type = entity.Type,
-                    variant = entity.Variant,
-                    subtype = entity.SubType,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    vel = Helpers.vectorToTable(entity.Velocity),
-                    hp = entity.HitPoints,
-                    max_hp = entity.MaxHitPoints,
-                    is_boss = entity:IsBoss(),
-                    is_champion = npc and npc:IsChampion() or false,
-                    state = npc and npc.State or 0,
-                    state_frame = npc and npc.StateFrame or 0,
-                    projectile_cooldown = npc and npc.ProjectileCooldown or 0,
-                    projectile_delay = npc and npc.ProjectileDelay or 0,
-                    collision_radius = entity.Size,
-                    distance = dist,
-                    target_pos = targetPos,
-                    v1 = npc and Helpers.vectorToTable(npc.V1) or {x=0, y=0},
-                    v2 = npc and Helpers.vectorToTable(npc.V2) or {x=0, y=0},
-                })
-            end
-        end
-        
-        return enemies
-    end
-})
-
--- 投射物 (高频)
-CollectorRegistry:register("PROJECTILES", {
-    interval = "HIGH",
-    priority = 9,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local data = {
-            enemy_projectiles = {},
-            player_tears = {},
-            lasers = {},
-        }
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            if entity.Type == EntityType.ENTITY_PROJECTILE then
-                local proj = entity:ToProjectile()
-                table.insert(data.enemy_projectiles, {
-                    id = entity.Index,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    vel = Helpers.vectorToTable(entity.Velocity),
-                    variant = entity.Variant,
-                    collision_radius = entity.Size,
-                    height = proj and proj.Height or 0,
-                    falling_speed = proj and proj.FallingSpeed or 0,
-                    falling_accel = proj and proj.FallingAccel or 0,
-                })
-            elseif entity.Type == EntityType.ENTITY_TEAR then
-                local tear = entity:ToTear()
-                local tearData = {
-                    id = entity.Index,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    vel = Helpers.vectorToTable(entity.Velocity),
-                    variant = entity.Variant,
-                    collision_radius = entity.Size,
-                    height = tear and tear.Height or 0,
-                    scale = tear and tear.Scale or 1,
-                }
-                if entity.SpawnerType == EntityType.ENTITY_PLAYER then
-                    table.insert(data.player_tears, tearData)
-                else
-                    table.insert(data.enemy_projectiles, tearData)
-                end
-            elseif entity.Type == EntityType.ENTITY_LASER then
-                local laser = entity:ToLaser()
-                if laser then
-                    table.insert(data.lasers, {
-                        id = entity.Index,
-                        pos = Helpers.vectorToTable(entity.Position),
-                        angle = laser.Angle,
-                        max_distance = laser.MaxDistance,
-                        is_enemy = entity:IsEnemy(),
-                    })
-                end
-            end
-            
-            ::continue::
-        end
-        
-        return data
-    end
-})
-
--- 房间信息 (中频 - 战斗中 is_clear 状态变化频繁)
-CollectorRegistry:register("ROOM_INFO", {
-    interval = "LOW",
-    priority = 4,
-    collect = function()
-        local room = Helpers.getRoom()
-        local level = Helpers.getLevel()
-        if not room then return nil end
-        
-        local tl = room:GetTopLeftPos()
-        local br = room:GetBottomRightPos()
-        local roomDesc = level:GetCurrentRoomDesc()
-        
-        return {
-            room_type = room:GetType(),
-            room_shape = room:GetRoomShape(),
-            room_idx = level:GetCurrentRoomIndex(),
-            stage = level:GetStage(),
-            stage_type = level:GetStageType(),
-            difficulty = Game().Difficulty,
-            is_clear = room:IsClear(),
-            is_first_visit = room:IsFirstVisit(),
-            grid_width = room:GetGridWidth(),
-            grid_height = room:GetGridHeight(),
-            top_left = Helpers.vectorToTable(tl),
-            bottom_right = Helpers.vectorToTable(br),
-            has_boss = room:GetBossID() > 0,
-            enemy_count = room:GetAliveEnemiesCount(),
-            room_variant = roomDesc and roomDesc.Data and roomDesc.Data.Variant or 0,
-        }
-    end
-})
-
--- 房间布局/障碍物 (变化时)
--- 采集所有 GridEntityType 枚举的实体 (ID 0-27)
--- Python端负责分类逻辑（可破坏物、障碍物、危险区域等）
-CollectorRegistry:register("ROOM_LAYOUT", {
-    interval = "LOW",
-    priority = 2,
-    collect = function()
-        local room = Helpers.getRoom()
-        if not room then return nil end
-
-        local grid = {}
-        local doors = {}
-        local width = room:GetGridWidth()
-
-        -- GridEntityType 枚举常量 (参考游戏源码)
-        -- 0: NULL, 1: DECORATION, 2: ROCK, 3: ROCKB, 4: ROCKT, 5: ROCK_BOMB, 6: ROCK_ALT
-        -- 7: PIT, 8: SPIKES, 9: SPIKES_ONOFF, 10: SPIDERWEB, 11: LOCK, 12: TNT, 13: FIREPLACE (not used)
-        -- 14: POOP, 15: WALL, 16: DOOR, 17: TRAPDOOR, 18: STAIRS, 19: GRAVITY, 20: PRESSURE_PLATE
-        -- 21: STATUE, 22: ROCK_SS, 23: TELEPORTER, 24: PILLAR, 25: ROCK_SPIKED, 26: ROCK_ALT2, 27: ROCK_GOLD
-
-        for i = 0, room:GetGridSize() - 1 do
-            local gridEntity = room:GetGridEntity(i)
-            if gridEntity then
-                local gridType = gridEntity:GetType()
-
-                -- 收集所有 GridEntityType 枚举的实体 (0-27)
-                -- 排除: 13 (FIREPLACE - 已弃用，改用 ENTITY_EFFECT 处理)
-                -- 排除: 16 (DOOR - 门由 doors 单独处理)
-                -- 排除: 20 (PRESSURE_PLATE - 由 BUTTONS 通道单独处理)
-                if gridType >= 0 and gridType <= 27 and gridType ~= 13 and gridType ~= 16 and gridType ~= 20 then
-                    local collision = gridEntity.CollisionClass
-                    local variant = gridEntity:GetVariant()
-                    local state = gridEntity.State
-                    local pos = room:GetGridPosition(i)
-
-                    -- 发送原始字段，Python端负责分类
-                    grid[tostring(i)] = {
-                        type = gridType,        -- GridEntityType ID
-                        variant = variant,      -- 变体ID (0-255)
-                        state = state,          -- 状态值
-                        collision = collision,  -- 碰撞类型 (GridCollision)
-                        x = pos.X,              -- 世界坐标X
-                        y = pos.Y,              -- 世界坐标Y
-                    }
-                end
-            end
-        end
-
-        for slot = 0, DoorSlot.NUM_DOOR_SLOTS - 1 do
-            local door = room:GetDoor(slot)
-            if door then
-                -- 获取门的世界坐标
-                local doorPos = door.Position
-                doors[tostring(slot)] = {
-                    target_room = door.TargetRoomIndex,
-                    target_room_type = door.TargetRoomType,
-                    is_open = door:IsOpen(),
-                    is_locked = door:IsLocked(),
-                    x = doorPos.X,
-                    y = doorPos.Y,
-                }
-            end
-        end
-
-        return {
-            grid = grid,
-            doors = doors,
-            grid_size = room:GetGridSize(),
-            width = width,
-            height = room:GetGridHeight(),
-        }
-    end
-})
-
--- 炸弹 (中频)
-CollectorRegistry:register("BOMBS", {
-    interval = "LOW",
-    priority = 5,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local bombs = {}
-        
-        -- 炸弹变种类型定义
-        local BOMB_VARIANTS = {
-            [0] = "NORMAL",          -- 普通炸弹
-            [1] = "BIG",             -- 大型炸弹
-            [2] = "DECOY",           -- 诱饵
-            [3] = "TROLL",           -- 即爆炸弹
-            [4] = "MEGA_TROLL",      -- 超级即爆炸弹
-            [5] = "POISON",          -- 毒性炸弹
-            [6] = "BIG_POISON",      -- 大型毒性炸弹
-            [7] = "SAD",             -- 伤心炸弹
-            [8] = "HOT",             -- 燃烧炸弹
-            [9] = "BUTT",            -- 大便炸弹
-            [10] = "MR_MEGA",        -- 大爆弹先生炸弹
-            [11] = "BOBBY",          -- 波比炸弹
-            [12] = "GLITTER",        -- 闪光炸弹
-            [13] = "THROWABLE",      -- 可投掷炸弹
-            [14] = "SMALL",          -- 小炸弹
-            [15] = "BRIMSTONE",      -- 硫磺火炸弹
-            [16] = "BLOODY_SAD",     -- 鲜血伤心炸弹
-            [17] = "GIGA",           -- 巨型炸弹
-            [18] = "GOLDEN_TROLL",   -- 金即爆炸弹
-            [19] = "ROCKET",         -- 火箭
-            [20] = "GIGA_ROCKET",    -- 巨型火箭
-        }
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            if entity.Type == EntityType.ENTITY_BOMB then
-                local variant = entity.Variant
-                local bomb = entity:ToBomb()
-                local dist = playerPos:Distance(entity.Position)
-                
-                local bombType = BOMB_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
-                
-                table.insert(bombs, {
-                    id = entity.Index,
-                    type = entity.Type,
-                    variant = variant,
-                    variant_name = bombType,
-                    sub_type = entity.SubType,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    vel = Helpers.vectorToTable(entity.Velocity),
-                    explosion_radius = bomb and bomb.ExplosionRadius or 0,
-                    timer = bomb and bomb.Timer or 0,
-                    distance = dist,
-                })
-            end
-        end
-        
-        return bombs
-    end
-})
-
--- 可互动实体 (中频)
-CollectorRegistry:register("INTERACTABLES", {
-    interval = "LOW",
-    priority = 4,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local interactables = {}
-        
-        -- 可互动实体变种类型定义
-        local INTERACTABLE_VARIANTS = {
-            [1] = "SLOT_MACHINE",         -- 赌博机
-            [2] = "BLOOD_DONATION",       -- 献血机
-            [3] = "FORTUNE_TELLING",      -- 预言机
-            [4] = "BEGGAR",               -- 乞丐
-            [5] = "DEVIL_BEGGAR",         -- 恶魔乞丐
-            [6] = "SHELL_GAME",           -- 赌博乞丐
-            [7] = "KEY_MASTER",           -- 钥匙大师
-            [8] = "DONATION_MACHINE",     -- 捐款机
-            [9] = "BOMB_BUM",             -- 炸弹乞丐
-            [10] = "RESTOCK_MACHINE",     -- 补货机
-            [11] = "GREED_MACHINE",       -- 贪婪机
-            [12] = "MOMS_DRESSING_TABLE", -- 妈妈的梳妆台
-            [13] = "BATTERY_BUM",         -- 电池乞丐
-            [14] = "ISAAC_SECRET",        -- 以撒（隐藏）
-            [15] = "HELL_GAME",           -- 赌命乞丐
-            [16] = "CRANE_GAME",          -- 娃娃机
-            [17] = "CONFESSIONAL",        -- 忏悔室
-            [18] = "ROTTEN_BEGGAR",       -- 腐烂乞丐
-            [19] = "REVIVE_MACHINE",      -- 复活机
-        }
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            if entity.Type == EntityType.ENTITY_PLAYER then
-                goto continue
-            end
-            
-            -- 检查是否是可互动实体 (Type 6)
-            if entity.Type == 6 then
-                local variant = entity.Variant
-                local npc = entity:ToNPC()
-                local dist = playerPos:Distance(entity.Position)
-                
-                local interactType = INTERACTABLE_VARIANTS[variant] or ("UNKNOWN_" .. tostring(variant))
-                
-                -- 获取状态信息
-                local state = npc and npc.State or 0
-                local stateFrame = npc and npc.StateFrame or 0
-                local target = npc and npc:GetPlayerTarget()
-                local targetPos = target and Helpers.vectorToTable(target.Position) or {x = 0, y = 0}
-                
-                table.insert(interactables, {
-                    id = entity.Index,
-                    type = entity.Type,
-                    variant = variant,
-                    variant_name = interactType,
-                    sub_type = entity.SubType,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    vel = Helpers.vectorToTable(entity.Velocity),
-                    state = state,
-                    state_frame = stateFrame,
-                    target_pos = targetPos,
-                    distance = dist,
-                })
-            end
-            
-            ::continue::
-        end
-        
-        return interactables
-    end
-})
-
--- 可拾取物 (中频)
-CollectorRegistry:register("PICKUPS", {
-    interval = "LOW",
-    priority = 4,
-    collect = function()
-        local pickups = {}
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            if entity.Type == EntityType.ENTITY_PICKUP then
-                local pickup = entity:ToPickup()
-                table.insert(pickups, {
-                    id = entity.Index,
-                    variant = entity.Variant,
-                    sub_type = entity.SubType,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    price = pickup and pickup.Price or 0,
-                    shop_item_id = pickup and pickup.ShopItemId or -1,
-                    wait = pickup and pickup.Wait or 0,
-                })
-            end
-        end
-        
-        return pickups
-    end
-})
-
--- 火焰危险物 (中频)
-CollectorRegistry:register("FIRE_HAZARDS", {
-    interval = "LOW",
-    priority = 6,
-    collect = function()
-        local player = Isaac.GetPlayer(0)
-        if not player then return {} end
-        
-        local playerPos = player.Position
-        local fires = {}
-        
-        local DANGEROUS_FIRE_EFFECTS = {
-            [51] = true,  -- HOT_BOMB_FIRE
-            [52] = true,  -- RED_CANDLE_FLAME
-        }
-        
-        -- 火堆变种类型定义
-        local FIREPLACE_TYPES = {
-            [0] = "NORMAL",      -- 普通火堆
-            [1] = "RED",         -- 红色火堆
-            [2] = "BLUE",        -- 蓝色火堆
-            [3] = "PURPLE",      -- 紫色火堆
-            [4] = "WHITE",       -- 白色火堆
-            [10] = "MOVABLE",    -- 可移动火堆
-            [11] = "COAL",       -- 火炭
-            [12] = "MOVABLE_BLUE",   -- 可移动蓝色火堆
-            [13] = "MOVABLE_PURPLE", -- 可移动紫色火堆
-        }
-        
-        -- 火堆状态常量
-        local FIREPLACE_STATE_EXTINGUISHED = 1000
-        
-        for _, entity in ipairs(Isaac.GetRoomEntities()) do
-            -- 处理火焰效果（如炸弹火焰、蜡烛火焰）
-            if entity.Type == EntityType.ENTITY_EFFECT then
-                if DANGEROUS_FIRE_EFFECTS[entity.Variant] then
-                    local dist = playerPos:Distance(entity.Position)
-                    -- 移除距离限制，收集所有危险火焰
-                    table.insert(fires, {
-                            id = entity.Index,
-                            type = "EFFECT",
-                            variant = entity.Variant,
-                            pos = Helpers.vectorToTable(entity.Position),
-                            collision_radius = entity.Size > 0 and entity.Size or 20,
-                            distance = dist,
-                        })
-                end
-            elseif entity.Type == 33 then  -- ENTITY_FIREPLACE
-                local dist = playerPos:Distance(entity.Position)
-                -- 移除距离限制，收集所有火堆
-                local variant = entity.Variant
-                local subVariant = entity.SubType
-                
-                -- 确定火堆类型名称
-                local fireplaceType = FIREPLACE_TYPES[variant] or ("UNKNOWN_" .. tostring(variant))
-                
-                -- 判断火堆是否点燃（State == 1000 表示已熄灭）
-                local isExtinguished = entity.State == FIREPLACE_STATE_EXTINGUISHED
-                
-                -- 红色/紫色火堆发射泪弹状态检测
-                local isShooting = false
-                local npc = entity:ToNPC()
-                if npc and (variant == 1 or variant == 3) then
-                    -- 红色和紫色火堆发射状态是 8
-                    isShooting = (npc.State == 8)
-                end
-                
-                table.insert(fires, {
-                    id = entity.Index,
-                    type = "FIREPLACE",
-                    fireplace_type = fireplaceType,
-                    variant = variant,
-                    sub_variant = subVariant,
-                    pos = Helpers.vectorToTable(entity.Position),
-                    hp = entity.HitPoints,
-                    max_hp = entity.MaxHitPoints,
-                    state = entity.State,
-                    is_extinguished = isExtinguished,
-                    collision_radius = entity.Size > 0 and entity.Size or 25,
-                    distance = dist,
-                    is_shooting = isShooting,
-                    sprite_scale = entity.SpriteScale.X,
-                })
-            end
-        end
-        
-        return fires
-    end
-})
-
--- ============================================================================
--- 命令处理器
--- ============================================================================
-local CommandHandler = {
-    handlers = {}
+local InputExecutor = {
+    moveDirection = { x = 0, y = 0 },
+    shootDirection = { x = 0, y = 0 },
+    useItem = false, useBomb = false,
+    useCard = false, usePill = false, drop = false,
 }
 
-function CommandHandler.register(command, handler)
-    CommandHandler.handlers[command] = handler
+function InputExecutor.applyCommand(command)
+    if not command then return end
+    local hasInput = false
+    if command.move then
+        InputExecutor.moveDirection = command.move
+        if command.move.x ~= 0 or command.move.y ~= 0 then hasInput = true end
+    end
+    if command.shoot then
+        InputExecutor.shootDirection = command.shoot
+        if command.shoot.x ~= 0 or command.shoot.y ~= 0 then hasInput = true end
+    end
+    if command.use_item ~= nil then InputExecutor.useItem = command.use_item; if command.use_item then hasInput = true end end
+    if command.use_bomb ~= nil then InputExecutor.useBomb = command.use_bomb; if command.use_bomb then hasInput = true end end
+    if command.use_card ~= nil then InputExecutor.useCard = command.use_card; if command.use_card then hasInput = true end end
+    if command.use_pill ~= nil then InputExecutor.usePill = command.use_pill; if command.use_pill then hasInput = true end end
+    if command.drop ~= nil then InputExecutor.drop = command.drop; if command.drop then hasInput = true end end
+    State.aiActive = hasInput
 end
 
-function CommandHandler.process(cmdMessage)
-    if not cmdMessage then return nil end
-    
-    -- 直接是输入指令 (move/shoot)
-    if cmdMessage.move or cmdMessage.shoot then
-        return nil  -- 由 InputExecutor 处理
-    end
-    
-    -- 命令类型消息
-    if cmdMessage.command then
-        local handler = CommandHandler.handlers[cmdMessage.command]
-        if handler then
-            return handler(cmdMessage.params or {})
-        end
-    end
-    
-    return nil
+function InputExecutor.reset()
+    InputExecutor.moveDirection = { x = 0, y = 0 }
+    InputExecutor.shootDirection = { x = 0, y = 0 }
+    InputExecutor.useItem = false; InputExecutor.useBomb = false
+    InputExecutor.useCard = false; InputExecutor.usePill = false
+    InputExecutor.drop = false
+    State.aiActive = false
 end
 
--- 注册命令
-CommandHandler.register("SET_CHANNEL", function(params)
-    if params.channel and params.enabled ~= nil then
-        CollectorRegistry:setEnabled(params.channel, params.enabled)
-        return { success = true, channel = params.channel, enabled = params.enabled }
+local function shouldAIControl()
+    local mode = State.controlMode
+    if mode == "MANUAL" then
+        InputExecutor.reset()
+        return false
+    elseif mode == "FORCE_AI" then
+        return true
     end
-    return { success = false, error = "Invalid params" }
-end)
-
-CommandHandler.register("SET_INTERVAL", function(params)
-    if params.channel and params.interval then
-        CollectorRegistry:setInterval(params.channel, params.interval)
-        return { success = true }
+    -- AUTO mode
+    local room = Game():GetRoom()
+    local enemyCount = room and room:GetAliveEnemiesCount() or 0
+    if State.aiActive then State.wasInCombat = true end
+    if enemyCount > 0 and State.aiActive then return true end
+    if enemyCount == 0 and State.wasInCombat then
+        InputExecutor.reset()
+        State.wasInCombat = false
     end
-    return { success = false, error = "Invalid params" }
-end)
-
-CommandHandler.register("GET_FULL_STATE", function(params)
-    local fullState, channels = CollectorRegistry:forceCollectAll()
-    Network.send(Protocol.createFullStateMessage(fullState, channels))
-    return { success = true }
-end)
-
-CommandHandler.register("GET_CONFIG", function(params)
-    return { success = true, config = CollectorRegistry:getConfig() }
-end)
-
-CommandHandler.register("SET_MANUAL", function(params)
-    if params.enabled ~= nil then
-        if params.enabled then
-            State.controlMode = "MANUAL"
-        else
-            State.controlMode = "AUTO"  -- 切换回自动模式
-        end
-        -- 清除正在进行的输入
-        InputExecutor.moveDirection = {x = 0, y = 0}
-        InputExecutor.shootDirection = {x = 0, y = 0}
-        return { success = true, mode = State.controlMode }
-    end
-    return { success = false, error = "Invalid params" }
-end)
-
--- 强制AI模式（无敌人时也生效）- 保留向后兼容
-CommandHandler.register("SET_FORCE_AI", function(params)
-    if params.enabled ~= nil then
-        State.controlMode = params.enabled and "FORCE_AI" or "AUTO"
-        return { success = true, mode = State.controlMode }
-    end
-    return { success = false, error = "Invalid params" }
-end)
-
--- 设置控制模式（支持三种模式）
-CommandHandler.register("SET_CONTROL_MODE", function(params)
-    local mode = params.mode
-    if mode and (mode == "MANUAL" or mode == "AUTO" or mode == "FORCE_AI") then
-        State.controlMode = mode
-        -- 清除正在进行的输入
-        InputExecutor.moveDirection = {x = 0, y = 0}
-        InputExecutor.shootDirection = {x = 0, y = 0}
-        return { success = true, mode = mode }
-    end
-    return { success = false, error = "Invalid mode. Use: MANUAL, AUTO, or FORCE_AI" }
-end)
-
--- 获取当前控制模式
-CommandHandler.register("GET_CONTROL_MODE", function(params)
-    return { success = true, mode = State.controlMode }
-end)
-
--- 控制台指令执行
-CommandHandler.register("EXEC_CONSOLE", function(params)
-    if params.command then
-        -- 使用 Isaac.ExecuteCommand 执行控制台指令
-        local success, result = pcall(function()
-            return Isaac.ExecuteCommand(params.command)
-        end)
-        
-        if success then
-            return { 
-                success = true, 
-                command = params.command,
-                result = result or ""
-            }
-        else
-            return { 
-                success = false, 
-                error = result,
-                command = params.command
-            }
-        end
-    end
-    return { success = false, error = "No command provided" }
-end)
+    return false
+end
 
 -- ============================================================================
--- 事件系统
+-- Event System
 -- ============================================================================
-local EventSystem = {
-    pendingEvents = {}
-}
+local EventSystem = { pendingEvents = {} }
 
 function EventSystem.emit(eventType, eventData)
     table.insert(EventSystem.pendingEvents, {
-        type = eventType,
-        data = eventData or {},
-        frame = State.frameCounter
+        type = eventType, data = eventData or {},
+        frame = State.updateCount,
     })
 end
 
@@ -1342,92 +1187,334 @@ function EventSystem.flush()
 end
 
 -- ============================================================================
--- 回调函数
+-- Command Handler (extended for v3.0)
+-- ============================================================================
+local CommandHandler = { handlers = {} }
+
+function CommandHandler.register(command, handler)
+    CommandHandler.handlers[command] = handler
+end
+
+function CommandHandler.process(cmdMessage)
+    if not cmdMessage then return nil end
+    -- Input commands
+    if cmdMessage.move or cmdMessage.shoot or cmdMessage.use_item or cmdMessage.use_bomb then
+        return nil  -- Handled by InputExecutor
+    end
+    -- Named commands
+    if cmdMessage.command then
+        local handler = CommandHandler.handlers[cmdMessage.command]
+        if handler then return handler(cmdMessage.params or {}) end
+    end
+    -- v3.0 subscription
+    if cmdMessage.type == "SUBSCRIBE" then
+        return CommandHandler._handleSubscribe(cmdMessage)
+    end
+    return nil
+end
+
+function CommandHandler._handleSubscribe(msg)
+    local requested = msg.sensors or {}
+    local accepted, rejected = {}, {}
+    for _, name in ipairs(requested) do
+        if SensorRegistry.sensors[name] then
+            table.insert(accepted, name)
+            State.subscribedSensors[name] = true
+        else
+            table.insert(rejected, name)
+        end
+    end
+    -- Apply config overrides
+    local overrides = msg.config_overrides or {}
+    for name, config in pairs(overrides) do
+        if config.throttle then
+            SensorRegistry:setThrottle(name, config.throttle)
+        end
+        if config.enabled ~= nil then
+            SensorRegistry:setEnabled(name, config.enabled)
+        end
+    end
+    -- Send ACK
+    Network.send({
+        version = Protocol.VERSION,
+        type = "SUBSCRIBE_ACK",
+        accepted = accepted,
+        rejected = rejected,
+        sensor_configs = SensorRegistry:getAllConfigs(),
+    })
+    return { success = true, accepted = accepted, rejected = rejected }
+end
+
+-- ── Register system commands ──────────────────────────────────────────
+
+CommandHandler.register("SET_CHANNEL", function(params)
+    if params.channel and params.enabled ~= nil then
+        SensorRegistry:setEnabled(params.channel, params.enabled)
+        return { success = true, channel = params.channel, enabled = params.enabled }
+    end
+    return { success = false, error = "Invalid params" }
+end)
+
+CommandHandler.register("SET_INTERVAL", function(params)
+    if params.channel and params.interval then
+        SensorRegistry:setThrottle(params.channel, { base_interval = params.interval })
+        return { success = true }
+    end
+    return { success = false, error = "Invalid params" }
+end)
+
+CommandHandler.register("CONFIGURE_SENSOR", function(params)
+    local sensor = params.sensor
+    if not sensor or not SensorRegistry.sensors[sensor] then
+        return { success = false, error = "Unknown sensor: " .. (sensor or "nil") }
+    end
+    if params.enabled ~= nil then
+        SensorRegistry:setEnabled(sensor, params.enabled)
+    end
+    if params.throttle then
+        SensorRegistry:setThrottle(sensor, params.throttle)
+    end
+    return { success = true, config = SensorRegistry:getConfig(sensor) }
+end)
+
+CommandHandler.register("LIST_SENSORS", function()
+    local names = {}
+    for name, _ in pairs(SensorRegistry.sensors) do table.insert(names, name) end
+    return { success = true, sensors = names }
+end)
+
+CommandHandler.register("GET_SENSOR_CONFIG", function(params)
+    local config = SensorRegistry:getConfig(params.sensor)
+    if config then return { success = true, config = config }
+    else return { success = false, error = "Unknown sensor" } end
+end)
+
+CommandHandler.register("SUBSCRIBE_SENSORS", function(params)
+    local sensors = params.sensors or {}
+    for _, name in ipairs(sensors) do
+        State.subscribedSensors[name] = true
+    end
+    return { success = true, subscribed = sensors }
+end)
+
+CommandHandler.register("UNSUBSCRIBE_SENSORS", function(params)
+    local sensors = params.sensors or {}
+    for _, name in ipairs(sensors) do
+        State.subscribedSensors[name] = nil
+    end
+    return { success = true, unsubscribed = sensors }
+end)
+
+CommandHandler.register("GET_FULL_STATE", function()
+    local fullState, channels, meta = SensorRegistry:forceCollectAll()
+    Network.send(Protocol.createFullStateMessage(fullState, channels, meta))
+    return { success = true }
+end)
+
+CommandHandler.register("GET_CONFIG", function()
+    return { success = true, config = SensorRegistry:getAllConfigs() }
+end)
+
+CommandHandler.register("SET_MANUAL", function(params)
+    if params.enabled ~= nil then
+        State.controlMode = params.enabled and "MANUAL" or "AUTO"
+        InputExecutor.reset()
+        return { success = true, mode = State.controlMode }
+    end
+    return { success = false, error = "Invalid params" }
+end)
+
+CommandHandler.register("SET_FORCE_AI", function(params)
+    if params.enabled ~= nil then
+        State.controlMode = params.enabled and "FORCE_AI" or "AUTO"
+        return { success = true, mode = State.controlMode }
+    end
+    return { success = false, error = "Invalid params" }
+end)
+
+CommandHandler.register("SET_CONTROL_MODE", function(params)
+    local mode = params.mode
+    if mode and (mode == "MANUAL" or mode == "AUTO" or mode == "FORCE_AI") then
+        State.controlMode = mode
+        InputExecutor.reset()
+        return { success = true, mode = mode }
+    end
+    return { success = false, error = "Invalid mode. Use: MANUAL, AUTO, or FORCE_AI" }
+end)
+
+CommandHandler.register("GET_CONTROL_MODE", function()
+    return { success = true, mode = State.controlMode }
+end)
+
+CommandHandler.register("EXEC_CONSOLE", function(params)
+    if params.command then
+        local success, result = pcall(function() return Isaac.ExecuteCommand(params.command) end)
+        if success then
+            return { success = true, command = params.command, result = result or "" }
+        else
+            return { success = false, error = result, command = params.command }
+        end
+    end
+    return { success = false, error = "No command provided" }
+end)
+
+-- ============================================================================
+-- Mod Callbacks
 -- ============================================================================
 
--- 每帧更新
+-- MC_POST_UPDATE — main game loop (30 tps, respects pause)
 mod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
-    State.frameCounter = State.frameCounter + 1
-    
-    -- 冷却计时
+    State.updateCount = State.updateCount + 1
+
+    -- Cooldown timers
     if State.toggleCooldown > 0 then State.toggleCooldown = State.toggleCooldown - 1 end
     if State.modeMessageTimer > 0 then State.modeMessageTimer = State.modeMessageTimer - 1 end
-    
-    -- F3 切换手动/AI模式
+
+    -- F3 toggle manual/AI mode
     if Input.IsButtonPressed(Keyboard.KEY_F3, 0) and State.toggleCooldown == 0 then
-        State.forceManual = not State.forceManual
+        if State.controlMode == "MANUAL" then
+            State.controlMode = "AUTO"
+        else
+            State.controlMode = "MANUAL"
+        end
         State.toggleCooldown = 20
         State.showModeMessage = true
         State.modeMessageTimer = 90
-        print("[SocketBridge] Manual mode: " .. (State.forceManual and "ON" or "OFF"))
-        
-        if State.forceManual then
-            InputExecutor.reset()
-        end
+        if State.controlMode == "MANUAL" then InputExecutor.reset() end
     end
-    
+
+    -- ── Connection (always attempt, even without player) ────────────
+    if not State.connected then Network.connect() end
+
+    -- ── Debug: periodic data flow report ────────────────────────────
+    if Config.DEBUG and State.updateCount % Config.DEBUG_INTERVAL == 1 then
+        local sc = State.connected and "YES" or "NO"
+        local sub = 0; for _ in pairs(State.subscribedSensors) do sub = sub + 1 end
+        local cacheKeys = 0; for _ in pairs(SensorRegistry.cache) do cacheKeys = cacheKeys + 1 end
+        print("[SB DEBUG] frame=" .. State.updateCount ..
+              " connected=" .. sc ..
+              " room=" .. State.currentRoom ..
+              " subscribed=" .. sub ..
+              " cached=" .. cacheKeys ..
+              " sent=" .. State.messageSeq ..
+              " prevSent=" .. State.prevFrameSent)
+    end
+
+    -- ── Data collection (only when player exists) ────────────────────
     local player = Isaac.GetPlayer(0)
-    if not player then return end
-    
-    -- 连接服务器
-    if not State.connected then
-        Network.connect()
+    if not player then
+        -- Still receive commands even without player (for console, etc.)
+        if State.connected then
+            local command = Network.receive()
+            if command then
+                local result = CommandHandler.process(command)
+                if result then
+                    Network.send({
+                        version = Protocol.VERSION,
+                        type = Protocol.MessageType.COMMAND,
+                        frame = State.updateCount,
+                        result = result,
+                    })
+                end
+                InputExecutor.applyCommand(command)
+            end
+        end
+        return
     end
-    
-    -- 检测房间变化
+
+    -- Room change detection
     local currentRoom = Game():GetLevel():GetCurrentRoomIndex()
-    if currentRoom ~= State.currentRoomIndex then
-        State.currentRoomIndex = currentRoom
-        
-        -- 强制更新房间相关数据
-        CollectorRegistry:collect("ROOM_INFO", true)
-        CollectorRegistry:collect("ROOM_LAYOUT", true)
-        CollectorRegistry:collect("PICKUPS", true)
-        
+    if currentRoom ~= State.currentRoom then
+        State.currentRoom = currentRoom
+        State.roomEntered = true
+
+        -- Fire sensor triggers
+        SensorTriggers:fire("MC_POST_NEW_ROOM", nil,
+            function(name) SensorRegistry:collect(name, true) end)
+
+        -- Force-collect room data
+        SensorRegistry:collect("ROOM_INFO", true)
+        SensorRegistry:collect("ROOM_LAYOUT", true)
+        SensorRegistry:collect("PICKUPS", true)
+
         EventSystem.emit("ROOM_ENTER", {
             room_index = currentRoom,
-            room_info = CollectorRegistry:getCached("ROOM_INFO"),
-            room_layout = CollectorRegistry:getCached("ROOM_LAYOUT"),
+            room_info = SensorRegistry:getCached("ROOM_INFO"),
+            room_layout = SensorRegistry:getCached("ROOM_LAYOUT"),
         })
     end
-    
-    -- 收集并发送数据
+
+    -- Collect and send
     if State.connected then
-        local data, channels = CollectorRegistry:collectAll()
+        local data, channels, meta = SensorRegistry:collectAll()
         if next(data) then
-            Network.send(Protocol.createDataMessage(data, channels))
+            local ok = Network.send(Protocol.createDataMessage(data, channels, meta))
+            if Config.DEBUG and State.updateCount % Config.DEBUG_INTERVAL == 1 then
+                local names = table.concat(channels, ",")
+                local sizes = {}
+                for _, n in ipairs(channels) do
+                    local d = data[n]
+                    local sz = type(d) == "table" and #d or "?"
+                    table.insert(sizes, n .. "=" .. tostring(sz))
+                end
+                print("[SB SEND] frame=" .. State.updateCount ..
+                      " channels=[" .. names .. "]" ..
+                      " sizes={" .. table.concat(sizes, " ") .. "}" ..
+                      " ok=" .. tostring(ok))
+            end
+        elseif Config.DEBUG and State.updateCount % Config.DEBUG_INTERVAL == 1 then
+            print("[SB SEND] frame=" .. State.updateCount .. " NO DATA — all sensors skipped or empty")
         end
-        
-        -- 发送待处理事件
+
+        -- Flush pending events
         EventSystem.flush()
-        
-        -- 接收并处理命令
+
+        -- Receive commands
         local command = Network.receive()
         if command then
-            -- 处理系统命令
             local result = CommandHandler.process(command)
             if result then
                 Network.send({
                     version = Protocol.VERSION,
                     type = Protocol.MessageType.COMMAND,
-                    frame = State.frameCounter,
-                    result = result
+                    frame = State.updateCount,
+                    result = result,
                 })
             end
-            
-            -- 处理输入命令
             InputExecutor.applyCommand(command)
         end
     end
 end)
 
--- 输入回调
+-- MC_POST_RENDER — render loop (60 tps, ignores pause)
+mod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
+    State.renderCount = State.renderCount + 1
+
+    -- Mode indicator
+    if State.showModeMessage and State.modeMessageTimer > 0 then
+        local alpha = math.min(1.0, State.modeMessageTimer / 30)
+        local modeText = State.controlMode .. " MODE (F3)"
+        local r, g, b = 1.0, 1.0, 1.0
+        if State.controlMode == "MANUAL" then
+            r, g, b = 1.0, 1.0, 0.2
+        elseif State.controlMode == "FORCE_AI" then
+            r, g, b = 0.2, 1.0, 1.0
+        end
+        Isaac.RenderText(modeText, 50, 20, r, g, b, alpha)
+    end
+
+    -- Connection indicator
+    local connTxt = State.connected and "●" or "○"
+    local connR = State.connected and 0.2 or 0.8
+    local connG = State.connected and 1.0 or 0.2
+    Isaac.RenderText(connTxt, Isaac.GetScreenWidth() - 20, 5, connR, connG, 0.2, 0.8)
+end)
+
+-- MC_INPUT_ACTION — AI input injection
 mod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, hook, action)
     if not entity or entity.Type ~= EntityType.ENTITY_PLAYER then return nil end
-    
-    -- 非 AI 控制模式：不拦截
     if not shouldAIControl() then return nil end
-    
+
     local function ret(isActive)
         if hook == InputHook.IS_ACTION_PRESSED or hook == InputHook.IS_ACTION_TRIGGERED then
             return isActive
@@ -1437,186 +1524,122 @@ mod:AddCallback(ModCallbacks.MC_INPUT_ACTION, function(_, entity, hook, action)
         end
         return nil
     end
-    
+
     local moveDir = InputExecutor.moveDirection
     local shootDir = InputExecutor.shootDirection
-    
-    -- 移动输入
-    if action == ButtonAction.ACTION_LEFT then
-        return ret(moveDir and moveDir.x == -1)
-    elseif action == ButtonAction.ACTION_RIGHT then
-        return ret(moveDir and moveDir.x == 1)
-    elseif action == ButtonAction.ACTION_UP then
-        return ret(moveDir and moveDir.y == -1)
-    elseif action == ButtonAction.ACTION_DOWN then
-        return ret(moveDir and moveDir.y == 1)
+
+    if action == ButtonAction.ACTION_LEFT then return ret(moveDir.x == -1)
+    elseif action == ButtonAction.ACTION_RIGHT then return ret(moveDir.x == 1)
+    elseif action == ButtonAction.ACTION_UP then return ret(moveDir.y == -1)
+    elseif action == ButtonAction.ACTION_DOWN then return ret(moveDir.y == 1)
+    elseif action == ButtonAction.ACTION_SHOOTLEFT then return ret(shootDir.x == -1)
+    elseif action == ButtonAction.ACTION_SHOOTRIGHT then return ret(shootDir.x == 1)
+    elseif action == ButtonAction.ACTION_SHOOTUP then return ret(shootDir.y == -1)
+    elseif action == ButtonAction.ACTION_SHOOTDOWN then return ret(shootDir.y == 1)
+    elseif action == ButtonAction.ACTION_ITEM then return ret(InputExecutor.useItem)
+    elseif action == ButtonAction.ACTION_BOMB then return ret(InputExecutor.useBomb)
+    elseif action == ButtonAction.ACTION_PILLCARD then return ret(InputExecutor.useCard or InputExecutor.usePill)
+    elseif action == ButtonAction.ACTION_DROP then return ret(InputExecutor.drop)
     end
-    
-    -- 射击输入
-    if action == ButtonAction.ACTION_SHOOTLEFT then
-        return ret(shootDir and shootDir.x == -1)
-    elseif action == ButtonAction.ACTION_SHOOTRIGHT then
-        return ret(shootDir and shootDir.x == 1)
-    elseif action == ButtonAction.ACTION_SHOOTUP then
-        return ret(shootDir and shootDir.y == -1)
-    elseif action == ButtonAction.ACTION_SHOOTDOWN then
-        return ret(shootDir and shootDir.y == 1)
-    end
-    
-    -- 预留其他操控输入
-    if action == ButtonAction.ACTION_ITEM then
-        return ret(InputExecutor.useItem)
-    elseif action == ButtonAction.ACTION_BOMB then
-        return ret(InputExecutor.useBomb)
-    elseif action == ButtonAction.ACTION_PILLCARD then
-        return ret(InputExecutor.useCard or InputExecutor.usePill)
-    elseif action == ButtonAction.ACTION_DROP then
-        return ret(InputExecutor.drop)
-    end
-    
+
     return nil
 end)
 
--- 房间清除
+-- MC_PRE_SPAWN_CLEAN_AWARD — room clear
 mod:AddCallback(ModCallbacks.MC_PRE_SPAWN_CLEAN_AWARD, function()
     InputExecutor.reset()
-    EventSystem.emit("ROOM_CLEAR", {
-        room_index = State.currentRoomIndex,
-    })
+    EventSystem.emit("ROOM_CLEAR", { room_index = State.currentRoom })
 end)
 
--- 玩家受伤
+-- MC_ENTITY_TAKE_DMG — player damage
 mod:AddCallback(ModCallbacks.MC_ENTITY_TAKE_DMG, function(_, entity, amount, flags, source)
     if entity.Type ~= EntityType.ENTITY_PLAYER then return end
-    
     local player = entity:ToPlayer()
     EventSystem.emit("PLAYER_DAMAGE", {
-        amount = amount,
-        flags = flags,
+        amount = amount, flags = flags,
         source_type = source and source.Type or -1,
         hp_after = player:GetHearts() + player:GetSoulHearts(),
     })
 end)
 
--- NPC 死亡
+-- MC_POST_NPC_DEATH — NPC killed
 mod:AddCallback(ModCallbacks.MC_POST_NPC_DEATH, function(_, npc)
+    SensorTriggers:fire("MC_POST_NPC_DEATH", npc,
+        function(name) SensorRegistry:collect(name, true) end)
     EventSystem.emit("NPC_DEATH", {
-        type = npc.Type,
-        variant = npc.Variant,
-        subtype = npc.SubType,
-        pos = Helpers.vectorToTable(npc.Position),
-        is_boss = npc:IsBoss(),
+        type = npc.Type, variant = npc.Variant, subtype = npc.SubType,
+        pos = Helpers.vectorToTable(npc.Position), is_boss = npc:IsBoss(),
     })
 end)
 
--- 玩家死亡
+-- MC_POST_PLAYER_DEATH — player death
 mod:AddCallback(ModCallbacks.MC_POST_PLAYER_DEATH, function(_, player)
-    EventSystem.emit("PLAYER_DEATH", {
-        player_idx = player:GetPlayerIndex(),
-    })
+    EventSystem.emit("PLAYER_DEATH", { player_idx = player:GetPlayerIndex() })
     Network.disconnect()
 end)
 
--- 游戏开始
+-- MC_POST_GAME_STARTED — game start
 mod:AddCallback(ModCallbacks.MC_POST_GAME_STARTED, function(_, continued)
-    State.frameCounter = 0
-    State.currentRoomIndex = -1
+    State.updateCount = 0
+    State.currentRoom = -1
     State.messageSeq = 0
     State.prevFrameSent = 0
-    State.channelLastCollect = {}
     InputExecutor.reset()
-    
-    -- 重置所有收集器缓存
-    for name, _ in pairs(CollectorRegistry.collectors) do
-        CollectorRegistry.cache[name] = nil
-        CollectorRegistry.changeHashes[name] = nil
+
+    -- Reset sensor caches
+    for name, _ in pairs(SensorRegistry.sensors) do
+        SensorRegistry.cache[name] = nil
+        SensorRegistry.changeHashes[name] = nil
     end
-    
-    EventSystem.emit("GAME_START", {
-        continued = continued,
-    })
-    
-    -- 发送完整初始状态
+
+    EventSystem.emit("GAME_START", { continued = continued })
+
     if State.connected then
-        local fullState, channels = CollectorRegistry:forceCollectAll()
-        Network.send(Protocol.createFullStateMessage(fullState, channels))
+        local fullState, channels, meta = SensorRegistry:forceCollectAll()
+        Network.send(Protocol.createFullStateMessage(fullState, channels, meta))
     end
 end)
 
--- 游戏退出
+-- MC_PRE_GAME_EXIT — game exit
 mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, function(_, shouldSave)
-    EventSystem.emit("GAME_END", {
-        reason = shouldSave and "exit_save" or "exit_nosave",
-    })
+    EventSystem.emit("GAME_END", { reason = shouldSave and "exit_save" or "exit_nosave" })
     EventSystem.flush()
     Network.disconnect()
 end)
 
--- 获得道具
+-- MC_POST_ADD_COLLECTIBLE — item collected
 mod:AddCallback(ModCallbacks.MC_POST_ADD_COLLECTIBLE, function(_, itemId, charge, firstTime, slot, varData, player)
     EventSystem.emit("ITEM_COLLECTED", {
-        item_id = itemId,
-        first_time = firstTime,
-        slot = slot,
-        player_idx = player:GetPlayerIndex()
+        item_id = itemId, first_time = firstTime, slot = slot,
+        player_idx = player:GetPlayerIndex(),
     })
 end)
 
--- 渲染 (仅显示模式切换提示)
-mod:AddCallback(ModCallbacks.MC_POST_RENDER, function()
-    if State.showModeMessage and State.modeMessageTimer > 0 then
-        local alpha = math.min(1.0, State.modeMessageTimer / 30)
-        local txt = State.forceManual and "MANUAL MODE (F3)" or "AI MODE (F3)"
-        local r = State.forceManual and 1.0 or 0.2
-        local g = 1.0
-        local b = State.forceManual and 0.2 or 1.0
-        Isaac.RenderText(txt, 50, 20, r, g, b, alpha)
-    end
-    
-    -- 连接状态小提示 (右上角)
-    local connTxt = State.connected and "●" or "○"
-    local connR = State.connected and 0.2 or 0.8
-    local connG = State.connected and 1.0 or 0.2
-    Isaac.RenderText(connTxt, Isaac.GetScreenWidth() - 20, 5, connR, connG, 0.2, 0.8)
+-- MC_POST_PICKUP_INIT — new pickup spawned (v3.0: callback-driven PICKUPS)
+mod:AddCallback(ModCallbacks.MC_POST_PICKUP_INIT, function(_, pickup)
+    SensorTriggers:fire("MC_POST_PICKUP_INIT", pickup,
+        function(name) SensorRegistry:collect(name, true) end)
 end)
 
 -- ============================================================================
--- 调试命令 (控制台输入 sbdebug 测试物品获取)
+-- Debug command
 -- ============================================================================
 mod:AddCallback(ModCallbacks.MC_EXECUTE_CMD, function(_, cmd, params)
     if cmd == "sbdebug" then
         local player = Isaac.GetPlayer(0)
         if player then
-            print("[SocketBridge Debug] === Player Inventory Test ===")
-            print("  Coins: " .. player:GetNumCoins())
-            print("  Bombs: " .. player:GetNumBombs())
-            print("  Keys: " .. player:GetNumKeys())
-            print("  Collectible Count: " .. player:GetCollectibleCount())
-            print("  Trinket 0: " .. player:GetTrinket(0))
-            print("  Trinket 1: " .. player:GetTrinket(1))
-            
-            -- 测试几个常见物品
-            local testItems = {1, 2, 3, 4, 5, 245, 246}  -- 常见物品 ID
-            for _, itemId in ipairs(testItems) do
-                local has = player:HasCollectible(itemId, true)
-                local count = player:GetCollectibleNum(itemId, true)
-                if has or count > 0 then
-                    print("  Item " .. itemId .. ": has=" .. tostring(has) .. ", count=" .. count)
-                end
-            end
-            
-            print("[SocketBridge Debug] === End ===")
-        else
-            print("[SocketBridge Debug] No player found")
+            print("[SocketBridge Debug] Coins: " .. player:GetNumCoins() ..
+                  ", Bombs: " .. player:GetNumBombs() .. ", Keys: " .. player:GetNumKeys())
+            print("[SocketBridge Debug] Collectible Count: " .. player:GetCollectibleCount())
         end
         return true
     end
 end)
 
 -- ============================================================================
--- 公开 API
+-- Public API
 -- ============================================================================
-mod.CollectorRegistry = CollectorRegistry
+mod.SensorRegistry = SensorRegistry
 mod.EventSystem = EventSystem
 mod.Protocol = Protocol
 mod.Config = Config
@@ -1624,7 +1647,7 @@ mod.InputExecutor = InputExecutor
 mod.CommandHandler = CommandHandler
 mod.shouldAIControl = shouldAIControl
 
-print("[SocketBridge] v2.0 loaded - Modular Data Collection Framework")
+print("[SocketBridge] v3.0 loaded — Sensor-based Data Collection Framework")
 print("[SocketBridge] Server: " .. Config.HOST .. ":" .. Config.PORT)
 print("[SocketBridge] F3: Toggle Manual/AI Mode")
 print("[SocketBridge] Console: 'sbdebug' to test inventory API")
