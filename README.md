@@ -142,7 +142,8 @@ pip install pydantic
 
 ```bash
 cd python
-python apps/console.py
+python -m apps.bridge_hub #默认使用hub模式，但是仍然支持直连模式
+python -m apps.room_layout_visualizer live --hub #这里使用地形可视化工具作为例子
 ```
 
 #### 3. 验证连接
@@ -165,7 +166,7 @@ Lua 端每 ~5 秒输出调试信息：
 ### 1. 交互式控制台 (console.py)
 
 ```bash
-python apps/console.py
+python -m apps.console --hub
 ```
 
 **使用：**
@@ -188,24 +189,24 @@ isaac> quit              # 退出
 ### 2. 游戏数据录制器 (recorder.py)
 
 ```bash
-python apps/recorder.py              # 手动控制
-python apps/recorder.py --auto       # 自动录制
-python apps/recorder.py --list       # 列出现有录制
-python apps/recorder.py --cleanup --keep 5
+python apps.recorder --hub              # 手动控制
+python apps.recorder --hub --auto       # 自动录制
+python apps.recorder --hub --list       # 列出现有录制
+python apps.recorder --hub --cleanup --keep 5
 ```
 
 ### 3. 回放测试 (replay_test.py)
 
 ```bash
-python apps/replay_test.py                    # 测试最新会话
-python apps/replay_test.py --session <id>    # 指定会话
+python apps.replay_test                    # 测试最新会话
+python apps.replay_test --session <id>    # 指定会话
 ```
 
 ### 4. 房间布局可视化 (room_layout_visualizer.py)
 
 ```bash
-python apps/room_layout_visualizer.py live       # 实时模式
-python apps/room_layout_visualizer.py snapshot   # 快照模式
+python apps.room_layout_visualizer live  live --hub      # 实时模式
+python apps.room_layout_visualizer live  snapshot --hub  # 快照模式
 ```
 
 ---
