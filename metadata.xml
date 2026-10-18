@@ -1,6 +1,6 @@
 <metadata>
-    <name>SocketBridge</name>
+    <name>SocketBridge v4</name>
     <directory>socket_bridge</directory>
-    <id>123456789</id> <description>利用 REPENTOGON 实现的SocketBridgeSever</description>
-    <version>1.0</version>
+    <description>TypeScript runtime observation and control for REPENTOGON mod testing.</description>
+    <version>4.0.0</version>
 </metadata>

@@ -1,504 +1,113 @@
-# SocketBridge 项目文档
+# SocketBridge v4
 
-> **版本**: 3.0
-> **更新日期**: 2026年4月
-> **状态**: 架构重构完成 — Sensor-based 数据采集框架
-> **English**: [README_EN.md](README_EN.md)
+用 TypeScript 编写的 REPENTOGON 游戏运行时观察与控制接口，用于测试以撒模组逻辑。主机为 Node/TS，游戏端通过 TypeScriptToLua 编译；测试主要依赖状态、事件和日志，不依赖截图。
 
----
+设计及机制说明：[docs/V4_DESIGN.md](docs/V4_DESIGN.md)，接口参考：[docs/PROTOCOL.md](docs/PROTOCOL.md)。v3 源码保留在 [legacy/main.v3.lua](legacy/main.v3.lua)，旧 Python 工具保留但不兼容 v4 协议。
 
-## 目录
+## 构建与安装
 
-1. [项目概述](#项目概述)
-2. [快速开始](#快速开始)
-3. [应用工具指南](#应用工具指南)
-4. [开发者指南](#开发者指南)
-5. [新 Sensor 注册流程](#新-sensor-注册流程)
-6. [架构参考](#架构参考)
-7. [相关文档](#相关文档)
+需要 Node ≥22、REPENTOGON，以及实际运行时可加载的 `socket.core`。**本机 REPENTOGON 1.1.3 实测需要通过 Launcher 加 `--luadebug`，或在其配置中启用 `[Vanilla] LuaDebug=1`；DLL 存在不代表默认能加载。** 当前锁定 TypeScript 5.9.3、TSTL 1.34.0、Isaac definitions 43.0.6。
 
----
-
-## 项目概述
-
-**SocketBridge** 是为《以撒的结合：重生》（The Binding of Isaac: Repentance）开发的模组，实现游戏与 Python 程序之间的实时数据桥接。
-
-### 核心特性
-
-| 特性 | 说明 |
-|------|------|
-| **Sensor 数据采集** | 12 个 Sensor，支持 EntityPartition 分区搜索、动态节流（战斗/空闲）、回调驱动触发 |
-| **双向通信** | 游戏数据实时传输 + Python 控制指令发送 + 运行时 Sensor 重配置 |
-| **订阅协商** | Python 端告知 Lua 端需要哪些 Sensor 及采集频率，按需发送 |
-| **实体识别** | 跨帧实体身份追踪、生命周期管理、历史记录、位置预测 |
-| **数据录制** | 完整的游戏会话录制与回放系统，支持帧精确定位 |
-| **时序感知** | 消息序列号、通道级采集元数据、过期检测 |
-| **质量监控** | 自动检测游戏端数据问题，生成质量报告 |
-
-### v3.0 架构亮点
-
-```
-┌─────────────────────┐     TCP/IP :9527     ┌──────────────────────────┐
-│   Lua (main.lua)    │ ◄──────────────────► │   Python                  │
-│                     │                       │                           │
-│  SensorRegistry     │   SUBSCRIBE ←         │  connection/ (asyncio)    │
-│  ├─ 12 Sensors      │   DATA →              │  protocol/ (Pydantic)     │
-│  │  ├─ partition    │   CMD ←→              │  sensors/ (12 mirrors)    │
-│  │  ├─ callback     │   CONFIGURE_SENSOR ←  │  entities/ (tracker)      │
-│  │  └─ hybrid       │                       │  facade.py (API)          │
-│  │  ├─ dynamic      │                       │  persistence/ (record)    │
-│  │  └─ throttle     │                       │  validation/ (quality)    │
-│  │  ├─ hash cache   │                       │                           │
-│  │  └─ forcePending │                       │                           │
-│  └──────────────────┘                       └──────────────────────────┘
+```powershell
+npm ci
+npm run check
+# 游戏完全退出后：备份原 mods/SocketBridge，再安装新构建
+npm run deploy
 ```
 
-### 目录结构
+构建产物是 `mod/`，不要将整个源码仓库复制为模组。首次构建生成本机 `config.local.json`（随机 token、端口 9527、console 默认禁用），同时生成游戏端配置；更改配置后重新构建和部署。主机与游戏必须使用同一份配置。
 
-```
-SocketBridge/
-├── main.lua                    # 游戏模组主文件（Sensor 系统）
-├── metadata.xml
-├── README.md
-├── README_EN.md
-├── LICENCE
-├── .gitignore
-│
-├── docs/                       # 参考文档
-│
-└── python/                     # Python 端
-    ├── facade.py               # 统一入口 API
-    ├── isaac_bridge.py         # 向后兼容包装
-    ├── requirements.txt
-    │
-    ├── connection/             # Layer 0: asyncio TCP 服务器
-    │   └── server.py
-    │
-    ├── protocol/               # Layer 1: 消息协议 + 实体 Schema（Pydantic）
-    │   ├── schema.py           # 所有实体类型的统一定义
-    │   └── messages.py         # RawMessage, SessionMetadata
-    │
-    ├── sensors/                # Layer 2: Sensor 管线（与 Lua Sensor 镜像）
-    │   ├── base.py             # Sensor ABC, SensorRegistry
-    │   ├── player.py           # PLAYER_POSITION, PLAYER_STATS, etc.
-    │   ├── entities.py         # ENEMIES, PROJECTILES, PICKUPS
-    │   ├── room.py             # ROOM_INFO, ROOM_LAYOUT
-    │   └── hazards.py          # BOMBS, FIRE_HAZARDS, INTERACTABLES
-    │
-    ├── entities/               # Layer 3: 实体识别与状态管理
-    │   └── tracker.py          # EntityStateManager[T], GameEntityStore
-    │
-    ├── persistence/            # Layer 4: 录制回放
-    │   ├── recorder.py
-    │   ├── replayer.py
-    │   └── session.py
-    │
-    ├── validation/             # 数据验证与质量监控
-    │   ├── rules.py
-    │   └── monitor.py
-    │
-    ├── apps/                   # 应用工具
-    │   ├── console.py
-    │   ├── recorder.py
-    │   ├── replay_test.py
-    │   ├── room_layout_visualizer.py
-    │   └── terrain_validator.py
-    │
-    ├── tests/                  # 测试
-    │   ├── test_schema.py
-    │   ├── test_entities.py
-    │   └── test_sensors.py
-    │
-    └── archive/                # v2.x 归档代码
-        ├── v2_legacy/          # core/, channels/, services/, models/
-        └── v2_tests/           # 旧测试文件
+部署命令输出 `backupId` 和 `backupRoot`。旧安装完整保留在游戏根目录 `.socketbridge-deploy-backups/<backupId>/previous/`（与安装目标同卷），可在游戏退出后恢复：
+
+```powershell
+npm run deploy -- --restore <backupId>
 ```
 
----
+部署检查 manifest 文件哈希，不改其他模组或存档。恢复会检查当前 v4 文件是否被改动；不会静默覆盖修改。若安装进程被系统强制终止，保留的 journal、previous 和 staged 用于定位恢复阶段，勿手工删除备份。
 
-## 快速开始
+## 实时观察
 
-### 环境要求
+先运行主机，再通过 REPENTOGON Launcher 启动游戏：
 
-- 《以撒的结合：重生》（Repentance DLC / Repentance+）
-- **Steam 启动选项必须添加 `--luadebug`**
-- Python 3.10+
-- `pydantic>=2.0`
-
-```bash
-pip install pydantic
+```powershell
+npm run serve -- --sensors players,room,pickups --interval 15
 ```
 
-### 安装步骤
+主机可在主菜单握手，进入游戏后开始采集。`waitReady()` 只表示通信就绪；`waitForRuntime({ inGame: true, adapters: ["my-mod"] })` 等待正式入局和指定模组初始化。菜单阶段通过 REPENTOGON `MC_MAIN_MENU_RENDER` 维护网络，不访问玩家/房间。stdout 输出结构化事件/遥测，stderr 输出进度；完整双向消息录制在 `runs/<timestamp>/messages.jsonl`。Ctrl+C 关闭连接，游戏端释放桥的暂停和输入控制。桥不会自动开始新局。
 
-#### 1. 安装游戏模组
+REPENTOGON 可跳过片头：游戏退出后，在文档目录 `My Games/Binding of Isaac Repentance+/Repentogon/options.ini` 的 `[VanillaTweaks]` 中设置 `SkipIntro = 1`。这是 REPENTOGON 设置，不是 Launcher 的 `--skip-wizard`；跳过片头仍停留在菜单，不会替测试选择存档或开局。
 
-将 `SocketBridge` 文件夹复制到游戏 mods 目录：
-```
-%USERPROFILE%\Documents\My Games\Binding of Isaac Repentance\mods\
-```
+`--config <file>` 可指定主机配置；只改主机 `--port` 不会改变游戏配置。默认监听仅 `127.0.0.1`。同一主机只接受一个已认证游戏连接；不要让旧 Python Hub 占用同一端口。
 
-#### 2. 启动 Python 端
+## 逻辑测试
 
-```bash
-cd python
-python -m apps.bridge_hub #默认使用hub模式，但是仍然支持直连模式
-python -m apps.room_layout_visualizer live --hub #这里使用地形可视化工具作为例子
+可以先启动测试再进入可用于测试的局面，CLI 会等待正式入局：
+
+```powershell
+npm run scenario -- examples/logic-smoke.json --wait 120
+node --experimental-strip-types examples/sdk-smoke.ts
 ```
 
-#### 3. 验证连接
+示例验证引擎身份、完整快照，以及 `runtime.step(3)` 恰好产生三个实际 update。命令等待墙钟有上限；原生暂停、切房或断线不会伪装成更新完成。测试退出会释放输入和桥的暂停；业务数据恢复由用例自己的 cleanup 负责，**给道具再移除并不保证撤销所有触发副作用**，请用独立测试存档验证修改型场景。
 
-启动游戏后，Python 端显示：
-```
-✓ 游戏已连接: ('127.0.0.1', xxxxx)
-```
+场景可添加 `"requires": { "inGame": true, "adapters": ["example-mod"] }`。CLI 默认要求 `inGame=true`；纯菜单检查可以显式改为 false。`--wait` 分别约束初次连接和场景就绪等待。adapter 的 `ready()` 应由待测模组在业务初始化完成后返回 true，退出时恢复 false；未提供该函数则注册即视为 adapter 就绪。
 
-Lua 端每 ~5 秒输出调试信息：
-```
-[SB DEBUG] frame=150 connected=YES room=5 subscribed=0 cached=3 sent=150
-[SB SEND] frame=150 channels=[PLAYER_POSITION,ENEMIES,PROJECTILES] sizes={...}
-```
+| op | 用途 |
+|---|---|
+| `command` | 执行具名命令，保存关联后的终态结果 |
+| `snapshot` | 请求新鲜完整 sensor 快照 |
+| `step` | 在桥暂停模式推进指定实际更新步 |
+| `assert` | `equals/min/max`，可用 `deltaFrom` 比较变化 |
+| `event` | 检查本次用例期间已收到或随后收到的具名事件，可按字段过滤 |
+| `eventually` | 暂停后逐步推进，检查有限步内快照字段满足等值条件 |
 
----
+`{"$ref":"before.sensors.players.data.0.damage"}` 引用早先步骤的结果。只支持字段访问，不执行表达式或任意代码。`event` 不能证明事件与某条命令有唯一因果关系；复杂业务用独立 fixture、事件字段和快照共同验证。
 
-## 应用工具指南
+退出码：`0` 通过且清理完成；`1` 配置/连接/运行错误；`2` 断言失败；`4` 清理失败。`--json` 不改变判定。报告写入 `report.json`。
 
-### 1. 交互式控制台 (console.py)
+## SDK 命令
 
-```bash
-python -m apps.console --hub
-```
-
-**使用：**
-```
-isaac> giveitem c1       # 给予道具
-isaac> spawn 13          # 生成实体
-isaac> stage 5a          # 传送到第5层
-isaac> help              # 帮助
-isaac> quit              # 退出
+```ts
+import { BridgeServer } from "./dist/host/index.js";
+const bridge = new BridgeServer({ port: 9527, token: "从本机配置读取" });
+await bridge.listen();
+await bridge.waitReady();
+await bridge.waitForRuntime({ inGame: true });
+const state = await bridge.snapshot(["players", "inventory", "npcs"]);
 ```
 
-**常用命令：**
-| 命令 | 说明 |
-|------|------|
-| `giveitem c<ID>` | 给予收藏品 |
-| `spawn <ID>` | 生成实体 |
-| `goto s.boss.0` | 跳转到 Boss 房间 |
-| `debug 3` | 开启调试地图 |
+| 类别 | 方法 |
+|---|---|
+| 观察 | `runtime.describe`、`state.snapshot`、`telemetry.subscribe`、`item.resolve`、`mod.observe` |
+| 更新控制 | `runtime.pause`、`runtime.resume`、`runtime.step` |
+| 输入 | `input.pulse`、`input.clear` |
+| 测试场景修改 | `entity.spawn`、`entity.remove`、`player.giveCollectible`、`player.removeCollectible`、`mod.invoke` |
+| 可选控制台 | `console.execute`，需要配置 `allowConsole=true` |
 
-### 2. 游戏数据录制器 (recorder.py)
+`request()` 收到 completed 才 resolve；accepted 不等于完成。失败抛 `BridgeError`；TIMEOUT/DISCONNECTED 的 outcome 为 unknown，不能盲重试有副作用的操作。runtime.step 和 input.pulse 可以并发提交：先发输入 Promise，再 step，最后等待两者完成；桥暂停时直接 await 输入会等不到逻辑更新。
 
-```bash
-python apps.recorder --hub              # 手动控制
-python apps.recorder --hub --auto       # 自动录制
-python apps.recorder --hub --list       # 列出现有录制
-python apps.recorder --hub --cleanup --keep 5
+空 `telemetry.subscribe.sensors` 表示取消全部遥测。心跳和控制结果不受订阅影响。每条连接最多接受 2048 个新 requestId，超限应启动新会话；不通过淘汰去重记录后重执行旧请求。
+
+## 数据与扩展
+
+Sensors：`players/inventory/room/grid/entities/npcs/pickups/projectiles/tears/lasers/bombs/familiars/slots/effects`。只请求需要的范围，库存/地形适合低频或检查点采集。同次快照内共享一次实体枚举。
+
+数据语义：集合完整替换；`[]` 是确实为空，error/unsupported 不是零值。红心、魂心按半心单位；黑心字段为位掩码字符串；MaxFireDelay 不称作射速；NPC 不按当前可受伤状态筛除；槽机不按 NPC 解释。实际生成、道具添加、自然拾取、死亡和移除分别记录，不相互冒充。
+
+REPENTOGON 扩展用于更新前控制、伤害后观察、道具添加/使用后事件及菜单网络维护。能力存在性从实际运行环境读取；更复杂的角色、buff、特殊道具与第三方 mod 行为通过 adapter 扩展。
+
+[examples/mod-adapter.ts](examples/mod-adapter.ts) 演示 `SocketBridgeV4.register()`。在双方加载完成后注册，公开方法采用 `this: void` 的 dot 调用约定；返回 JSON 数据，禁止 userdata/函数/循环表。空数组用 `SocketBridgeV4.array([])` 显式标记。release 构建不注册 debug adapter。
+
+## 验证边界
+
+`npm run check` 执行主机类型检查、TSTL 编译、Node loopback 集成，以及编译后 Lua 的 Fengari 行为测试。Fengari 不包含 Isaac 引擎，不能证明真实 callback 顺序、复杂角色心量规则、所有 native API、桌面启动链已正确。实机验证记录见 [docs/VALIDATION.md](docs/VALIDATION.md)。
+
+Launcher/存档隔离属于外部运行器；当前桥不会复制旧资产脚本的全进程强制退出、部分存档备份或未经确认的自动恢复流程。图像捕获和自动通关不在本次重构范围。
+
+本机菜单实测脚本会启动并关闭本次拥有的游戏进程，使用 `--luadebug`，不自动开局：
+
+```powershell
+node tools/menu-smoke.mjs --launcher 'D:/blankpage/isaac/REPENTOGONLauncher.exe' --ini '../ai-assets/launcher.ci.ini'
 ```
 
-### 3. 回放测试 (replay_test.py)
-
-```bash
-python apps.replay_test                    # 测试最新会话
-python apps.replay_test --session <id>    # 指定会话
-```
-
-### 4. 房间布局可视化 (room_layout_visualizer.py)
-
-```bash
-python apps.room_layout_visualizer live  live --hub      # 实时模式
-python apps.room_layout_visualizer live  snapshot --hub  # 快照模式
-```
-
----
-
-## 开发者指南
-
-### 基础数据接收 (新 API)
-
-```python
-import asyncio
-from facade import SocketBridge
-
-async def main():
-    bridge = SocketBridge()
-    await bridge.start()
-
-    @bridge.on_frame
-    def on_frame(frame, room):
-        player = bridge.get_player()
-        if player:
-            print(f"Frame {frame}: ({player.pos.x:.0f}, {player.pos.y:.0f})")
-
-    await asyncio.Event().wait()  # run forever
-
-asyncio.run(main())
-```
-
-### 同步 API (向后兼容)
-
-```python
-from isaac_bridge import IsaacBridge, GameDataAccessor
-
-bridge = IsaacBridge()
-data = GameDataAccessor(bridge)
-
-@bridge.on("connected")
-def on_connected(_):
-    print("游戏已连接!")
-
-bridge.start()
-```
-
-### 使用 Facade API (推荐)
-
-```python
-from facade import SocketBridgeSync
-
-bridge = SocketBridgeSync()
-
-@bridge.on_frame
-def on_frame(frame, room):
-    enemies = bridge.get_enemies()
-    player = bridge.get_player()
-    room_info = bridge.get_room()
-
-    if enemies and player:
-        nearest = min(enemies, key=lambda e: e.distance)
-        print(f"最近敌人: ID={nearest.id} 距离={nearest.distance:.0f}")
-
-bridge.start()
-```
-
-### 实体状态管理
-
-```python
-from facade import SocketBridgeSync
-
-bridge = SocketBridgeSync()
-
-@bridge.on_frame
-def on_frame(frame, room):
-    # 获取敌人（有状态保持，跨帧跟踪）
-    enemies = bridge.get_enemies(max_stale=5)
-
-    # 获取投射物（有状态保持）
-    enemy_proj = bridge.get_enemy_projectiles(max_stale=3)
-    player_tears = bridge.get_player_tears(max_stale=3)
-    lasers = bridge.get_lasers(max_stale=3)
-
-    # 获取拾取物（有状态保持）
-    pickups = bridge.get_pickups(max_stale=30)
-
-    # 威胁数量
-    threat = bridge.get_threat_count()
-```
-
-### 控制指令
-
-```python
-# 移动 + 射击
-bridge.send_input(move=(1, 0), shoot=(0, -1))
-
-# 使用道具 / 炸弹
-bridge.send_input(use_item=True, use_bomb=True)
-
-# 控制台命令
-bridge.send_console("giveitem c1")
-```
-
-### 录制回放
-
-```python
-from persistence import SessionReplayer, ReplayerConfig, list_sessions
-
-sessions = list_sessions("./recordings")
-replayer = SessionReplayer(ReplayerConfig(recordings_dir="./recordings"))
-session = replayer.load_session(sessions[0].session_id)
-
-for msg in replayer.iter_messages():
-    print(f"Frame {msg.frame}: {msg.channels}")
-```
-
----
-
-## 新 Sensor 注册流程
-
-当需要添加新的数据采集 Sensor 时：
-
-### 步骤 1: Lua 端 — 注册 Sensor
-
-在 `main.lua` 中找到 **Sensor Definitions** 区域：
-
-```lua
-SensorRegistry:register("MY_SENSOR", {
-    name = "MY_SENSOR",
-    search = {
-        strategy = "partition",       -- "partition" | "callback" | "hybrid"
-        partitions = EntityPartition.ENEMY,
-        type_filter = nil,            -- 可选 EntityType
-        radius = nil,                 -- nil = 全房间
-        sort_by_distance = true,
-    },
-    throttle = {
-        base_interval = 1,
-        dynamic = true,               -- 战斗/空闲切换
-        combat_interval = 1,
-        idle_interval = 15,
-    },
-    extract = function(entity, player)
-        return {
-            id = entity.Index,
-            pos = Helpers.vectorToTable(entity.Position),
-        }
-    end,
-    cache = { strategy = "hash" },
-    triggers = { "MC_POST_NEW_ROOM" },
-})
-```
-
-如果是直接 API 查询（非实体搜索），定义 `CustomCollectors`：
-
-```lua
-function CustomCollectors.MY_SENSOR()
-    -- 直接 API 查询
-    return { value = someApiCall() }
-end
-```
-
-### 步骤 2: Python 端 — Pydantic Schema
-
-在 `protocol/schema.py` 中添加：
-
-```python
-class MySensorData(BaseModel):
-    id: int = Field(..., ge=0)
-    pos: Vector2D = Field(default_factory=Vector2D)
-
-    model_config = {"extra": "allow"}
-```
-
-### 步骤 3: Python 端 — Sensor 类
-
-在 `sensors/` 目录下创建或修改文件：
-
-```python
-# sensors/my_module.py
-from sensors.base import Sensor, SensorRegistry, ThrottleConfig
-from protocol.schema import MySensorData
-
-class MySensor(Sensor[list[MySensorData]]):
-    name = "MY_SENSOR"
-    throttle_config = ThrottleConfig(base_interval=1, dynamic=True)
-    produces_entities = True  # 如果输出实体
-
-    def parse(self, raw_data, frame):
-        if not isinstance(raw_data, list):
-            return None
-        return [MySensorData(**item) for item in raw_data if isinstance(item, dict)]
-
-SensorRegistry.register(MySensor())
-```
-
-### Sensor 采集频率说明
-
-| 策略 | 说明 |
-|------|------|
-| `partition` | 使用 EntityPartition 位掩码进行分区实体搜索（高效） |
-| `callback` | 仅通过游戏回调触发（如 MC_POST_NEW_ROOM） |
-| `hybrid` | 分区搜索 + 回调触发 |
-
-**节流模式：**
-
-| 模式 | 战斗 | 空闲 |
-|------|------|------|
-| HIGH | 每帧 | 15帧 |
-| LOW | 每30帧 | 30帧 |
-| RARE | 每90帧 | 90帧 |
-| callback-only | -1（禁用轮询） | -1 |
-
----
-
-## 架构参考
-
-### 数据流程
-
-```
-Lua MC_POST_UPDATE (30 tps)
-    │
-    ├─ SensorRegistry:collectAll()
-    │   ├─ _shouldCollect() → per-sensor frame counter + dynamic throttle
-    │   ├─ CustomCollector or searchEntities()
-    │   │   ├─ EntityPartition search (efficient)
-    │   │   └─ extract() per entity
-    │   ├─ hash cache check
-    │   └─ forcePending → include force-collected data
-    │
-    ├─ Protocol.createDataMessage()
-    │   └─ sensor metadata + payload + channels
-    │
-    └─ Network.send(json)
-            │
-            ▼ TCP :9527
-            │
-Python BridgeServer (asyncio)
-    │
-    ├─ JSON-line parse → dict
-    │
-    ├─ SocketBridge._handle_message()
-    │   ├─ EVENT → dispatch to callbacks
-    │   ├─ CMD → dispatch command_result
-    │   └─ DATA →
-    │       ├─ DataMessage.from_dict()
-    │       ├─ SensorRegistry.process_message()
-    │       │   └─ per-sensor: parse → validate → normalize
-    │       ├─ GameEntityStore.update_*()
-    │       │   └─ track identity across frames
-    │       └─ fire on_frame callbacks
-    │
-    └─ Apps receive typed data via Facade API
-```
-
-### Sensor 列表
-
-| Sensor | 搜索策略 | 节流 | 实体追踪 | 说明 |
-|--------|---------|------|---------|------|
-| `PLAYER_POSITION` | callback | 1帧 | — | 玩家位置、速度、朝向 |
-| `PLAYER_STATS` | callback | 30帧 | — | 伤害、速度、射程等 |
-| `PLAYER_HEALTH` | callback | 30帧 | — | 各种心之容器 |
-| `PLAYER_INVENTORY` | callback | 90帧 | — | 金币、炸弹、钥匙、收集品 |
-| `ENEMIES` | partition | 1/15帧 | ✅ | 敌人（战斗1帧/空闲15帧） |
-| `PROJECTILES` | partition | 1/15帧 | ✅ | 投射物、泪弹、激光 |
-| `ROOM_INFO` | callback | 15帧 | — | 房间类型、尺寸、敌人数量 |
-| `ROOM_LAYOUT` | callback | 仅回调 | — | 网格实体、门 |
-| `BOMBS` | partition | 15帧 | ✅ | 炸弹（类型、计时器） |
-| `FIRE_HAZARDS` | hybrid | 15帧 | — | 火焰危险物 |
-| `PICKUPS` | partition | 15帧 | ✅ | 可拾取物 |
-| `INTERACTABLES` | partition | 15帧 | — | 机器、乞丐等 |
-
-### 命令参考
-
-| 命令 | 参数 | 说明 |
-|------|------|------|
-| `CONFIGURE_SENSOR` | `{sensor, throttle, enabled}` | 运行时重配置 Sensor |
-| `LIST_SENSORS` | — | 列出所有 Sensor |
-| `SUBSCRIBE_SENSORS` | `{sensors: [...]}` | 订阅指定 Sensor |
-| `UNSUBSCRIBE_SENSORS` | `{sensors: [...]}` | 取消订阅 |
-| `EXEC_CONSOLE` | `{command}` | 执行控制台指令 |
-| `SET_CONTROL_MODE` | `{mode}` | 设置控制模式 (MANUAL/AUTO/FORCE_AI) |
-| `GET_FULL_STATE` | — | 请求完整状态快照 |
-
----
-
-## 相关文档
-
-- [DATA_PROTOCOL.md](python/DATA_PROTOCOL.md) — 数据协议详细文档
-- [CONSOLE_COMMANDS.md](python/CONSOLE_COMMANDS.md) — 控制台命令参考
-- [HUB_USAGE.md](python/HUB_USAGE.md) — Hub 模式启动与并行运行说明
-- [HUB_SENSOR_GUIDE.md](python/HUB_SENSOR_GUIDE.md) — Hub 模式下 Sensor 注册/订阅/重连规范
-- [docs/EID_TECHNICAL_REFERENCE.md](docs/EID_TECHNICAL_REFERENCE.md) — EID 技术参考
-- [docs/archivedDoc/KNOWN_GAME_ISSUES.md](docs/archivedDoc/KNOWN_GAME_ISSUES.md) — 已知游戏问题
-
----
-
-**最后更新：** 2026年4月
-**版本：** 3.0
+菜单启动仍会触发引擎自己的配置/持久数据写入，这个脚本不构成存档隔离运行器。

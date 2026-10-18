@@ -1,3 +1,5 @@
+> 历史方案：当前开发入口为 [v4 TypeScript 重构设计](docs/V4_DESIGN.md)。下文保留 v3 过程，不代表 v4 实现状态。
+
 # SocketBridge 重构规划文档
 
 > 版本: 3.0

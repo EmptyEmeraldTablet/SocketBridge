@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ESNext", "module": "ESNext", "moduleResolution": "node",
+    "lib": ["ESNext"], "strict": true, "skipLibCheck": true,
+    "outDir": "mod", "rootDir": "src", "types": []
+  },
+  "tstl": {
+    "luaTarget": "5.3", "luaBundle": "main.lua",
+    "luaBundleEntry": "src/runtime/bundleEntry.ts", "noHeader": true,
+    "noImplicitGlobalVariables": true, "luaLibImport": "require-minimal",
+    "luaPlugins": [{ "name": "./plugins/inlineIsaacEnums.cjs" }],
+    "noResolvePaths": ["json", "socket.core", "socketbridge_v4.config"]
+  },
+  "include": ["src/runtime/**/*.ts", "src/protocol/**/*.ts"]
+}

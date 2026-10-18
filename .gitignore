@@ -1,4 +1,8 @@
 # Python
+node_modules/
+mod/
+runs/
+.deploy-backups/
 __pycache__/
 *.py[cod]
 *$py.class

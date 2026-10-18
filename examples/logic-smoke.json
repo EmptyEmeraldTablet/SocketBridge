@@ -1,0 +1,14 @@
+{
+  "id": "runtime-observation-and-step",
+  "requires": { "inGame": true },
+  "steps": [
+    { "id": "identity", "op": "command", "method": "runtime.describe" },
+    { "op": "assert", "path": "identity.result.repentogon", "equals": true },
+    { "op": "command", "method": "runtime.pause" },
+    { "id": "before", "op": "snapshot", "sensors": ["players", "room", "pickups"] },
+    { "op": "assert", "path": "before.complete", "equals": true },
+    { "op": "step", "ticks": 3 },
+    { "id": "after", "op": "snapshot", "sensors": ["players", "room", "pickups"] },
+    { "op": "assert", "actual": { "$ref": "after.updateTick" }, "deltaFrom": { "$ref": "before.updateTick" }, "equals": 3 }
+  ]
+}
